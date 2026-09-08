@@ -2132,42 +2132,171 @@ export class RoadSegment {
 
   private addRoadsideBuildings(roadBoundaryX: number, segLength: number): void {
     // Only place on open highway segments (skip bridge and tunnel)
-    if (this.isBridge || this.isTunnel) return;
+    if (this.isBridge || this.isTunnel) {
+      if (this.isBridge) {
+        this.addBridgeDistantSkyline(segLength);
+      }
+      return;
+    }
     if (!cityPackManager.hasBuildings) return;
 
-    // Spaced intervals: place 1 lightweight Kenney building every 2nd segment, alternating sides
-    // Segment 0: Right side (visible at race start)
-    // Segment 2: Left side
-    // Segment 4: Right side
-    // Segment 6: Left side
-    if (this.segmentIndex % 2 !== 0) return;
+    const seed = Math.abs(this.segmentIndex);
+    const padMat = RoadSegment.sidewalkMaterial || new THREE.MeshStandardMaterial({ color: 0x4a4e56, roughness: 0.85 });
 
-    const isRight = (this.segmentIndex / 2) % 2 === 0;
-    const z = segLength * 0.45;
+    // ==========================================
+    // 1. LAYER 1: FOREGROUND COMMERCIAL PLAZAS (Setback 16.5m - 20m)
+    // ==========================================
 
-    if (isRight) {
-      const rightX = roadBoundaryX + 15.0;
-      const bldg = cityPackManager.createBuildingInstance('building-a', { facingRoad: 'right' });
-      if (bldg) {
-        bldg.position.set(rightX, 0, z);
-        this.sceneryGroup.add(bldg);
-      }
-    } else {
-      const leftX = -(roadBoundaryX + 15.0);
-      const bldg = cityPackManager.createBuildingInstance('building-a', { facingRoad: 'left' });
-      if (bldg) {
-        bldg.position.set(leftX, 0, z);
-        this.sceneryGroup.add(bldg);
-      }
+    // LEFT SIDE: 2 Commercial buildings with concrete plaza pads
+    const leftZ1 = segLength * 0.24;
+    const leftX1 = -(roadBoundaryX + 17.0);
+    const bldgLeft1 = cityPackManager.createBuildingInstance(undefined, {
+      category: 'commercial',
+      facingRoad: 'left',
+      seed: seed * 19 + 1,
+    });
+    if (bldgLeft1) {
+      bldgLeft1.position.set(leftX1, 0, leftZ1);
+      this.sceneryGroup.add(bldgLeft1);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(22, 0.16, 22), padMat);
+      pad.name = 'PlazaPad_L1';
+      pad.position.set(leftX1, 0.08, leftZ1);
+      pad.receiveShadow = false;
+      this.sceneryGroup.add(pad);
+    }
+
+    const leftZ2 = segLength * 0.74;
+    const leftX2 = -(roadBoundaryX + 18.5);
+    const bldgLeft2 = cityPackManager.createBuildingInstance(undefined, {
+      category: 'commercial',
+      facingRoad: 'left',
+      seed: seed * 19 + 2,
+    });
+    if (bldgLeft2) {
+      bldgLeft2.position.set(leftX2, 0, leftZ2);
+      this.sceneryGroup.add(bldgLeft2);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(22, 0.16, 22), padMat);
+      pad.name = 'PlazaPad_L2';
+      pad.position.set(leftX2, 0.08, leftZ2);
+      pad.receiveShadow = false;
+      this.sceneryGroup.add(pad);
+    }
+
+    // RIGHT SIDE: 2 Commercial buildings with concrete plaza pads
+    const rightZ1 = segLength * 0.28;
+    const rightX1 = roadBoundaryX + 17.0;
+    const bldgRight1 = cityPackManager.createBuildingInstance(undefined, {
+      category: 'commercial',
+      facingRoad: 'right',
+      seed: seed * 23 + 3,
+    });
+    if (bldgRight1) {
+      bldgRight1.position.set(rightX1, 0, rightZ1);
+      this.sceneryGroup.add(bldgRight1);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(22, 0.16, 22), padMat);
+      pad.name = 'PlazaPad_R1';
+      pad.position.set(rightX1, 0.08, rightZ1);
+      pad.receiveShadow = false;
+      this.sceneryGroup.add(pad);
+    }
+
+    const rightZ2 = segLength * 0.78;
+    const rightX2 = roadBoundaryX + 18.5;
+    const bldgRight2 = cityPackManager.createBuildingInstance(undefined, {
+      category: 'commercial',
+      facingRoad: 'right',
+      seed: seed * 23 + 4,
+    });
+    if (bldgRight2) {
+      bldgRight2.position.set(rightX2, 0, rightZ2);
+      this.sceneryGroup.add(bldgRight2);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(22, 0.16, 22), padMat);
+      pad.name = 'PlazaPad_R2';
+      pad.position.set(rightX2, 0.08, rightZ2);
+      pad.receiveShadow = false;
+      this.sceneryGroup.add(pad);
+    }
+
+    // ==========================================
+    // 2. LAYER 2: SKYSCRAPER TOWERS & BACKGROUND CITY BLOCKS (Setback 42m - 62m)
+    // ==========================================
+    const isEven = seed % 2 === 0;
+
+    // Towering skyscraper (50-80 meters tall) on one side
+    const towerX = isEven ? (roadBoundaryX + 44.0) : -(roadBoundaryX + 44.0);
+    const towerFacing = isEven ? 'right' : 'left';
+    const skyscraper = cityPackManager.createBuildingInstance(undefined, {
+      category: 'skyscraper',
+      facingRoad: towerFacing,
+      scaleMult: 1.18,
+      seed: seed * 31 + 5,
+    });
+    if (skyscraper) {
+      skyscraper.position.set(towerX, 0, segLength * 0.48);
+      this.sceneryGroup.add(skyscraper);
+    }
+
+    // Background urban block on the opposite side
+    const bgX = isEven ? -(roadBoundaryX + 52.0) : (roadBoundaryX + 52.0);
+    const bgFacing = isEven ? 'left' : 'right';
+    const bgBlock = cityPackManager.createBuildingInstance(undefined, {
+      category: 'background',
+      facingRoad: bgFacing,
+      scaleMult: 1.25,
+      seed: seed * 37 + 7,
+    });
+    if (bgBlock) {
+      bgBlock.position.set(bgX, 0, segLength * 0.52);
+      this.sceneryGroup.add(bgBlock);
+    }
+  }
+
+  private addBridgeDistantSkyline(segLength: number): void {
+    if (!cityPackManager.hasBuildings) return;
+    const seed = Math.abs(this.segmentIndex);
+
+    // Distant coastal skyline across the Bosphorus waters (Europe & Asia coastlines)
+    // Placed far out (X = ±135m to ±150m), grounded at sea level (Y = -15.5m)
+    const leftSkylineX = -135.0;
+    const leftTower = cityPackManager.createBuildingInstance(undefined, {
+      category: 'skyscraper',
+      facingRoad: 'right',
+      scaleMult: 1.6,
+      seed: seed * 41 + 1,
+    });
+    if (leftTower) {
+      leftTower.position.set(leftSkylineX, -15.5, segLength * 0.35);
+      this.sceneryGroup.add(leftTower);
+    }
+
+    const rightSkylineX = 135.0;
+    const rightTower = cityPackManager.createBuildingInstance(undefined, {
+      category: 'skyscraper',
+      facingRoad: 'left',
+      scaleMult: 1.6,
+      seed: seed * 43 + 2,
+    });
+    if (rightTower) {
+      rightTower.position.set(rightSkylineX, -15.5, segLength * 0.65);
+      this.sceneryGroup.add(rightTower);
     }
   }
 
   public rebuildScenery(): void {
     if (this.isBridge) {
       this.rebuildShip();
+      const hasSkyline = this.sceneryGroup.children.some((c) => c.name.startsWith('Building_'));
+      if (!hasSkyline) {
+        this.addBridgeDistantSkyline(this.length);
+      }
       return;
     }
-    // If building is not placed yet (e.g. loaded asynchronously), add it without touching other scenery
+
+    // If buildings are not placed yet (e.g. loaded asynchronously), add them
     const hasBldg = this.sceneryGroup.children.some((c) => c.name.startsWith('Building_'));
     if (!hasBldg) {
       const totalRoadWidth = laneSystem.getTotalRoadWidth();
