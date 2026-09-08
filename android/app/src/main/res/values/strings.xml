@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Traffic Racer</string>
+    <string name="title_activity_main">Traffic Racer</string>
+    <string name="package_name">com.trafficracer.game</string>
+    <string name="custom_url_scheme">com.trafficracer.game</string>
+</resources>

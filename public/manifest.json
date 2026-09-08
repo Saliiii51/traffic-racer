@@ -1,0 +1,58 @@
+{
+  "id": "/",
+  "name": "TRAFFIC RUSH: İSTANBUL",
+  "short_name": "TrafficRush",
+  "description": "3D Endless Highway Racing in Istanbul with realistic Turkish cars, cockpit views and dynamic traffic",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "categories": ["games", "sports", "entertainment"],
+  "lang": "tr",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screen1.jpg",
+      "sizes": "1280x640",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Tofaş Doğan SLX Turbo Highway Racing"
+    },
+    {
+      "src": "/screenshots/screen2.jpg",
+      "sizes": "1280x640",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Tofaş Doğan SLX Cockpit View"
+    }
+  ]
+}

@@ -1,0 +1,3405 @@
+/* ==========================================================================
+   TRAFFIC RUSH - Master Stylesheet
+   Mobile-First 3D Arcade Racing UI
+   ========================================================================== */
+
+:root {
+  --primary-glow: #00f0ff;
+  --secondary-glow: #ff0055;
+  --accent-gold: #ffbe0b;
+  --nitro-cyan: #00f5d4;
+  --dark-bg: rgba(13, 17, 23, 0.88);
+  --glass-bg: rgba(22, 27, 34, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --font-display: 'Orbitron', -apple-system, sans-serif;
+  --font-ui: 'Rajdhani', -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+::selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b0f19;
+  font-family: var(--font-ui);
+  color: #ffffff;
+  touch-action: none;
+}
+
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+}
+
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  font-family: var(--font-ui);
+}
+
+.ui-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ui-screen.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ui-screen:not(.active),
+.ui-screen:not(.active) * {
+  pointer-events: none !important;
+}
+
+/* ==========================================================================
+   LOADING SCREEN
+   ========================================================================== */
+#screen-loading {
+  background: radial-gradient(circle at center, #0e1726 0%, #060911 100%);
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 480px;
+  width: 90%;
+  padding: 30px 20px;
+}
+
+.loading-logo-box {
+  margin-bottom: 25px;
+}
+
+.pulse-anim {
+  animation: logoPulse 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes logoPulse {
+  0% {
+    filter: drop-shadow(0 0 15px rgba(0, 240, 255, 0.45));
+    transform: scale(0.99);
+  }
+  100% {
+    filter: drop-shadow(0 0 35px rgba(0, 240, 255, 0.85));
+    transform: scale(1.01);
+  }
+}
+
+.loading-vehicle-icon {
+  margin-bottom: 25px;
+  animation: vehicleBob 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes vehicleBob {
+  0% {
+    transform: translateY(-4px) scale(0.98);
+  }
+  100% {
+    transform: translateY(4px) scale(1.02);
+  }
+}
+
+.loading-bar-wrapper {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.loading-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.loading-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #0077b6 0%, #00f0ff 70%, #ffffff 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.9);
+  transition: width 0.25s ease;
+}
+
+.loading-status {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  color: #00f0ff;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+/* ==========================================================================
+   BUTTONS & COMMON COMPONENTS
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.2s ease;
+  pointer-events: auto;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00f0ff 0%, #0077b6 100%);
+  color: #04131f;
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.4);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 28px rgba(0, 240, 255, 0.65);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #ff007f 0%, #d90429 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(255, 0, 127, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
+  color: #1a1001;
+  box-shadow: 0 4px 20px rgba(255, 183, 3, 0.4);
+}
+
+/* Glass panel */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   MAIN MENU SCREEN
+   ========================================================================== */
+
+#screen-menu {
+  justify-content: center;
+  align-items: center;
+  padding: max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: radial-gradient(circle at center, rgba(13, 27, 42, 0.3) 0%, rgba(5, 8, 15, 0.88) 100%);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.menu-header {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.currency-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 190, 11, 0.4);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.level-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-glow);
+}
+
+.menu-title-area {
+  text-align: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.game-logo {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #ffffff 0%, #00f0ff 50%, #0072ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.5));
+  line-height: 1.05;
+}
+
+.game-sub {
+  font-size: 0.85rem;
+  letter-spacing: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.menu-records {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+.record-box {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 3px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-glow);
+  text-align: left;
+}
+
+.record-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.record-val {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.menu-play-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.btn-play-main {
+  font-size: 1.05rem;
+  font-weight: 900;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #00f0ff 0%, #0072ff 100%);
+  border: 1.5px solid #00f0ff;
+  color: #060b18;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-play-main:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(0, 240, 255, 0.75);
+}
+
+.btn-multiplayer-main {
+  font-size: 1.05rem;
+  font-weight: 900;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff007f 0%, #b5179e 100%);
+  border: 1.5px solid #ff007f;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 20px rgba(255, 0, 127, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-multiplayer-main:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(255, 0, 127, 0.85);
+}
+
+.btn-play-main:active,
+.btn-multiplayer-main:active {
+  transform: scale(0.97);
+}
+
+.btn-play-big {
+  font-size: 1.5rem;
+  padding: 16px 20px;
+  border-radius: 12px;
+}
+
+.menu-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.menu-controls-hint {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.menu-controls-hint span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menu-controls-hint b {
+  color: var(--primary-glow);
+}
+
+.menu-footer {
+  display: flex;
+  gap: 16px;
+  margin-top: auto;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  font-size: 1.2rem;
+}
+
+/* ==========================================================================
+   IN-GAME HUD
+   ========================================================================== */
+
+#screen-hud {
+  pointer-events: none;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.hud-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.hud-stat-box {
+  background: rgba(10, 14, 22, 0.75);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 12px;
+}
+
+.hud-stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+}
+
+.hud-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.hud-center-distance {
+  text-align: center;
+}
+
+.hud-center-distance .hud-stat-value {
+  font-size: 1.8rem;
+  color: var(--primary-glow);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+}
+
+.hud-pause-btn {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Speedometer & Nitro */
+.hud-telemetry {
+  position: absolute;
+  top: 85px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* HUD Turn Signals (Sinyaller) */
+.hud-turn-signals {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 140px;
+  background: rgba(10, 14, 22, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 4px 12px;
+  box-sizing: border-box;
+}
+
+.hud-signal-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 1.3rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: all 0.12s ease;
+}
+
+.hud-signal-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hud-signal-btn.blink-on {
+  color: #00f5d4;
+  text-shadow: 0 0 12px #00f5d4, 0 0 22px #00f5d4;
+  transform: scale(1.18);
+}
+
+.hud-signal-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.touch-btn-signal {
+  width: 62px;
+  height: 62px;
+  background: rgba(0, 245, 212, 0.15);
+  border: 2px solid #00f5d4;
+  box-shadow: 0 0 10px rgba(0, 245, 212, 0.25);
+  font-size: 1.2rem;
+  color: #00f5d4;
+}
+
+.touch-btn-signal:active,
+.touch-btn-signal.pressed {
+  background: #00f5d4;
+  color: #000;
+  transform: scale(0.92);
+}
+
+.speedometer-card {
+  background: rgba(10, 14, 22, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 14px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.speed-number {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.speed-unit {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary-glow);
+}
+
+.nitro-gauge-wrap {
+  width: 140px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 245, 212, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.nitro-gauge-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #00b4d8, #00f5d4);
+  box-shadow: 0 0 10px #00f5d4;
+  transition: width 0.08s linear;
+}
+
+/* Vehicle Health / Durability Gauge */
+.health-gauge-wrap {
+  width: 140px;
+  background: rgba(10, 14, 22, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 5px 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+}
+
+.health-gauge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.5px;
+}
+
+.health-val {
+  color: #00f59b;
+  font-weight: 900;
+  transition: color 0.3s ease;
+}
+
+.health-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.health-gauge-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #00f59b, #00d2ff);
+  border-radius: 4px;
+  transition: width 0.22s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 245, 155, 0.5);
+}
+
+.health-gauge-fill.warning {
+  background: linear-gradient(90deg, #ffbe0b, #fb5607);
+  box-shadow: 0 0 12px rgba(251, 86, 7, 0.65);
+}
+
+.health-gauge-fill.danger {
+  background: linear-gradient(90deg, #ff0055, #ff5400);
+  box-shadow: 0 0 16px rgba(255, 0, 85, 0.9);
+  animation: healthDangerBlink 0.4s infinite alternate;
+}
+
+@keyframes healthDangerBlink {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Near Miss Notification Popup - Frameless pure text */
+#near-miss-banner {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+  z-index: 20;
+}
+
+#near-miss-banner.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.near-miss-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.3rem);
+  font-weight: 900;
+  font-style: italic;
+  color: var(--accent-gold);
+  letter-spacing: 2px;
+  text-shadow: 0 0 22px rgba(255, 190, 11, 0.9), 0 3px 10px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.9);
+  line-height: 1.1;
+}
+
+.near-miss-bonus,
+.nearMissBonus {
+  font-family: var(--font-ui);
+  font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+}
+
+/* EDS Speed Radar Flash Banner - High-tech Top-Right Radar Alert Card */
+#eds-radar-banner {
+  position: absolute;
+  top: 64px;
+  right: 20px;
+  left: auto;
+  transform: translateX(35px) scale(0.85);
+  background: linear-gradient(135deg, rgba(6, 20, 36, 0.94), rgba(2, 10, 22, 0.96));
+  border: 1.5px solid #00f0ff;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.75), 0 0 20px rgba(0, 240, 255, 0.45);
+  border-radius: 14px;
+  padding: 6px 14px;
+  text-align: right;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 25;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#eds-radar-banner.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0) scale(1);
+  animation: edsRadarPulse 0.5s infinite alternate ease-in-out;
+}
+
+@keyframes edsRadarPulse {
+  0% {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.75), 0 0 14px rgba(0, 240, 255, 0.35);
+    border-color: rgba(0, 240, 255, 0.7);
+  }
+  100% {
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 240, 255, 0.75);
+    border-color: #00f0ff;
+  }
+}
+
+.eds-flash-title {
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #00f0ff;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+  white-space: nowrap;
+}
+
+.eds-flash-speed {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 900;
+  font-style: italic;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.95);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* Scrape & Bump Jolt Warning Banner - Frameless pure text */
+#scrape-jolt-banner {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.16s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 26;
+}
+
+#scrape-jolt-banner.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.scrape-jolt-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.5vw, 1.85rem);
+  font-weight: 900;
+  font-style: italic;
+  color: #ffaa00;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 25px rgba(255, 110, 0, 0.95), 0 3px 10px rgba(0, 0, 0, 0.95);
+}
+
+.scrape-jolt-sub {
+  font-family: var(--font-ui);
+  font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 12px rgba(255, 200, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+/* Mobile Virtual Touch Controls */
+.mobile-controls-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  pointer-events: none;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  box-sizing: border-box;
+  z-index: 30;
+}
+
+.touch-cluster-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+  align-items: flex-start;
+}
+
+.touch-aux-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(10, 14, 22, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 8px;
+  border-radius: 24px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.touch-steer-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.touch-cluster-right {
+  display: flex;
+  gap: 12px;
+  pointer-events: auto;
+  align-items: flex-end;
+}
+
+.touch-pedal-aux {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.touch-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(22, 27, 34, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 2px solid var(--glass-border);
+  color: #ffffff;
+  font-size: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  touch-action: none !important;
+  transition: transform 0.08s ease, background 0.08s ease, border-color 0.08s ease;
+}
+
+/* Ensure inner icons and labels never steal or leak pointer events or trigger selection */
+.touch-btn *,
+.touch-sublabel {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.touch-btn:active,
+.touch-btn.pressed {
+  transform: scale(0.92);
+  background: rgba(0, 240, 255, 0.35);
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+}
+
+.touch-btn-gas {
+  width: 72px;
+  height: 78px;
+  border-radius: 22px;
+  border-color: rgba(0, 240, 255, 0.6);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.25), rgba(0, 119, 182, 0.25));
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+}
+
+.touch-btn-gas:active,
+.touch-btn-gas.pressed {
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.55), rgba(0, 119, 182, 0.55));
+  border-color: #00f0ff;
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.65);
+}
+
+.touch-btn-brake {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  border-color: rgba(255, 0, 85, 0.55);
+  background: rgba(255, 0, 85, 0.18);
+  box-shadow: 0 0 12px rgba(255, 0, 85, 0.25);
+}
+
+.touch-btn-brake:active,
+.touch-btn-brake.pressed {
+  background: rgba(255, 0, 85, 0.55);
+  border-color: #ff0055;
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.65);
+}
+
+.touch-btn-nitro {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--nitro-cyan);
+  background: rgba(0, 245, 212, 0.18);
+  box-shadow: 0 0 14px rgba(0, 245, 212, 0.3);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--nitro-cyan);
+}
+
+.touch-btn-nitro:active,
+.touch-btn-nitro.pressed {
+  background: var(--nitro-cyan);
+  color: #000000;
+  box-shadow: 0 0 24px rgba(0, 245, 212, 0.7);
+}
+
+/* Enlarged Steering Buttons for Left Thumb */
+.touch-btn-steer {
+  width: 78px;
+  height: 78px;
+  border-radius: 22px;
+  font-size: 1.65rem;
+  background: rgba(18, 24, 38, 0.82);
+  border: 2px solid rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.18);
+}
+
+.touch-btn-steer:active,
+.touch-btn-steer.pressed {
+  transform: scale(0.92);
+  background: rgba(0, 240, 255, 0.45);
+  border-color: #00f0ff;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.65);
+}
+
+.touch-btn-steer .touch-sublabel {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #00f0ff;
+}
+
+/* Auxiliary Buttons nested directly above Steering */
+.touch-aux-row .touch-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.15rem;
+  border-radius: 50%;
+  border-width: 1.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Explicitly hide any text labels in auxiliary buttons to prevent text collisions */
+.touch-aux-row .touch-sublabel {
+  display: none !important;
+}
+
+.touch-aux-row .touch-btn-signal {
+  width: 38px;
+  height: 38px;
+  font-size: 1.05rem;
+  color: #00f5d4;
+  background: rgba(0, 245, 212, 0.14);
+  border-color: rgba(0, 245, 212, 0.5);
+}
+
+.touch-aux-row .touch-btn-signal:active,
+.touch-aux-row .touch-btn-signal.pressed {
+  color: #000;
+  background: #00f5d4;
+  box-shadow: 0 0 16px rgba(0, 245, 212, 0.8);
+}
+
+.touch-aux-row .touch-btn-horn {
+  width: 42px;
+  height: 42px;
+  font-size: 1.2rem;
+  color: #ffb703;
+  background: rgba(255, 183, 3, 0.16);
+  border-color: rgba(255, 183, 3, 0.5);
+}
+
+.touch-aux-row .touch-btn-horn:active,
+.touch-aux-row .touch-btn-horn.pressed {
+  color: #000;
+  background: #ffb703;
+  box-shadow: 0 0 16px rgba(255, 183, 3, 0.8);
+}
+
+.touch-aux-row .touch-btn-flash {
+  width: 42px;
+  height: 42px;
+  font-size: 1.2rem;
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.16);
+  border-color: rgba(0, 240, 255, 0.5);
+}
+
+.touch-aux-row .touch-btn-flash:active,
+.touch-aux-row .touch-btn-flash.pressed {
+  color: #000;
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.95);
+}
+
+.touch-sublabel {
+  font-size: 0.58rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+
+/* ==========================================================================
+   GAME OVER MODAL
+   ========================================================================== */
+
+#screen-gameover {
+  justify-content: center;
+  align-items: center;
+  background: rgba(6, 9, 15, 0.88);
+  backdrop-filter: blur(16px);
+  padding: clamp(8px, 2vh, 16px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gameover-card {
+  width: 100%;
+  max-width: 620px;
+  max-height: 94vh;
+  padding: 14px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: auto;
+  box-sizing: border-box;
+}
+
+.gameover-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.crash-header {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.8vw, 2.2rem);
+  font-weight: 900;
+  font-style: italic;
+  color: #ff0055;
+  letter-spacing: 2px;
+  text-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.new-record-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #ff007f, #7928ca);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  animation: pulseBadge 1.2s infinite alternate;
+}
+
+@keyframes pulseBadge {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  100% { transform: scale(1.05); opacity: 1; }
+}
+
+.gameover-body-split {
+  display: grid;
+  grid-template-columns: 1.1fr 1.15fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.gameover-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0;
+}
+
+.go-stat-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  padding: 6px 8px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.go-stat-label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.go-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.gameover-actions-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.go-stat-item.highlight-earnings {
+  border-color: var(--accent-gold);
+  background: rgba(255, 190, 11, 0.12);
+  padding: 6px 8px;
+  margin: 0;
+}
+
+.go-stat-item.highlight-earnings .go-stat-label {
+  color: rgba(255, 190, 11, 0.85);
+  font-weight: 700;
+}
+
+.go-stat-item.highlight-earnings .go-stat-val {
+  color: var(--accent-gold);
+  font-size: 1.4rem;
+  text-shadow: 0 0 10px rgba(255, 190, 11, 0.4);
+}
+
+.gameover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gameover-actions #btn-restart {
+  padding: 9px 14px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.gameover-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.gameover-actions-row .btn {
+  padding: 7px 8px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .gameover-body-split {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+
+/* ==========================================================================
+   GARAGE & SHOP MODAL
+   ========================================================================== */
+
+#screen-shop,
+#screen-missions {
+  padding: 24px;
+  background: radial-gradient(circle at center, rgba(13, 27, 42, 0.9) 0%, rgba(5, 8, 15, 0.96) 100%);
+  overflow-y: auto;
+}
+
+#screen-garage {
+  padding: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0) 45%, rgba(5, 10, 20, 0.78) 100%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+/* Floating Garage Top Bar */
+.garage-top-bar {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.garage-title-wrap {
+  text-align: center;
+}
+
+.garage-rotate-hint {
+  font-size: 0.76rem;
+  color: #00f5d4;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 2px;
+  text-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
+  animation: pulseHint 2s infinite alternate ease-in-out;
+}
+
+@keyframes pulseHint {
+  0% { opacity: 0.7; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* Left Showcase Zone: Completely transparent, click-through for 3D turntable dragging */
+.garage-showcase-zone {
+  flex: 1;
+  height: 100%;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.garage-showcase-zone:active {
+  cursor: grabbing;
+}
+
+/* Right Side Customization Sidebar */
+.garage-sidebar {
+  width: 440px;
+  max-width: 44vw;
+  height: 100vh;
+  background: rgba(10, 16, 28, 0.84);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.65);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 85px 20px 45px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+/* Sleek custom scrollbar for garage sidebar */
+.garage-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.garage-sidebar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.garage-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.35);
+  border-radius: 4px;
+}
+.garage-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #00f5d4;
+}
+
+.garage-panel-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.garage-card-title {
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 900px;
+  margin: 0 auto 20px auto;
+  width: 100%;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+
+.garage-content {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.vehicle-carousel-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+}
+
+.vehicle-nav-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.vehicle-meta {
+  text-align: center;
+}
+
+.vehicle-name {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-glow);
+}
+
+.vehicle-category {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 2px;
+}
+
+.stat-bars-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.stat-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-bar-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stat-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0077b6, #00f0ff);
+  border-radius: 5px;
+}
+
+.upgrades-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.upgrade-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-border);
+  padding: 12px 16px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.upgrade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.upgrade-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.upgrade-level-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.level-dot {
+  width: 12px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.level-dot.active {
+  background: var(--primary-glow);
+  box-shadow: 0 0 6px var(--primary-glow);
+}
+
+.color-picker-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.color-swatch.active {
+  transform: scale(1.25);
+  box-shadow: 0 0 12px #ffffff;
+}
+
+/* Missions Screen */
+.missions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mission-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+}
+
+.mission-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  margin-right: 20px;
+}
+
+.mission-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mission-desc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.mission-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.mission-progress-fill {
+  height: 100%;
+  background: var(--accent-gold);
+  border-radius: 4px;
+}
+
+/* Selector Pills in Menu */
+.selector-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.selector-label {
+  font-size: 0.8rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.pill-selector-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--glass-border);
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.choice-pill {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 0.8rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.choice-pill:hover {
+  color: #fff;
+}
+
+.choice-pill.active {
+  background: linear-gradient(135deg, var(--primary-glow), #0077b6);
+  color: #04131f;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+}
+
+.choice-pill.active-mode {
+  background: linear-gradient(135deg, #ff007f, #d90429);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 0, 127, 0.5);
+}
+
+/* HUD Camera & Controls */
+.hud-camera-btn {
+  pointer-events: auto;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--glass-border);
+  color: var(--primary-glow);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-camera-btn:active {
+  transform: scale(0.95);
+}
+
+/* Time Attack Timer Card */
+#hud-timer-card {
+  display: none;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid rgba(255, 183, 3, 0.4);
+  padding: 6px 14px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+#hud-timer-card.warning {
+  border-color: #ff0055;
+  box-shadow: 0 0 16px rgba(255, 0, 85, 0.7);
+  animation: timerWarningPulse 0.5s infinite alternate;
+}
+
+@keyframes timerWarningPulse {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.08); }
+}
+
+.hud-timer-val {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+}
+
+#hud-timer-card.warning .hud-timer-val {
+  color: #ff0055;
+}
+
+/* Wrong Way Alert Banner - Sleek HUD Pill Badge (positioned safely below top stats) */
+#wrong-way-banner {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.85);
+  background: rgba(16, 0, 8, 0.88);
+  border: 1.5px solid #ff0055;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 16px rgba(255, 0, 85, 0.45);
+  border-radius: 20px;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 25;
+}
+
+#wrong-way-banner.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1.0);
+  animation: wrongWayPillPulse 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes wrongWayPillPulse {
+  0% {
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 12px rgba(255, 0, 85, 0.35);
+    border-color: rgba(255, 0, 85, 0.7);
+  }
+  100% {
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.85), 0 0 24px rgba(255, 0, 85, 0.8);
+    border-color: #ff0055;
+  }
+}
+
+.wrong-way-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 900;
+  font-style: italic;
+  color: #ff0055;
+  letter-spacing: 1px;
+  text-shadow: 0 0 12px rgba(255, 0, 85, 0.85);
+  display: inline-flex;
+  align-items: center;
+}
+
+.wrong-way-sub {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ffbe0b;
+  text-shadow: 0 0 10px rgba(255, 190, 11, 0.7);
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  padding-left: 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Time bonus popup */
+#time-bonus-popup {
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #00f5d4;
+  text-shadow: 0 0 15px #00f5d4;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+  z-index: 22;
+}
+
+#time-bonus-popup.show {
+  opacity: 1;
+  transform: translate(-50%, -85%);
+}
+
+/* Gyroscope toggle in menu & hud */
+.control-type-pill {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* When Idle Cinematic Camera is active, completely hide ALL HUD gameplay elements */
+#screen-hud.cinematic-idle-active .hud-top-bar,
+#screen-hud.cinematic-idle-active .hud-telemetry,
+#screen-hud.cinematic-idle-active .mobile-controls-container,
+#screen-hud.cinematic-idle-active #wrong-way-banner,
+#screen-hud.cinematic-idle-active #near-miss-banner,
+#screen-hud.cinematic-idle-active #eds-radar-banner,
+#screen-hud.cinematic-idle-active #scrape-jolt-banner,
+#screen-hud.cinematic-idle-active #time-bonus-popup {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transition: opacity 0.35s ease, visibility 0.35s ease !important;
+}
+
+/* Idle Inactive Cinematic Camera Banner - Minimalist floating prompt */
+.hud-idle-cam-banner {
+  position: absolute;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(14px);
+  background: rgba(8, 14, 24, 0.85);
+  border: 1.5px solid rgba(0, 240, 255, 0.5);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.75), 0 0 18px rgba(0, 240, 255, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 8px 24px;
+  border-radius: 30px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0.35s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.hud-idle-cam-banner.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.hud-idle-cam-banner .idle-cam-touch-icon {
+  font-size: 1.15rem;
+  animation: pulseTouchHand 1.6s infinite ease-in-out;
+}
+
+.hud-idle-cam-banner .idle-cam-touch-text {
+  font-family: var(--font-ui, 'Rajdhani', sans-serif);
+  font-size: clamp(0.88rem, 2.2vw, 1.05rem);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 240, 255, 0.6);
+}
+
+@keyframes pulseTouchHand {
+  0%, 100% { transform: scale(1.0); }
+  50% { transform: scale(1.22) translateY(-2px); }
+}
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE ADAPTATIONS
+   ========================================================================== */
+
+/* Universal mobile touch feel */
+button, .btn, .choice-pill, .touch-btn, .icon-btn, .control-type-pill {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 1. Mobile Portrait & Tablets (width <= 768px) */
+@media (max-width: 768px) {
+  #screen-menu {
+    padding: max(14px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
+    gap: 12px;
+    justify-content: flex-start;
+  }
+
+  .menu-header {
+    margin-bottom: 2px;
+  }
+
+  .currency-badge,
+  .level-badge {
+    padding: 5px 12px;
+    font-size: 0.95rem;
+  }
+
+  .game-logo {
+    font-size: clamp(2.1rem, 7.5vw, 3.4rem);
+    letter-spacing: 2px;
+    line-height: 1.08;
+  }
+
+  .game-sub {
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  .menu-records {
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .record-box {
+    padding: 5px 12px;
+    border-radius: 8px;
+  }
+
+  .record-label {
+    font-size: 0.72rem;
+  }
+
+  .record-val {
+    font-size: 1.15rem;
+  }
+
+  .menu-actions {
+    max-width: 100%;
+    gap: 10px;
+  }
+
+  .selector-group .selector-label {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+
+  #menu-mode-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  #menu-env-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .choice-pill {
+    padding: 9px 4px;
+    font-size: 0.8rem;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-play-big {
+    font-size: 1.35rem;
+    padding: 15px 18px;
+    border-radius: 14px;
+    margin-top: 2px;
+  }
+
+  .menu-btn-row {
+    gap: 10px;
+  }
+
+  .menu-btn-row .btn {
+    padding: 12px 10px;
+    font-size: 0.95rem;
+  }
+
+  /* Keyboard hints are unnecessary on touchscreens and take up too much vertical space */
+  .menu-controls-hint {
+    display: none !important;
+  }
+
+  .menu-footer {
+    margin-top: 8px;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15rem;
+  }
+
+  .control-type-pill {
+    padding: 7px 14px;
+    font-size: 0.88rem;
+  }
+
+  /* In-game HUD touch buttons */
+  #screen-hud {
+    padding: max(8px, env(safe-area-inset-top)) 12px 0 12px;
+  }
+
+  .hud-telemetry {
+    top: 68px;
+    left: 12px;
+    transform: scale(0.82);
+    transform-origin: top left;
+  }
+
+  .mobile-controls-container {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .touch-btn {
+    width: 62px;
+    height: 62px;
+    font-size: 1.4rem;
+  }
+
+  .touch-btn-gas {
+    width: 66px;
+    height: 72px;
+  }
+
+  .touch-btn-brake {
+    width: 60px;
+    height: 60px;
+  }
+
+  .touch-btn-nitro {
+    width: 52px;
+    height: 52px;
+    font-size: 0.95rem;
+  }
+
+  .touch-aux-row {
+    padding: 3px 6px;
+    gap: 5px;
+  }
+
+  .touch-aux-row .touch-sublabel {
+    display: none !important;
+  }
+
+  .touch-aux-row .touch-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .speed-number {
+    font-size: 2.1rem;
+  }
+}
+
+/* 2. Mobile Landscape Mode (height <= 520px) - Side-by-side dashboard layout */
+@media (max-height: 520px) and (orientation: landscape) {
+  #screen-menu {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    grid-template-rows: auto 1fr;
+    padding: max(8px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    gap: 6px 20px;
+    align-items: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .menu-header {
+    grid-column: span 2;
+    margin-bottom: 0;
+    padding: 0 4px;
+  }
+
+  .currency-badge,
+  .level-badge {
+    padding: 3px 10px;
+    font-size: 0.88rem;
+  }
+
+  .menu-title-area {
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .game-logo {
+    font-size: clamp(1.8rem, 4.5vw, 2.7rem);
+    letter-spacing: 2px;
+    line-height: 1.05;
+  }
+
+  .game-sub {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    margin-top: 1px;
+  }
+
+  .menu-records {
+    margin-top: 6px;
+    gap: 8px;
+  }
+
+  .record-box {
+    padding: 3px 10px;
+  }
+
+  .record-val {
+    font-size: 1.0rem;
+  }
+
+  .menu-footer {
+    grid-column: 1;
+    margin-top: 8px;
+    margin-bottom: 0;
+    gap: 10px;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .control-type-pill {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+
+  .menu-actions {
+    max-width: 100%;
+    gap: 6px;
+  }
+
+  .selector-group .selector-label {
+    font-size: 0.68rem;
+    margin-bottom: 2px;
+  }
+
+  #menu-mode-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+
+  #menu-env-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px;
+  }
+
+  .choice-pill {
+    padding: 6px 3px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .btn-play-big {
+    padding: 10px 14px;
+    font-size: 1.15rem;
+  }
+
+  .menu-btn-row {
+    gap: 8px;
+  }
+
+  .menu-btn-row .btn {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .menu-controls-hint {
+    display: none !important;
+  }
+
+  /* In-game HUD in mobile landscape */
+  #screen-hud {
+    padding: max(6px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  }
+
+  .hud-top-bar {
+    transform: scale(0.92);
+    transform-origin: top center;
+  }
+
+  .hud-telemetry {
+    top: 52px;
+    left: max(14px, env(safe-area-inset-left));
+    transform: scale(0.78);
+    transform-origin: top left;
+  }
+
+  .mobile-controls-container {
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .touch-btn {
+    width: 62px;
+    height: 62px;
+    font-size: 1.4rem;
+  }
+
+  .touch-btn-steer {
+    width: 74px;
+    height: 74px;
+    font-size: 1.55rem;
+  }
+
+  .touch-btn-gas {
+    width: 68px;
+    height: 74px;
+  }
+
+  .touch-btn-brake {
+    width: 60px;
+    height: 60px;
+  }
+
+  .touch-btn-nitro {
+    width: 52px;
+    height: 52px;
+    font-size: 0.95rem;
+  }
+
+  /* Banners in mobile landscape */
+  #wrong-way-banner {
+    top: 56px;
+    transform: translateX(-50%) scale(0.92);
+  }
+
+  #wrong-way-banner.show {
+    transform: translateX(-50%) scale(1.0);
+  }
+
+  #near-miss-banner {
+    top: 36%;
+  }
+
+  #eds-radar-banner {
+    top: 52px;
+    right: max(14px, env(safe-area-inset-right));
+    left: auto;
+    transform: translateX(25px) scale(0.9);
+    padding: 4px 10px;
+  }
+
+  #eds-radar-banner.show {
+    transform: translateX(0) scale(0.95);
+  }
+
+  #scrape-jolt-banner {
+    top: 48%;
+  }
+
+  .touch-aux-row {
+    gap: 5px;
+    padding: 3px 6px;
+  }
+
+  .touch-aux-row .touch-sublabel {
+    display: none !important;
+  }
+
+  .touch-aux-row .touch-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.05rem;
+  }
+
+  .touch-aux-row .touch-btn-signal {
+    width: 34px;
+    height: 34px;
+    font-size: 1.0rem;
+  }
+
+  .touch-aux-row .touch-btn-horn,
+  .touch-aux-row .touch-btn-flash {
+    width: 38px;
+    height: 38px;
+    font-size: 1.12rem;
+  }
+}
+
+/* 3. Pause Menu & Game Over on Mobile */
+@media (max-width: 640px), (max-height: 520px) {
+  .pause-overlay {
+    padding: 12px 10px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pause-card {
+    width: 95%;
+    max-width: 390px;
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+
+  .pause-header {
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+
+  .pause-icon {
+    font-size: 1.5rem;
+  }
+
+  .pause-title {
+    font-size: 1.45rem;
+    letter-spacing: 1px;
+  }
+
+  .pause-stats-grid {
+    padding: 8px 4px;
+    margin-bottom: 12px;
+    gap: 4px;
+  }
+
+  .p-stat-label {
+    font-size: 0.65rem;
+  }
+
+  .p-stat-val {
+    font-size: 1.05rem;
+  }
+
+  .pause-actions {
+    gap: 7px;
+  }
+
+  .pause-actions .btn {
+    padding: 9px 12px;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+
+  .pause-toggles-row .btn-pill {
+    padding: 8px 4px;
+    font-size: 0.78rem;
+  }
+
+  .pause-hint {
+    display: none !important;
+  }
+
+  #screen-gameover {
+    padding: 6px 12px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gameover-card {
+    padding: 10px 16px;
+    max-width: 580px;
+    gap: 6px;
+  }
+
+  .crash-header {
+    font-size: 1.6rem;
+    letter-spacing: 1.5px;
+    margin: 0;
+  }
+
+  .new-record-badge {
+    padding: 2px 8px;
+    font-size: 0.7rem;
+  }
+
+  .gameover-body-split {
+    gap: 10px;
+  }
+
+  .gameover-stats-grid {
+    gap: 5px;
+  }
+
+  .go-stat-item {
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+
+  .go-stat-label {
+    font-size: 0.6rem;
+  }
+
+  .go-stat-val {
+    font-size: 1.05rem;
+  }
+
+  .go-stat-item.highlight-earnings {
+    padding: 4px 8px;
+  }
+
+  .go-stat-item.highlight-earnings .go-stat-val {
+    font-size: 1.25rem;
+  }
+
+  .gameover-actions {
+    gap: 5px;
+  }
+
+  .gameover-actions #btn-restart {
+    padding: 7px 10px;
+    font-size: 0.88rem;
+  }
+
+  .gameover-actions-row {
+    gap: 5px;
+  }
+
+  .gameover-actions-row .btn {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Responsive Garage layout for tablets and mobile phones: Side-by-side row like desktop */
+@media (max-width: 950px), (max-height: 550px) {
+  #screen-garage {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+  }
+
+  .garage-showcase-zone {
+    flex: 1 !important;
+    height: 100% !important;
+    width: auto !important;
+  }
+
+  .garage-sidebar {
+    width: min(360px, 38vw) !important;
+    max-width: 38vw !important;
+    min-width: 240px !important;
+    height: 100% !important;
+    border-left: 1px solid rgba(0, 240, 255, 0.25) !important;
+    border-top: none !important;
+    border-radius: 0 !important;
+    padding: 60px 14px 25px 14px !important;
+    box-shadow: -10px 0 35px rgba(0, 0, 0, 0.65) !important;
+    gap: 12px !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+
+  .garage-top-bar {
+    top: 10px !important;
+    left: 14px !important;
+    right: 14px !important;
+  }
+
+  .panel-title {
+    font-size: 1.35rem !important;
+    letter-spacing: 1px !important;
+  }
+
+  .garage-rotate-hint {
+    font-size: 0.68rem !important;
+  }
+
+  .vehicle-carousel-selector {
+    padding: 8px 10px !important;
+  }
+
+  .vehicle-name {
+    font-size: 1.15rem !important;
+  }
+
+  .garage-panel-card {
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .garage-card-title {
+    font-size: 0.82rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .stat-bar-row {
+    margin-bottom: 5px !important;
+  }
+
+  .stat-bar-header {
+    font-size: 0.70rem !important;
+  }
+
+  .color-picker-row {
+    gap: 6px !important;
+  }
+
+  .color-swatch {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .tr-plate-preview {
+    height: 38px !important;
+    margin-bottom: 6px !important;
+  }
+
+  #plate-preview-text {
+    font-size: 1.25rem !important;
+    letter-spacing: 2px !important;
+  }
+
+  #btn-select-or-buy {
+    padding: 10px !important;
+    font-size: 0.95rem !important;
+  }
+}
+
+/* ==========================================================================
+   PAUSE OVERLAY & MODAL
+   ========================================================================== */
+
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 4, 12, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease-out, visibility 0.22s ease-out;
+}
+
+.pause-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.pause-overlay:not(.active),
+.pause-overlay:not(.active) * {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.pause-card {
+  width: 92%;
+  max-width: 430px;
+  background: linear-gradient(155deg, rgba(16, 24, 40, 0.94), rgba(7, 11, 20, 0.98));
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 35px rgba(0, 240, 255, 0.22);
+  border-radius: 24px;
+  padding: 30px 24px;
+  text-align: center;
+  transform: scale(0.9);
+  transition: transform 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pause-overlay.active .pause-card {
+  transform: scale(1.0);
+}
+
+.pause-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pause-icon {
+  font-size: 2.0rem;
+  color: #00f0ff;
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.8);
+}
+
+.pause-title {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 900;
+  font-style: italic;
+  color: #ffffff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+  margin: 0;
+}
+
+.pause-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 8px;
+  margin-bottom: 22px;
+}
+
+.pause-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.p-stat-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.p-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #00f0ff;
+}
+
+.pause-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.pause-actions .btn {
+  width: 100%;
+  padding: 13px;
+  font-size: 1.05rem;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.pause-actions .btn:active {
+  transform: scale(0.97);
+}
+
+.pause-actions .btn-primary {
+  background: linear-gradient(90deg, #00f0ff, #0077ff);
+  color: #000;
+  border: none;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+}
+
+.pause-actions .btn-primary:hover {
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.85);
+}
+
+.pause-toggles-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pause-actions .btn-pill,
+.pause-toggles-row .btn-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.88rem;
+  padding: 11px 8px;
+  border-radius: 12px;
+}
+
+.pause-actions .btn-pill.active,
+.pause-toggles-row .btn-pill.active {
+  background: rgba(0, 240, 255, 0.16);
+  border-color: #00f0ff;
+  color: #00f0ff;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+}
+
+#btn-toggle-gyro.active {
+  background: rgba(0, 240, 255, 0.22);
+  border-color: #00f0ff;
+  color: #00f0ff;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.pause-hint {
+  margin-top: 18px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.5px;
+}
+
+.pause-hint b {
+  color: #00f0ff;
+}
+
+/* ==========================================================================
+   SETTINGS MODAL OVERLAY
+   ========================================================================== */
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 4, 12, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease-out, visibility 0.22s ease-out;
+}
+
+.settings-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.settings-card {
+  width: 92%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: linear-gradient(155deg, rgba(16, 24, 40, 0.96), rgba(7, 11, 20, 0.98));
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 35px rgba(0, 240, 255, 0.22);
+  border-radius: 24px;
+  padding: 24px 22px;
+  text-align: left;
+  transform: scale(0.9);
+  transition: transform 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.settings-overlay.active .settings-card {
+  transform: scale(1.0);
+}
+
+/* ==========================================================================
+   FORCED AUTOMATIC LANDSCAPE ORIENTATION (MOBILE PORTRAIT -> LANDSCAPE)
+   ========================================================================== */
+
+body.forced-landscape {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.forced-landscape #game-container {
+  position: absolute !important;
+  width: var(--app-long, 100vh) !important;
+  height: var(--app-short, 100vw) !important;
+  top: 0 !important;
+  left: var(--app-short, 100vw) !important;
+  transform: rotate(90deg) !important;
+  transform-origin: 0 0 !important;
+  overflow: hidden !important;
+}
+
+/* Ensure canvas and ui-layer fill the rotated container */
+body.forced-landscape #game-canvas,
+body.forced-landscape #ui-layer {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Apply side-by-side landscape menu in forced landscape */
+body.forced-landscape #screen-menu {
+  display: grid !important;
+  grid-template-columns: 1fr 1.25fr !important;
+  grid-template-rows: auto 1fr !important;
+  padding: max(8px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)) !important;
+  gap: 6px 20px !important;
+  align-items: center !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.forced-landscape .menu-header {
+  grid-column: span 2 !important;
+  margin-bottom: 0 !important;
+  padding: 0 4px !important;
+}
+
+body.forced-landscape .currency-badge,
+body.forced-landscape .level-badge {
+  padding: 3px 10px !important;
+  font-size: 0.88rem !important;
+}
+
+body.forced-landscape .menu-title-area {
+  margin-top: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.forced-landscape .game-logo {
+  font-size: clamp(1.8rem, 4.5vw, 2.7rem) !important;
+  letter-spacing: 2px !important;
+  line-height: 1.05 !important;
+}
+
+body.forced-landscape .game-sub {
+  font-size: 0.72rem !important;
+  letter-spacing: 2px !important;
+  margin-top: 1px !important;
+}
+
+body.forced-landscape .menu-records {
+  margin-top: 6px !important;
+  gap: 8px !important;
+}
+
+body.forced-landscape .record-box {
+  padding: 3px 10px !important;
+}
+
+body.forced-landscape .record-val {
+  font-size: 1.0rem !important;
+}
+
+body.forced-landscape .menu-footer {
+  grid-column: 1 !important;
+  margin-top: 8px !important;
+  margin-bottom: 0 !important;
+  gap: 10px !important;
+}
+
+body.forced-landscape .icon-btn {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 1.05rem !important;
+}
+
+body.forced-landscape .control-type-pill {
+  padding: 5px 10px !important;
+  font-size: 0.8rem !important;
+}
+
+body.forced-landscape .menu-actions {
+  max-width: 100% !important;
+  gap: 6px !important;
+}
+
+body.forced-landscape .selector-group .selector-label {
+  font-size: 0.68rem !important;
+  margin-bottom: 2px !important;
+}
+
+body.forced-landscape #menu-mode-selector {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 4px !important;
+}
+
+body.forced-landscape #menu-env-selector {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr 1fr !important;
+  gap: 4px !important;
+}
+
+body.forced-landscape .choice-pill {
+  padding: 6px 3px !important;
+  font-size: 0.74rem !important;
+  white-space: nowrap !important;
+}
+
+body.forced-landscape .btn-play-big {
+  padding: 10px 14px !important;
+  font-size: 1.15rem !important;
+}
+
+body.forced-landscape .menu-btn-row {
+  gap: 8px !important;
+}
+
+body.forced-landscape .menu-btn-row .btn {
+  padding: 8px 10px !important;
+  font-size: 0.85rem !important;
+}
+
+body.forced-landscape .menu-controls-hint {
+  display: none !important;
+}
+
+/* In-game HUD in forced landscape */
+body.forced-landscape #screen-hud {
+  padding: max(6px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left)) !important;
+}
+
+body.forced-landscape .hud-top-bar {
+  transform: scale(0.92) !important;
+  transform-origin: top center !important;
+}
+
+body.forced-landscape #wrong-way-banner {
+  top: 56px !important;
+  transform: translateX(-50%) scale(0.92) !important;
+}
+
+body.forced-landscape #wrong-way-banner.show {
+  transform: translateX(-50%) scale(1.0) !important;
+}
+
+body.forced-landscape #near-miss-banner {
+  top: 36% !important;
+}
+
+body.forced-landscape #eds-radar-banner {
+  top: 52px !important;
+  right: max(14px, env(safe-area-inset-right)) !important;
+  left: auto !important;
+  transform: translateX(25px) scale(0.9) !important;
+  padding: 4px 10px !important;
+}
+
+body.forced-landscape #eds-radar-banner.show {
+  transform: translateX(0) scale(0.95) !important;
+}
+
+body.forced-landscape #scrape-jolt-banner {
+  top: 48% !important;
+}
+
+body.forced-landscape .hud-telemetry {
+  top: 52px !important;
+  left: max(14px, env(safe-area-inset-left)) !important;
+  transform: scale(0.78) !important;
+  transform-origin: top left !important;
+}
+
+body.forced-landscape .mobile-controls-container {
+  padding-bottom: max(6px, env(safe-area-inset-bottom)) !important;
+  padding-left: max(12px, env(safe-area-inset-left)) !important;
+  padding-right: max(12px, env(safe-area-inset-right)) !important;
+}
+
+body.forced-landscape .touch-btn {
+  width: 62px !important;
+  height: 62px !important;
+  font-size: 1.4rem !important;
+}
+
+body.forced-landscape .touch-btn-steer {
+  width: 74px !important;
+  height: 74px !important;
+  font-size: 1.55rem !important;
+}
+
+body.forced-landscape .touch-btn-gas {
+  width: 68px !important;
+  height: 74px !important;
+}
+
+body.forced-landscape .touch-btn-brake {
+  width: 60px !important;
+  height: 60px !important;
+}
+
+body.forced-landscape .touch-btn-nitro {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 0.95rem !important;
+}
+
+body.forced-landscape .touch-aux-row {
+  gap: 5px !important;
+  padding: 3px 6px !important;
+}
+
+body.forced-landscape .touch-aux-row .touch-sublabel {
+  display: none !important;
+}
+
+body.forced-landscape .touch-aux-row .touch-btn {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 1.05rem !important;
+}
+
+body.forced-landscape .touch-aux-row .touch-btn-signal {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 1.0rem !important;
+}
+
+body.forced-landscape .touch-aux-row .touch-btn-horn,
+body.forced-landscape .touch-aux-row .touch-btn-flash {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 1.12rem !important;
+}
+
+/* Garage in forced landscape (side by side, desktop-like widescreen layout) */
+body.forced-landscape #screen-garage {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+body.forced-landscape .garage-showcase-zone {
+  height: 100% !important;
+  flex: 1 !important;
+  width: auto !important;
+  pointer-events: auto !important;
+}
+
+body.forced-landscape .garage-sidebar {
+  width: min(360px, 38%) !important;
+  max-width: 38% !important;
+  min-width: 240px !important;
+  height: 100% !important;
+  border-left: 1px solid rgba(0, 240, 255, 0.25) !important;
+  border-top: none !important;
+  border-radius: 0 !important;
+  padding: 55px 14px 20px 14px !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+}
+
+body.forced-landscape .garage-top-bar {
+  top: 10px !important;
+  left: 14px !important;
+  right: 14px !important;
+  pointer-events: auto !important;
+}
+
+/* Game Over in forced landscape */
+body.forced-landscape #screen-gameover {
+  padding: 8px 14px !important;
+}
+
+body.forced-landscape .gameover-card {
+  max-width: 580px !important;
+  padding: 10px 16px !important;
+  gap: 6px !important;
+}
+
+body.forced-landscape .crash-header {
+  font-size: 1.6rem !important;
+}
+
+body.forced-landscape .gameover-body-split {
+  grid-template-columns: 1.1fr 1.15fr !important;
+  gap: 10px !important;
+}
+
+body.forced-landscape .go-stat-item {
+  padding: 4px 6px !important;
+}
+
+body.forced-landscape .go-stat-val {
+  font-size: 1.05rem !important;
+}
+
+body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
+  font-size: 1.25rem !important;
+}
+
+/* ==========================================================================
+   TRAFFIC SETTINGS MODAL & BADGE STYLES
+   ========================================================================== */
+
+#screen-traffic-settings .settings-card {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.88), 0 0 35px rgba(56, 189, 248, 0.25);
+}
+
+#screen-traffic-settings .choice-pill {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.78);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  transition: all 0.18s ease;
+}
+
+#screen-traffic-settings .choice-pill:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+#screen-traffic-settings .choice-pill.active {
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  border-color: #38bdf8;
+  color: #031525;
+  font-weight: 800;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+}
+
+#menu-mode-selector [data-mode="CUSTOM_TRAFFIC"].active-mode {
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  border-color: #38bdf8;
+  color: #031525;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+}
+
+/* ==========================================================================
+   TWO-WAY TRAFFIC HUD GUIDE BADGE
+   ========================================================================== */
+
+.hud-twoway-guide {
+  position: absolute;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 15, 25, 0.82);
+  border: 1.5px solid rgba(255, 190, 11, 0.5);
+  border-radius: 20px;
+  padding: 4px 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 0 14px rgba(255, 190, 11, 0.25);
+  pointer-events: none;
+  z-index: 100;
+  user-select: none;
+}
+
+.twoway-badge {
+  font-family: var(--font-display, 'Rajdhani', sans-serif);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.twoway-badge.oncoming {
+  color: #ff5555;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.twoway-divider {
+  color: #ffbe0b;
+  font-weight: 900;
+  font-size: 0.95rem;
+  text-shadow: 0 0 8px rgba(255, 190, 11, 0.8);
+}
+
+.twoway-badge.forward {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+/* ==========================================================================
+   CINEMATIC DRONE FLY-IN INTRO OVERLAY & LETTERBOX
+   ========================================================================== */
+
+.cinematic-intro-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1500;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.cinematic-intro-container.active {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Widescreen Cinematic Letterbox Bars */
+.cinematic-letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #000;
+  z-index: 1501;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cinematic-letterbox-top {
+  top: 0;
+  height: 52px;
+  transform: translateY(-100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
+}
+
+.cinematic-letterbox-bottom {
+  bottom: 0;
+  height: 52px;
+  transform: translateY(100%);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.9);
+}
+
+.cinematic-intro-container.active .cinematic-letterbox-top,
+.cinematic-intro-container.active .cinematic-letterbox-bottom {
+  transform: translateY(0);
+}
+
+/* Location Tag & Mode Header */
+.cinematic-info-box {
+  margin-top: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: cinematicFadeSlideDown 0.8s ease-out forwards;
+}
+
+.cinematic-location-badge {
+  font-family: var(--font-display, 'Orbitron', sans-serif);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #00f0ff;
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 20, 40, 0.65);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  padding: 6px 18px;
+  border-radius: 24px;
+  backdrop-filter: blur(6px);
+}
+
+.cinematic-mode-tag {
+  font-family: var(--font-body, 'Rajdhani', sans-serif);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Big Cinematic Countdown Number */
+.cinematic-countdown-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinematic-countdown-val {
+  font-family: var(--font-display, 'Orbitron', sans-serif);
+  font-size: 5.5rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 4px;
+  color: #ffffff;
+  text-shadow: 0 0 35px rgba(0, 240, 255, 0.85), 0 4px 18px rgba(0, 0, 0, 0.9);
+  transition: transform 0.15s ease-out, color 0.15s ease-out;
+}
+
+.cinematic-countdown-val.pulse-tick {
+  animation: countdownPulse 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.cinematic-countdown-val.go-flash {
+  font-size: 6.2rem;
+  color: #22c55e;
+  text-shadow: 0 0 45px rgba(34, 197, 94, 0.95), 0 0 75px rgba(34, 197, 94, 0.6), 0 4px 20px rgba(0, 0, 0, 0.9);
+}
+
+@keyframes countdownPulse {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.0);
+    opacity: 1;
+  }
+}
+
+@keyframes cinematicFadeSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skip Intro Button */
+.cinematic-skip-btn {
+  position: absolute;
+  bottom: 64px;
+  right: 28px;
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgba(10, 20, 35, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-family: var(--font-display, 'Rajdhani', sans-serif);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+  z-index: 1502;
+}
+
+.cinematic-skip-btn:hover {
+  background: rgba(0, 240, 255, 0.25);
+  border-color: #00f0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+}
+
+.cinematic-skip-btn .skip-key-hint {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+

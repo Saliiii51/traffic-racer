@@ -1,0 +1,23 @@
+=== TRAFFIC RACER - 3D ARABA MODELİ EKLEME REHBERİ ===
+
+Elinizdeki FBX, GLB veya GLTF araba modelini oyuna eklemenin 2 ÇOK KOLAY YOLU vardır:
+
+---------------------------------------------------------
+YOL 1: BU KLASÖRE KOPYALAYIN (OTOMATİK YÜKLENİR)
+---------------------------------------------------------
+1. Elinizdeki .fbx, .glb veya .gltf dosyasını bu klasöre (public/models/) yapıştırın.
+2. Dosya adını şu isimlerden biri yapın:
+   - car.fbx   (veya car.glb / car.gltf)
+   - araba.fbx (veya araba.glb / araba.gltf)
+   - tofas.fbx (veya tofas.glb / tofas.gltf)
+   - model.fbx (veya model.glb / model.gltf)
+3. Eğer modelinizin dokuları (.png/.jpg) varsa, onları da bu klasöre veya "texture" alt klasörüne koyun.
+4. Oyunu açtığınızda veya sayfayı yenilediğinizde arabanız otomatik olarak yüklenir!
+
+---------------------------------------------------------
+YOL 2: OYUN AÇIKKEN SÜRÜKLE-BIRAK VEYA GARAJ'DAN SEÇ
+---------------------------------------------------------
+1. Tarayıcıda oyunu açın.
+2. Dosyanızı (.fbx, .glb veya .gltf + resimler) doğrudan oyun ekranının üzerine sürükleyip bırakın!
+3. Veya GARAJ ekranına gidip "📂 3D MODEL YÜKLE" butonuna tıklayarak dosyanızı (dokularıyla birlikte topluca) seçin.
+4. Model ters yöne bakıyorsa Garaj'daki "🔄 180° ÇEVİR" butonuna basarak anında düzeltebilirsiniz!
