@@ -501,13 +501,17 @@ export class PlayerVehicle extends Vehicle {
     this.updateExhaustPosition();
     this.updateLicensePlatePositions();
     this.updateCockpitClusterPositions();
+    this.updateWheelPositions();
 
-    // Hide any foreign / placeholder license plate meshes embedded in models (e.g. Corsa's Object_2..5)
+    // Hide any foreign / placeholder license plate meshes and baked static hubcap/wheel meshes embedded in models (e.g. Corsa's Object_2..5 and Object_58..75)
     const isCorsa = this.currentVehicleId === 'opel_corsa_b';
     model.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const matName = (((child as any).material?.name) || '').toLowerCase();
-      if (/licplate|plaka|license_plate|lic_plate/i.test(name + ' ' + matName) || (isCorsa && /^object_[2345]$/i.test(name))) {
+      if (
+        /licplate|plaka|license_plate|lic_plate/i.test(name + ' ' + matName) ||
+        (isCorsa && /^object_([2345]|5[8-9]|6\d|7[0-5])$/i.test(name))
+      ) {
         child.visible = false;
       }
     });
@@ -693,11 +697,11 @@ export class PlayerVehicle extends Vehicle {
     const id = vehicleId || this.currentVehicleId || gameState.selectedVehicleId;
 
     if (id === 'opel_corsa_b') {
-      // Precise Opel Corsa B bumper coordinates
-      this.frontPlateGroup.position.set(0, 0.44, 1.868);
-      this.frontPlateGroup.rotation.set(-0.04, 0, 0);
+      // Precise Opel Corsa B bumper coordinates (flush on front & rear bumpers)
+      this.frontPlateGroup.position.set(0, 0.40, 2.065);
+      this.frontPlateGroup.rotation.set(-0.05, 0, 0);
 
-      this.rearPlateGroup.position.set(0, 0.54, -1.868);
+      this.rearPlateGroup.position.set(0, 0.52, -2.092);
       this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
     } else if (id === 'starter_coupe' || id === 'tofas_gltf') {
       // Precise Tofaş Doğan SLX bumper coordinates
@@ -765,11 +769,11 @@ export class PlayerVehicle extends Vehicle {
         wheelScale = 0.93;
         break;
       case 'opel_corsa_b':
-        halfTrack = 0.73;
-        frontZ = 1.16;
-        rearZ = -1.22;
-        wheelRadius = 0.31;
-        wheelScale = 0.90;
+        halfTrack = 0.78;
+        frontZ = 1.292;
+        rearZ = -1.470;
+        wheelRadius = 0.324;
+        wheelScale = 0.98;
         break;
       case 'golf_gti':
         halfTrack = 0.77;

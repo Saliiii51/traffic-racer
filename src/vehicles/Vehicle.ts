@@ -1028,28 +1028,48 @@ export class Vehicle {
       // use the high-fidelity procedural wheel assembly!
       this.wheelsGroup.visible = true;
 
-      // Hide baked static tire/rim meshes in models like Opel Corsa
+      // Hide baked static tire/rim/hubcap meshes in models like Opel Corsa
       model.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
           const matName = (Array.isArray(mesh.material) ? mesh.material[0]?.name : mesh.material?.name || '').toLowerCase();
-          if (matName === 'tire' || matName === 'rim_second') {
+          const meshName = (mesh.name || '').toLowerCase();
+          if (
+            matName === 'tire' ||
+            matName === 'rim_second' ||
+            /^object_(5[8-9]|6\d|7[0-5])$/i.test(meshName) ||
+            /hubcap|jant_kapak|wheel_static/i.test(meshName)
+          ) {
             mesh.visible = false;
           }
         }
       });
 
       // Align wheels with custom car model dimensions
-      const halfTrack = finalSize.x * 0.44;
-      const frontZ = finalSize.z * 0.28;
-      const rearZ = -finalSize.z * 0.29;
-      const wheelRadius = this.dimensions.wheelRadius || 0.33;
+      let halfTrack = finalSize.x * 0.44;
+      let frontZ = finalSize.z * 0.28;
+      let rearZ = -finalSize.z * 0.29;
+      let wheelRadius = this.dimensions.wheelRadius || 0.33;
+      let wheelScale = 1.0;
+
+      if (this.id === 'opel_corsa_b') {
+        halfTrack = 0.78;
+        frontZ = 1.292;
+        rearZ = -1.470;
+        wheelRadius = 0.324;
+        wheelScale = 0.98;
+      }
+
       if (this.frontWheels.length >= 2 && this.rearWheels.length >= 2) {
         this.frontWheels[0].position.set(-halfTrack, wheelRadius, frontZ);
         this.frontWheels[1].position.set(halfTrack, wheelRadius, frontZ);
+        this.frontWheels[0].scale.set(wheelScale, wheelScale, wheelScale);
+        this.frontWheels[1].scale.set(wheelScale, wheelScale, wheelScale);
+
         this.rearWheels[0].position.set(-halfTrack, wheelRadius, rearZ);
         this.rearWheels[1].position.set(halfTrack, wheelRadius, rearZ);
-        this.wheelMeshes.forEach((w) => w.scale.set(1, 1, 1));
+        this.rearWheels[0].scale.set(wheelScale, wheelScale, wheelScale);
+        this.rearWheels[1].scale.set(wheelScale, wheelScale, wheelScale);
       }
     }
 
