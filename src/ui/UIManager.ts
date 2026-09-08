@@ -66,6 +66,10 @@ export class UIManager {
 
   // Cassette Deck & Istanbul Radio HUD elements
   private hudCassetteDeck!: HTMLElement;
+  private deckMinimizedBar!: HTMLElement;
+  private deckFullFaceplate!: HTMLElement;
+  private miniStationName!: HTMLElement;
+  private isRadioMinimized = false;
   private tapeSpoolLeft!: HTMLElement;
   private tapeSpoolRight!: HTMLElement;
   private tapeLedPlay!: HTMLElement;
@@ -164,6 +168,15 @@ export class UIManager {
 
     this.renderScreens();
     this.setupEventListeners();
+
+    // Restore radio minimized preference
+    try {
+      if (localStorage.getItem('tr_radio_minimized') === '1') {
+        this.setRadioMinimized(true);
+      }
+    } catch {
+      // ignore storage access restrictions
+    }
   }
 
   private renderScreens(): void {
@@ -352,7 +365,21 @@ export class UIManager {
 
         <!-- RETRO CASSETTE PLAYER & ISTANBUL RADIO DECK -->
         <div id="hud-cassette-deck" class="hud-cassette-deck">
-          <div class="deck-faceplate">
+          <!-- Minimized Compact Pill Bar -->
+          <div id="deck-minimized-bar" class="deck-minimized-bar" style="display: none;">
+            <div class="mini-radio-left" id="btn-mini-expand-deck" title="Kasetçaları Büyüt">
+              <span class="mini-radio-icon">📻</span>
+              <span class="mini-station-name" id="mini-station-name">KRAL TÜRK FM</span>
+            </div>
+            <div class="mini-actions">
+              <button id="btn-mini-radio-toggle" class="mini-btn" title="Radyo Aç / Kapat">⏯</button>
+              <button id="btn-mini-radio-next" class="mini-btn" title="Sonraki İstasyon">⏭</button>
+              <button id="btn-radio-maximize" class="mini-btn mini-btn-expand" title="Kasetçaları Büyüt">➕</button>
+            </div>
+          </div>
+
+          <!-- Full Faceplate -->
+          <div class="deck-faceplate" id="deck-full-faceplate">
             <!-- Top Vintage Header & Status LEDs -->
             <div class="deck-top-row">
               <div class="deck-brand">
@@ -363,6 +390,7 @@ export class UIManager {
                 <span class="tape-led tape-led-stereo active" id="tape-led-stereo">ST</span>
                 <span class="tape-led tape-led-fm active">FM</span>
                 <span class="tape-led tape-led-play active" id="tape-led-play">PLAY</span>
+                <button id="btn-radio-minimize" class="deck-minimize-btn" title="Kasetçaları Küçült">➖</button>
               </div>
             </div>
 
@@ -1309,6 +1337,9 @@ export class UIManager {
 
     // Cache Cassette Radio Deck elements
     this.hudCassetteDeck = document.getElementById('hud-cassette-deck')!;
+    this.deckMinimizedBar = document.getElementById('deck-minimized-bar')!;
+    this.deckFullFaceplate = document.getElementById('deck-full-faceplate')!;
+    this.miniStationName = document.getElementById('mini-station-name')!;
     this.tapeSpoolLeft = document.getElementById('tape-spool-left')!;
     this.tapeSpoolRight = document.getElementById('tape-spool-right')!;
     this.tapeLedPlay = document.getElementById('tape-led-play')!;
@@ -1920,6 +1951,36 @@ export class UIManager {
     });
 
     // Retro Cassette Deck Controls & Hotkeys
+    document.getElementById('btn-radio-minimize')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.playClick();
+      this.setRadioMinimized(true);
+    });
+
+    document.getElementById('btn-radio-maximize')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.playClick();
+      this.setRadioMinimized(false);
+    });
+
+    document.getElementById('btn-mini-expand-deck')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.playClick();
+      this.setRadioMinimized(false);
+    });
+
+    document.getElementById('btn-mini-radio-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.init();
+      radioManager.togglePlay();
+    });
+
+    document.getElementById('btn-mini-radio-next')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.init();
+      radioManager.nextStation();
+    });
+
     document.getElementById('btn-radio-prev')?.addEventListener('click', (e) => {
       e.stopPropagation();
       audioManager.init();
@@ -1942,6 +2003,7 @@ export class UIManager {
       if (!payload) return;
       if (this.lcdStationFreq) this.lcdStationFreq.innerText = payload.frequency;
       if (this.lcdStationName) this.lcdStationName.innerText = payload.name;
+      if (this.miniStationName) this.miniStationName.innerText = payload.name;
       if (this.lcdStationSub) this.lcdStationSub.innerText = payload.subtitle;
       if (this.lcdLiveBadge) {
         this.lcdLiveBadge.style.display = payload.isLive ? 'inline-block' : 'none';
@@ -3367,8 +3429,30 @@ export class UIManager {
     }
   }
 
+  public setRadioMinimized(minimized: boolean): void {
+    this.isRadioMinimized = minimized;
+    try {
+      localStorage.setItem('tr_radio_minimized', minimized ? '1' : '0');
+    } catch {
+      // ignore
+    }
+    if (this.hudCassetteDeck) {
+      this.hudCassetteDeck.classList.toggle('minimized', minimized);
+    }
+    if (this.deckMinimizedBar) {
+      this.deckMinimizedBar.style.display = minimized ? 'flex' : 'none';
+    }
+    if (this.deckFullFaceplate) {
+      this.deckFullFaceplate.style.display = minimized ? 'none' : 'flex';
+    }
+  }
+
+  public getIsRadioMinimized(): boolean {
+    return this.isRadioMinimized;
+  }
+
   public updateRadioVisuals(levels: number[], isPlaying: boolean): void {
-    if (!this.hudCassetteDeck) return;
+    if (!this.hudCassetteDeck || this.isRadioMinimized) return;
 
     if (this.tapeSpoolLeft && this.tapeSpoolRight) {
       if (isPlaying) {

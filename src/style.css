@@ -3740,6 +3740,133 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
   white-space: nowrap;
 }
 
+/* Minimized Compact Radio Pill Deck */
+.hud-cassette-deck.minimized {
+  width: auto;
+  min-width: 175px;
+  max-width: 220px;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: rgba(12, 16, 23, 0.92);
+  border: 1px solid rgba(255, 190, 11, 0.45);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 190, 11, 0.2);
+}
+
+.deck-minimize-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.60rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.deck-minimize-btn:hover {
+  background: rgba(255, 190, 11, 0.25);
+  border-color: #ffbe0b;
+  color: #ffbe0b;
+  transform: scale(1.1);
+}
+
+.deck-minimize-btn:active {
+  transform: scale(0.95);
+}
+
+.deck-minimized-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  user-select: none;
+}
+
+.mini-radio-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.mini-radio-left:hover .mini-station-name {
+  color: #00f0ff;
+}
+
+.mini-radio-icon {
+  font-size: 0.85rem;
+  animation: pulse-mini-radio 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-mini-radio {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.mini-station-name {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ffbe0b;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.mini-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mini-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.68rem;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mini-btn:hover {
+  background: #ffbe0b;
+  color: #000;
+  border-color: #ffbe0b;
+  transform: translateY(-1px);
+}
+
+.mini-btn:active {
+  transform: translateY(1px) scale(0.95);
+}
+
+.mini-btn-expand {
+  color: #00f0ff;
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.mini-btn-expand:hover {
+  background: #00f0ff;
+  color: #000;
+  border-color: #00f0ff;
+}
+
 /* Radio Toast Banner */
 .radio-toast-banner {
   position: absolute;
