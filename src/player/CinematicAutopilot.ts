@@ -27,7 +27,12 @@ export class CinematicAutopilot {
   private nitroCooldown: number = 0;
   private timeSinceStart: number = 0;
   private timeInCurrentLane: number = 0;
+  private laneChangeCooldown: number = 0;
   private slalomDirection: number = 1;
+
+  // Lateral velocity tracking for PD critically-damped lane centering (eliminates fishtailing/wobbling)
+  private lastPlayerX: number = 0;
+  private hasInitializedX: boolean = false;
 
   // Stats for cinematic HUD
   public makasCount: number = 0;
@@ -43,9 +48,12 @@ export class CinematicAutopilot {
     this.nitroCooldown = 0;
     this.timeSinceStart = 0;
     this.timeInCurrentLane = 0;
+    this.laneChangeCooldown = 0;
     this.slalomDirection = Math.random() > 0.5 ? 1 : -1;
     this.makasCount = 0;
     this.aggressiveness = aggressiveness;
+    this.hasInitializedX = false;
+    this.lastPlayerX = 0;
     this.enabled = true;
   }
 
@@ -62,8 +70,18 @@ export class CinematicAutopilot {
       return { steer: 0, accelerate: true, brake: false, nitro: false, flashHighBeams: false };
     }
 
+    const playerPos = player.mesh.position;
+    const playerSpeed = player.speedKmh;
+    const activeNPCs = trafficManager.getActiveVehicles();
+
+    if (!this.hasInitializedX) {
+      this.lastPlayerX = playerPos.x;
+      this.hasInitializedX = true;
+    }
+
     this.timeSinceStart += delta;
     this.timeInCurrentLane += delta;
+    this.laneChangeCooldown = Math.max(0, this.laneChangeCooldown - delta);
     this.nitroCooldown = Math.max(0, this.nitroCooldown - delta);
     this.highBeamTimer = Math.max(0, this.highBeamTimer - delta);
 
@@ -74,15 +92,11 @@ export class CinematicAutopilot {
       }
     }
 
-    const playerPos = player.mesh.position;
-    const playerSpeed = player.speedKmh;
-    const activeNPCs = trafficManager.getActiveVehicles();
-
-    const targetSpeedKmh = this.aggressiveness === 'AGGRESSIVE' ? 215 : 175;
+    const targetSpeedKmh = this.aggressiveness === 'AGGRESSIVE' ? 215 : 180;
     const currentLane = laneSystem.getClosestLane(playerPos.x);
 
     // 1. Analyze vehicles ahead in all 4 lanes
-    const scanDistance = Math.max(45, (playerSpeed / 160) * 90);
+    const scanDistance = Math.max(50, (playerSpeed / 160) * 100);
     const laneDistances: number[] = [999, 999, 999, 999];
     const laneCarsAhead: (TrafficVehicle | null)[] = [null, null, null, null];
 
@@ -102,12 +116,12 @@ export class CinematicAutopilot {
     const distInCurrentLane = laneDistances[currentLane];
     const distInTargetLane = laneDistances[this.targetLane];
 
-    // High-beam selektör strobe logic: rapid double/triple flash when catching up
+    // High-beam selektör strobe logic: rapid double/triple flash when catching up to traffic
     let shouldFlash = false;
     if (distInCurrentLane < 65) {
       if (this.highBeamTimer <= 0) {
         this.highBeamStrobeCount = 6;
-        this.highBeamTimer = 2.0;
+        this.highBeamTimer = 2.2;
       }
     }
 
@@ -117,14 +131,21 @@ export class CinematicAutopilot {
       this.highBeamStrobeCount -= delta * 5;
     }
 
-    // 2. Dynamic Makas Decision & Gap Finding ("Aralara Girme")
-    const maxDwellTime = this.aggressiveness === 'AGGRESSIVE' ? 0.95 : 1.4;
-    const hasObstacleAhead = distInCurrentLane < 42 || distInTargetLane < 42;
-    const isTimeToWeave = this.timeInCurrentLane >= maxDwellTime;
+    // 2. Intelligent Makas Decision (Triggered by Traffic Obstacles or Natural Highway Flow)
+    // CRITICAL FIX: Do NOT blindly switch lanes every 0.95 seconds!
+    // Real makas is executed when catching up to slower traffic ahead in the current lane.
+    const obstacleThreshold = Math.max(38, (playerSpeed / 180) * 52); // ~42-52m depending on speed
+    const hasObstacleAhead = distInCurrentLane < obstacleThreshold || distInTargetLane < obstacleThreshold;
 
-    if (hasObstacleAhead || isTimeToWeave) {
+    // Minimum time in lane before voluntary freestyle weave (3.8s - 5.2s, NOT 0.95s!)
+    const voluntaryWeaveTime = this.aggressiveness === 'AGGRESSIVE' ? 3.8 : 5.2;
+    const isTimeToFreestyleWeave = this.timeInCurrentLane >= voluntaryWeaveTime && this.laneChangeCooldown <= 0;
+
+    // Can change lane if cooldown has expired, or emergency override if obstacle is critically close (< 24m)
+    const canChangeLane = this.laneChangeCooldown <= 0 || (distInCurrentLane < 24.0);
+
+    if ((hasObstacleAhead || isTimeToFreestyleWeave) && canChangeLane) {
       const candidateLanes: number[] = [];
-
       if (currentLane > 0) candidateLanes.push(currentLane - 1);
       if (currentLane < 3) candidateLanes.push(currentLane + 1);
 
@@ -135,26 +156,30 @@ export class CinematicAutopilot {
         const clearance = laneDistances[lane];
         const isDoorBlocked = this.isCarAlongside(playerPos.z, lane, activeNPCs);
 
+        // Cannot weave into a lane if a car is alongside our doors
         if (isDoorBlocked) continue;
+        // Cannot weave into a lane that has an obstacle closer than 20m
+        if (clearance < 20.0) continue;
 
         let score = clearance;
 
-        if ((lane - currentLane) * this.slalomDirection > 0) {
-          score += 15;
+        // Evasion priority: huge bonus if candidate lane is open and current lane is blocked
+        if (hasObstacleAhead && clearance > distInCurrentLane + 10) {
+          score += 65;
         }
 
         // Center lanes bonus: prioritize weaving through the middle 2 lanes (Lanes 1 and 2)
         if (lane === 1 || lane === 2) {
-          score += 12;
+          score += 22;
         }
 
-        // Strongly encourage moving away from outer curbs if currently on an edge lane
-        if ((currentLane === 0 && lane === 1) || (currentLane === 3 && lane === 2)) {
-          score += 18;
-        }
+        // Strongly encourage moving away from outer curbs / edge lanes
+        if (currentLane === 0 && lane === 1) score += 35;
+        if (currentLane === 3 && lane === 2) score += 35;
 
-        if (hasObstacleAhead && clearance > 18) {
-          score += 40;
+        // Slalom momentum: slight bonus for alternating weave direction if both lanes are safe
+        if ((lane - currentLane) * this.slalomDirection > 0) {
+          score += 10;
         }
 
         if (score > highestScore) {
@@ -163,9 +188,10 @@ export class CinematicAutopilot {
         }
       }
 
-      if (highestScore <= 0) {
+      // If candidate lanes are all blocked, fallback check for any open middle lane
+      if (highestScore <= 0 && hasObstacleAhead) {
         for (let l = 1; l <= 2; l++) {
-          if (l !== currentLane && laneDistances[l] > 22 && !this.isCarAlongside(playerPos.z, l, activeNPCs)) {
+          if (l !== currentLane && laneDistances[l] > 28 && !this.isCarAlongside(playerPos.z, l, activeNPCs)) {
             bestLane = l;
             break;
           }
@@ -175,11 +201,14 @@ export class CinematicAutopilot {
       if (bestLane !== this.targetLane) {
         this.targetLane = bestLane;
         this.timeInCurrentLane = 0;
+        this.laneChangeCooldown = 2.2; // Stabilize in the new lane for at least 2.2s!
         this.makasCount++;
 
+        // Update slalom direction for next time
         if (this.targetLane >= 3) this.slalomDirection = -1;
         if (this.targetLane <= 0) this.slalomDirection = 1;
 
+        // Nitro burst when initiating a makas!
         if (this.nitroCooldown <= 0) {
           this.nitroTimer = 1.9;
         }
@@ -190,9 +219,11 @@ export class CinematicAutopilot {
     if (playerPos.x < laneSystem.roadLeftEdge + 1.4 && this.targetLane === 0) {
       this.targetLane = 1;
       this.slalomDirection = 1;
+      this.laneChangeCooldown = 1.8;
     } else if (playerPos.x > laneSystem.roadRightEdge - 1.4 && this.targetLane === 3) {
       this.targetLane = 2;
       this.slalomDirection = -1;
+      this.laneChangeCooldown = 1.8;
     }
 
     if (this.nitroCooldown <= 0 && this.nitroTimer <= 0 && playerSpeed < targetSpeedKmh - 5) {
@@ -205,16 +236,34 @@ export class CinematicAutopilot {
       shouldBrake = true;
     }
 
-    // 4. Ultra-responsive Steering Controller
-    // Note: in PlayerVehicle.updatePhysics, lateralVelocity = -steerInput * K.
+    // 4. Critically Damped PD Steering Controller (Zero Wobble / Fishtailing)
+    // In PlayerVehicle.updatePhysics, lateralVelocity = -steerInput * K.
     // To move towards +X (targetX > playerPos.x), steerInput must be NEGATIVE.
     const targetX = laneSystem.getLaneX(this.targetLane);
     const diffX = targetX - playerPos.x;
 
-    const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.85 : 0.65;
-    const desiredSteer = Math.max(-1.0, Math.min(1.0, -diffX * steerSharpness));
+    // Real-time lateral velocity (m/s)
+    const lateralVel = (playerPos.x - this.lastPlayerX) / Math.max(0.0001, delta);
+    this.lastPlayerX = playerPos.x;
 
-    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, delta * 16.0);
+    let desiredSteer = 0;
+    const absDiff = Math.abs(diffX);
+
+    // Deadzone: If within 7cm of lane center and lateral drift is minimal, wheel is 100% straight!
+    if (absDiff > 0.07 || Math.abs(lateralVel) > 0.22) {
+      const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.72 : 0.55;
+      const steerDamping = 0.16; // Damps lateral momentum to eliminate overshoot and oscillation
+
+      const pTerm = -diffX * steerSharpness;
+      const dTerm = lateralVel * steerDamping; // Counter-steers as vehicle closes in on targetX
+      desiredSteer = Math.max(-1.0, Math.min(1.0, pTerm + dTerm));
+    }
+
+    // Smooth response without high-frequency twitching
+    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, Math.min(1.0, delta * 18.0));
+    if (Math.abs(this.currentSteer) < 0.015 && absDiff <= 0.07) {
+      this.currentSteer = 0;
+    }
 
     // 5. Full Throttle Acceleration
     const shouldAccelerate = playerSpeed < targetSpeedKmh + 20 && !shouldBrake;
