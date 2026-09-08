@@ -21,10 +21,13 @@ export class CinematicAutopilot {
 
   private targetLane: number = 1;
   private currentSteer: number = 0;
-  private highBeamCooldown: number = 0;
+  private highBeamTimer: number = 0;
+  private highBeamStrobeCount: number = 0;
   private nitroTimer: number = 0;
-  private lastLaneChangeTime: number = 0;
+  private nitroCooldown: number = 0;
   private timeSinceStart: number = 0;
+  private timeInCurrentLane: number = 0;
+  private slalomDirection: number = 1;
 
   // Stats for cinematic HUD
   public makasCount: number = 0;
@@ -34,13 +37,20 @@ export class CinematicAutopilot {
   public reset(initialLane: number = 1, aggressiveness: SlalomAggressiveness = 'AGGRESSIVE'): void {
     this.targetLane = initialLane;
     this.currentSteer = 0;
-    this.highBeamCooldown = 0;
-    this.nitroTimer = 0;
-    this.lastLaneChangeTime = 0;
+    this.highBeamTimer = 0;
+    this.highBeamStrobeCount = 0;
+    this.nitroTimer = 2.5; // Start with immediate nitro boost!
+    this.nitroCooldown = 0;
     this.timeSinceStart = 0;
+    this.timeInCurrentLane = 0;
+    this.slalomDirection = Math.random() > 0.5 ? 1 : -1;
     this.makasCount = 0;
     this.aggressiveness = aggressiveness;
     this.enabled = true;
+  }
+
+  public setAggressive(aggressive: boolean): void {
+    this.aggressiveness = aggressive ? 'AGGRESSIVE' : 'NORMAL';
   }
 
   public update(
@@ -49,29 +59,36 @@ export class CinematicAutopilot {
     trafficManager: TrafficManager
   ): AutopilotOutput {
     if (!this.enabled || !player) {
-      return { steer: 0, accelerate: false, brake: false, nitro: false, flashHighBeams: false };
+      return { steer: 0, accelerate: true, brake: false, nitro: false, flashHighBeams: false };
     }
 
     this.timeSinceStart += delta;
-    this.highBeamCooldown = Math.max(0, this.highBeamCooldown - delta);
-    this.nitroTimer = Math.max(0, this.nitroTimer - delta);
+    this.timeInCurrentLane += delta;
+    this.nitroCooldown = Math.max(0, this.nitroCooldown - delta);
+    this.highBeamTimer = Math.max(0, this.highBeamTimer - delta);
+
+    if (this.nitroTimer > 0) {
+      this.nitroTimer -= delta;
+      if (this.nitroTimer <= 0) {
+        this.nitroCooldown = 0.8;
+      }
+    }
 
     const playerPos = player.mesh.position;
     const playerSpeed = player.speedKmh;
     const activeNPCs = trafficManager.getActiveVehicles();
 
-    const targetSpeedKmh = this.aggressiveness === 'AGGRESSIVE' ? 165 : 135;
+    const targetSpeedKmh = this.aggressiveness === 'AGGRESSIVE' ? 215 : 175;
     const currentLane = laneSystem.getClosestLane(playerPos.x);
 
-    // 1. Analyze vehicles ahead in each lane
-    // Look ahead distance scales with speed (e.g. 20m at 80km/h up to 70m at 160km/h)
-    const scanDistance = Math.max(30, (playerSpeed / 160) * 80);
-    const laneDistances: number[] = [999, 999, 999, 999]; // distance to closest car ahead in each lane
+    // 1. Analyze vehicles ahead in all 4 lanes
+    const scanDistance = Math.max(45, (playerSpeed / 160) * 90);
+    const laneDistances: number[] = [999, 999, 999, 999];
     const laneCarsAhead: (TrafficVehicle | null)[] = [null, null, null, null];
 
     for (const npc of activeNPCs) {
       const relZ = npc.mesh.position.z - playerPos.z;
-      if (relZ > 2.0 && relZ < scanDistance) {
+      if (relZ > 1.0 && relZ < scanDistance) {
         const npcLane = laneSystem.getClosestLane(npc.mesh.position.x);
         if (npcLane >= 0 && npcLane < 4) {
           if (relZ < laneDistances[npcLane]) {
@@ -82,117 +99,121 @@ export class CinematicAutopilot {
       }
     }
 
-    // 2. Evaluate obstacle directly in front of targetLane and currentLane
     const distInCurrentLane = laneDistances[currentLane];
     const distInTargetLane = laneDistances[this.targetLane];
 
-    // Thresholds
-    const triggerDistance = this.aggressiveness === 'AGGRESSIVE' ? 32 : 45;
-    const emergencyDistance = 14;
-
+    // High-beam selektör strobe logic: rapid double/triple flash when catching up
     let shouldFlash = false;
-    let shouldBrake = false;
-    let shouldNitro = false;
-
-    // Flash high beams when catching up to a car ahead (classic Istanbul highway selektör)
-    if (distInCurrentLane < 50 && this.highBeamCooldown <= 0) {
-      shouldFlash = true;
-      this.highBeamCooldown = 1.6; // cooldown between bursts
+    if (distInCurrentLane < 65) {
+      if (this.highBeamTimer <= 0) {
+        this.highBeamStrobeCount = 6;
+        this.highBeamTimer = 2.0;
+      }
     }
 
-    // 3. Lane Decision Logic for Dynamic "Makas" Weaving
-    const minLaneChangeInterval = this.aggressiveness === 'AGGRESSIVE' ? 0.8 : 1.2;
-    const canChangeLane = this.timeSinceStart - this.lastLaneChangeTime > minLaneChangeInterval;
+    if (this.highBeamStrobeCount > 0) {
+      const strobePhase = Math.floor((this.timeSinceStart * 12) % 2);
+      shouldFlash = strobePhase === 1;
+      this.highBeamStrobeCount -= delta * 5;
+    }
 
-    if (canChangeLane) {
-      // Check if we need to evade or perform an aggressive cut
-      const needsEvade = distInCurrentLane < triggerDistance || distInTargetLane < triggerDistance;
+    // 2. Dynamic Makas Decision & Gap Finding ("Aralara Girme")
+    const maxDwellTime = this.aggressiveness === 'AGGRESSIVE' ? 0.95 : 1.4;
+    const hasObstacleAhead = distInCurrentLane < 42 || distInTargetLane < 42;
+    const isTimeToWeave = this.timeInCurrentLane >= maxDwellTime;
 
-      if (needsEvade) {
-        // Evaluate adjacent lanes: prefer lanes with most clearance ahead
-        let bestLane = currentLane;
-        let bestClearance = -1;
+    if (hasObstacleAhead || isTimeToWeave) {
+      const candidateLanes: number[] = [];
 
-        // Try lanes adjacent to currentLane first for tight weaves
-        const candidateLanes: number[] = [];
-        if (currentLane > 0) candidateLanes.push(currentLane - 1);
-        if (currentLane < 3) candidateLanes.push(currentLane + 1);
+      if (currentLane > 0) candidateLanes.push(currentLane - 1);
+      if (currentLane < 3) candidateLanes.push(currentLane + 1);
 
-        // Also consider non-adjacent if both adjacent are blocked
+      let bestLane = this.targetLane;
+      let highestScore = -999;
+
+      for (const lane of candidateLanes) {
+        const clearance = laneDistances[lane];
+        const isDoorBlocked = this.isCarAlongside(playerPos.z, lane, activeNPCs);
+
+        if (isDoorBlocked) continue;
+
+        let score = clearance;
+
+        if ((lane - currentLane) * this.slalomDirection > 0) {
+          score += 15;
+        }
+
+        if (hasObstacleAhead && clearance > 18) {
+          score += 40;
+        }
+
+        if (score > highestScore) {
+          highestScore = score;
+          bestLane = lane;
+        }
+      }
+
+      if (highestScore <= 0) {
         for (let l = 0; l < 4; l++) {
-          if (!candidateLanes.includes(l) && l !== currentLane) {
-            candidateLanes.push(l);
+          if (l !== currentLane && laneDistances[l] > 22 && !this.isCarAlongside(playerPos.z, l, activeNPCs)) {
+            bestLane = l;
+            break;
           }
         }
+      }
 
-        for (const lane of candidateLanes) {
-          const clearance = laneDistances[lane];
-          // Check safety margin behind or next to us in that lane as well
-          const isSideClear = !this.isCarAlongside(playerPos.z, lane, activeNPCs);
-          if (isSideClear && clearance > bestClearance && clearance > 18) {
-            bestClearance = clearance;
-            bestLane = lane;
-          }
-        }
+      if (bestLane !== this.targetLane) {
+        this.targetLane = bestLane;
+        this.timeInCurrentLane = 0;
+        this.makasCount++;
 
-        if (bestLane !== this.targetLane) {
-          this.targetLane = bestLane;
-          this.lastLaneChangeTime = this.timeSinceStart;
-          this.makasCount++;
+        if (this.targetLane >= 3) this.slalomDirection = -1;
+        if (this.targetLane <= 0) this.slalomDirection = 1;
 
-          // 50% chance to burst nitro right after initiating a clean makas!
-          if (Math.random() < 0.6 && this.nitroTimer <= 0) {
-            shouldNitro = true;
-            this.nitroTimer = 2.5;
-          }
+        if (this.nitroCooldown <= 0) {
+          this.nitroTimer = 1.9;
         }
       }
     }
 
-    // 4. Emergency Collision Avoidance (ensure video reel never stops due to crash)
-    if (distInCurrentLane < emergencyDistance && Math.abs(playerPos.x - laneSystem.getLaneX(this.targetLane)) < 1.0) {
-      // Hard brake momentarily until lane change completes
+    if (this.nitroCooldown <= 0 && this.nitroTimer <= 0 && playerSpeed < targetSpeedKmh - 5) {
+      this.nitroTimer = 1.8;
+    }
+
+    // 3. Emergency brake only if vehicle is directly blocking within 9m
+    let shouldBrake = false;
+    if (distInCurrentLane < 9.0 && Math.abs(playerPos.x - laneSystem.getLaneX(this.targetLane)) < 0.6) {
       shouldBrake = true;
     }
 
-    // 5. Steering Controller
+    // 4. Ultra-responsive Steering Controller
     const targetX = laneSystem.getLaneX(this.targetLane);
     const diffX = targetX - playerPos.x;
 
-    // Responsive PD-like steering calculation
-    const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.75 : 0.55;
-    let desiredSteer = Math.max(-1.0, Math.min(1.0, diffX * steerSharpness));
+    const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.95 : 0.70;
+    const desiredSteer = Math.max(-1.0, Math.min(1.0, diffX * steerSharpness));
 
-    // Smooth transition into steering to avoid instantaneous snaps
-    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, delta * 12.0);
+    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, delta * 18.0);
 
-    // 6. Throttle & Speed Control
-    let shouldAccelerate = true;
-    if (playerSpeed > targetSpeedKmh + 10) {
-      shouldAccelerate = false;
-    }
-
-    if (this.nitroTimer > 0) {
-      shouldNitro = true;
-    }
+    // 5. Full Throttle Acceleration
+    const shouldAccelerate = playerSpeed < targetSpeedKmh + 20 && !shouldBrake;
+    const isNitroActive = this.nitroTimer > 0 && !shouldBrake;
 
     return {
       steer: this.currentSteer,
-      accelerate: shouldAccelerate && !shouldBrake,
+      accelerate: shouldAccelerate,
       brake: shouldBrake,
-      nitro: shouldNitro && !shouldBrake,
+      nitro: isNitroActive,
       flashHighBeams: shouldFlash,
     };
   }
 
-  // Verify that an adjacent lane doesn't have an NPC right next to our doors
   private isCarAlongside(playerZ: number, laneIndex: number, npcs: TrafficVehicle[]): boolean {
     for (const npc of npcs) {
       const npcLane = laneSystem.getClosestLane(npc.mesh.position.x);
       if (npcLane === laneIndex) {
         const dz = Math.abs(npc.mesh.position.z - playerZ);
-        // Vehicle length is approx 4.5m, safe buffer is 7.5m
-        if (dz < 7.5) {
+        if (dz < 6.0) {
           return true;
         }
       }

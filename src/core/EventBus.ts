@@ -45,6 +45,7 @@ export interface GameEventPayloads {
   timeScaleChanged: { timeScale: number };
   reelsMaskChanged: { active: boolean };
   cleanScreenChanged: { active: boolean };
+  adStudioCameraSwitched: { index: number; shotName: string };
 
   // Multiplayer events
   'mp:disconnected': {};

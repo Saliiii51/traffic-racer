@@ -109,6 +109,7 @@ export class UIManager {
   private adHudSpeed!: HTMLElement;
   private adBtnSlowmo!: HTMLElement;
   private adBtnReelsMask!: HTMLElement;
+  private adCameraFlash!: HTMLElement;
   private adStudioSelectedCarId: string = 'tofas_gltf';
   private adStudioSelectedEnv: any = 'DAY';
   private adStudioAggressive: boolean = true;
@@ -1140,6 +1141,9 @@ export class UIManager {
         </div>
       </div>
 
+      <!-- Cinematic Camera Transition Flash & Vignette -->
+      <div id="ad-camera-transition-flash" style="display: block; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.75) 0%, rgba(225,48,108,0.35) 45%, rgba(0,0,0,0.85) 100%); mix-blend-mode: screen; z-index: 95; backdrop-filter: blur(2px);"></div>
+
       <!-- Floating Unhide UI Trigger (Only visible when UI is hidden) -->
       <button id="btn-unhide-ui" style="display: none; position: absolute; top: 16px; right: 16px; z-index: 100; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 50%; width: 44px; height: 44px; font-size: 1.2rem; cursor: pointer; backdrop-filter: blur(4px);">
         👁️
@@ -1208,6 +1212,7 @@ export class UIManager {
     this.adHudSpeed = document.getElementById('ad-hud-speed')!;
     this.adBtnSlowmo = document.getElementById('ad-btn-slowmo')!;
     this.adBtnReelsMask = document.getElementById('ad-btn-reels-mask')!;
+    this.adCameraFlash = document.getElementById('ad-camera-transition-flash')!;
 
     this.btnSkipIntro?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1351,6 +1356,21 @@ export class UIManager {
     document.getElementById('ad-btn-exit')?.addEventListener('click', () => {
       audioManager.playClick();
       this.onExitAdStudio?.();
+    });
+
+    // Ad Studio Camera Switch Transition Flash & HUD Update
+    eventBus.on('adStudioCameraSwitched', ({ shotName }) => {
+      if (this.adCameraFlash) {
+        this.adCameraFlash.style.transition = 'none';
+        this.adCameraFlash.style.opacity = '0.9';
+        // Force browser reflow to reliably restart transition
+        void this.adCameraFlash.offsetWidth;
+        this.adCameraFlash.style.transition = 'opacity 0.32s cubic-bezier(0.1, 0.9, 0.2, 1)';
+        this.adCameraFlash.style.opacity = '0';
+      }
+      if (this.adHudCamName) {
+        this.adHudCamName.innerText = `🎥 ${shotName}`;
+      }
     });
 
     // Keyboard 'H' or 'h' to toggle Clean Screen mode

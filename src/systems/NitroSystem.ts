@@ -27,6 +27,11 @@ export class NitroSystem {
       this.isDepleted = false;
     }
 
+    if (gameState.isAdStudioMode) {
+      this.nitroPercent = 100;
+      this.isDepleted = false;
+    }
+
     // Nitro can only activate if:
     // 1. Not in depleted lockout (must wait until at least MIN_ACTIVATION_PERCENT is reached)
     // 2. Player wants nitro (holding key or button)
