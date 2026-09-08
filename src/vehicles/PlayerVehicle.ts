@@ -290,8 +290,14 @@ export class PlayerVehicle extends Vehicle {
       const lateralVelocity = -steerInput * (this.currentHandling * 0.58) * speedFactor * brakeAgilityBonus * highSpeedStability * sensitivity;
       this.mesh.position.x += lateralVelocity * delta;
 
-      // Clamp cleanly within road barriers with soft boundary buffer
-      this.mesh.position.x = laneSystem.clampToRoad(this.mesh.position.x, this.dimensions.width * 0.55);
+      // Clamp cleanly within road boundaries
+      if (gameState.isAdStudioMode) {
+        // In Ad Studio promo mode, keep vehicle strictly on asphalt lanes, away from curbs and sidewalks
+        const edgeBuffer = this.dimensions.width * 0.55 + 0.20;
+        this.mesh.position.x = Math.max(laneSystem.roadLeftEdge + edgeBuffer, Math.min(laneSystem.roadRightEdge - edgeBuffer, this.mesh.position.x));
+      } else {
+        this.mesh.position.x = laneSystem.clampToRoad(this.mesh.position.x, this.dimensions.width * 0.55);
+      }
     }
 
     // 4. Visual Dynamics: Roll (tilt), Yaw (heading), and Pitch (dive/squat)

@@ -143,6 +143,16 @@ export class CinematicAutopilot {
           score += 15;
         }
 
+        // Center lanes bonus: prioritize weaving through the middle 2 lanes (Lanes 1 and 2)
+        if (lane === 1 || lane === 2) {
+          score += 12;
+        }
+
+        // Strongly encourage moving away from outer curbs if currently on an edge lane
+        if ((currentLane === 0 && lane === 1) || (currentLane === 3 && lane === 2)) {
+          score += 18;
+        }
+
         if (hasObstacleAhead && clearance > 18) {
           score += 40;
         }
@@ -154,7 +164,7 @@ export class CinematicAutopilot {
       }
 
       if (highestScore <= 0) {
-        for (let l = 0; l < 4; l++) {
+        for (let l = 1; l <= 2; l++) {
           if (l !== currentLane && laneDistances[l] > 22 && !this.isCarAlongside(playerPos.z, l, activeNPCs)) {
             bestLane = l;
             break;
@@ -176,6 +186,15 @@ export class CinematicAutopilot {
       }
     }
 
+    // Edge proximity guard: never stay near road boundaries / curbs
+    if (playerPos.x < laneSystem.roadLeftEdge + 1.4 && this.targetLane === 0) {
+      this.targetLane = 1;
+      this.slalomDirection = 1;
+    } else if (playerPos.x > laneSystem.roadRightEdge - 1.4 && this.targetLane === 3) {
+      this.targetLane = 2;
+      this.slalomDirection = -1;
+    }
+
     if (this.nitroCooldown <= 0 && this.nitroTimer <= 0 && playerSpeed < targetSpeedKmh - 5) {
       this.nitroTimer = 1.8;
     }
@@ -187,13 +206,15 @@ export class CinematicAutopilot {
     }
 
     // 4. Ultra-responsive Steering Controller
+    // Note: in PlayerVehicle.updatePhysics, lateralVelocity = -steerInput * K.
+    // To move towards +X (targetX > playerPos.x), steerInput must be NEGATIVE.
     const targetX = laneSystem.getLaneX(this.targetLane);
     const diffX = targetX - playerPos.x;
 
-    const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.95 : 0.70;
-    const desiredSteer = Math.max(-1.0, Math.min(1.0, diffX * steerSharpness));
+    const steerSharpness = this.aggressiveness === 'AGGRESSIVE' ? 0.85 : 0.65;
+    const desiredSteer = Math.max(-1.0, Math.min(1.0, -diffX * steerSharpness));
 
-    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, delta * 18.0);
+    this.currentSteer = THREE.MathUtils.lerp(this.currentSteer, desiredSteer, delta * 16.0);
 
     // 5. Full Throttle Acceleration
     const shouldAccelerate = playerSpeed < targetSpeedKmh + 20 && !shouldBrake;
