@@ -6,9 +6,25 @@ export interface OpponentData {
   name: string;
   vehicleId: string;
   colorHex: string;
+  lane: number;
   isHost: boolean;
   distance: number;
   isCrashed: boolean;
+  isFinished?: boolean;
+  finishTime?: number;
+}
+
+export interface PlayerStanding {
+  rank: number;
+  id: string;
+  name: string;
+  vehicleId: string;
+  colorHex: string;
+  lane?: number;
+  distance: number;
+  isCrashed: boolean;
+  isFinished?: boolean;
+  finishTime?: number;
 }
 
 export interface OpponentStateUpdate {
@@ -37,10 +53,18 @@ export class MultiplayerManager {
   public roomCode: string | null = null;
   public myPlayerId: string | null = null;
   public myPlayerName: string = 'Sürücü';
-  public opponent: OpponentData | null = null;
+  public myAssignedLane: number = 1;
+  public maxPlayers: number = 4;
+  public opponents: Map<string, OpponentData> = new Map();
+  public roomPlayers: OpponentData[] = [];
   public mode: 'SPRINT' | 'SURVIVAL' = 'SPRINT';
   public targetDistance: number = 3000;
   public seed: number = 0;
+
+  // Single opponent backwards compatibility getter
+  public get opponent(): OpponentData | null {
+    return this.opponents.values().next().value || null;
+  }
 
   // Rate limiter for outgoing state updates (approx 25 updates per second)
   private lastSendTime: number = 0;
@@ -53,6 +77,10 @@ export class MultiplayerManager {
       MultiplayerManager.instance = new MultiplayerManager();
     }
     return MultiplayerManager.instance;
+  }
+
+  public getOpponentsList(): OpponentData[] {
+    return Array.from(this.opponents.values());
   }
 
   public getServerUrl(): string {
@@ -103,7 +131,8 @@ export class MultiplayerManager {
         this.isMultiplayerActive = false;
         this.isRacing = false;
         this.roomCode = null;
-        this.opponent = null;
+        this.opponents.clear();
+        this.roomPlayers = [];
         eventBus.emit('mp:disconnected', {});
       };
 
@@ -130,14 +159,20 @@ export class MultiplayerManager {
           this.myPlayerId = data.playerId;
           this.isHost = true;
           this.isMultiplayerActive = true;
+          this.myAssignedLane = data.lane ?? 1;
+          this.maxPlayers = data.maxPlayers || 4;
           this.mode = data.mode;
           this.targetDistance = data.targetDistance;
-          this.opponent = null;
+          this.opponents.clear();
+          this.roomPlayers = data.players || [];
           eventBus.emit('mp:roomCreated', {
             roomCode: data.roomCode,
             isHost: true,
             mode: data.mode,
             targetDistance: data.targetDistance,
+            lane: this.myAssignedLane,
+            maxPlayers: this.maxPlayers,
+            players: this.roomPlayers,
           });
           break;
         }
@@ -147,31 +182,43 @@ export class MultiplayerManager {
           this.myPlayerId = data.playerId;
           this.isHost = false;
           this.isMultiplayerActive = true;
+          this.myAssignedLane = data.lane ?? 2;
+          this.maxPlayers = data.maxPlayers || 4;
           this.mode = data.mode;
           this.targetDistance = data.targetDistance;
+          this.roomPlayers = data.players || [];
 
-          const opp = (data.players as OpponentData[]).find((p) => p.id !== this.myPlayerId);
-          if (opp) {
-            this.opponent = { ...opp, isCrashed: false, distance: 0 };
-          }
+          this.opponents.clear();
+          (data.players as OpponentData[]).forEach((p) => {
+            if (p.id !== this.myPlayerId) {
+              this.opponents.set(p.id, { ...p, isCrashed: false, distance: 0 });
+            }
+          });
 
           eventBus.emit('mp:roomJoined', {
             roomCode: data.roomCode,
             isHost: false,
             mode: data.mode,
             targetDistance: data.targetDistance,
+            lane: this.myAssignedLane,
+            maxPlayers: this.maxPlayers,
             players: data.players,
           });
           break;
         }
 
         case 'PLAYER_JOINED': {
-          const opp = (data.players as OpponentData[]).find((p) => p.id !== this.myPlayerId);
-          if (opp) {
-            this.opponent = { ...opp, isCrashed: false, distance: 0 };
-          }
+          this.roomPlayers = data.players || [];
+          (data.players as OpponentData[]).forEach((p) => {
+            if (p.id !== this.myPlayerId && !this.opponents.has(p.id)) {
+              this.opponents.set(p.id, { ...p, isCrashed: false, distance: 0 });
+            }
+          });
+
           eventBus.emit('mp:playerJoined', {
             players: data.players,
+            newPlayer: data.newPlayer,
+            opponents: this.getOpponentsList(),
             opponent: this.opponent,
           });
           break;
@@ -182,36 +229,47 @@ export class MultiplayerManager {
           this.mode = data.mode;
           this.targetDistance = data.targetDistance;
           this.isRacing = true;
+          this.roomPlayers = data.players || [];
 
-          const opp = (data.players as OpponentData[]).find((p) => p.id !== this.myPlayerId);
-          if (opp) {
-            this.opponent = { ...opp, isCrashed: false, distance: 0 };
-          }
+          // Update assigned lane and opponents map
+          (data.players as OpponentData[]).forEach((p) => {
+            if (p.id === this.myPlayerId) {
+              this.myAssignedLane = p.lane ?? this.myAssignedLane;
+            } else {
+              this.opponents.set(p.id, { ...p, isCrashed: false, distance: 0 });
+            }
+          });
 
           eventBus.emit('mp:raceStarting', {
             seed: data.seed,
             mode: data.mode,
             targetDistance: data.targetDistance,
             countdownSec: data.countdownSec || 3,
+            opponents: this.getOpponentsList(),
             opponent: this.opponent,
+            players: data.players,
           });
           break;
         }
 
         case 'OPPONENT_UPDATE': {
-          if (this.opponent) {
-            this.opponent.distance = data.distance;
+          const opp = this.opponents.get(data.playerId);
+          if (opp) {
+            opp.distance = data.distance;
           }
           eventBus.emit('mp:opponentUpdate', data as OpponentStateUpdate);
           break;
         }
 
         case 'OPPONENT_CRASHED': {
-          if (this.opponent) {
-            this.opponent.isCrashed = true;
+          const opp = this.opponents.get(data.playerId);
+          if (opp) {
+            opp.isCrashed = true;
+            opp.distance = data.distance || opp.distance;
           }
           eventBus.emit('mp:opponentCrashed', {
             playerId: data.playerId,
+            playerName: data.playerName || opp?.name || 'Rakip',
             distance: data.distance,
           });
           break;
@@ -226,13 +284,36 @@ export class MultiplayerManager {
             isMeWinner,
             reason: data.reason,
             finishTime: data.finishTime,
+            standings: data.standings,
           });
           break;
         }
 
         case 'OPPONENT_LEFT': {
-          this.opponent = null;
-          eventBus.emit('mp:opponentLeft', { playerId: data.playerId });
+          const leavingName = data.playerName || this.opponents.get(data.playerId)?.name || 'Bir oyuncu';
+          this.opponents.delete(data.playerId);
+          if (data.players) {
+            this.roomPlayers = data.players;
+          }
+          eventBus.emit('mp:opponentLeft', {
+            playerId: data.playerId,
+            playerName: leavingName,
+            players: data.players,
+          });
+          break;
+        }
+
+        case 'HOST_CHANGED': {
+          if (data.newHostId === this.myPlayerId) {
+            this.isHost = true;
+          }
+          if (data.players) {
+            this.roomPlayers = data.players;
+          }
+          eventBus.emit('mp:hostChanged', {
+            newHostId: data.newHostId,
+            players: data.players,
+          });
           break;
         }
 
@@ -352,7 +433,8 @@ export class MultiplayerManager {
     this.isMultiplayerActive = false;
     this.isRacing = false;
     this.roomCode = null;
-    this.opponent = null;
+    this.opponents.clear();
+    this.roomPlayers = [];
   }
 }
 

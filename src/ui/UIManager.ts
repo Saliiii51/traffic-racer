@@ -293,12 +293,13 @@ export class UIManager {
           </div>
         </div>
         
-        <!-- MULTIPLAYER LIVE DUEL STATUS BAR -->
-        <div id="hud-multiplayer-bar" style="display: none; position: absolute; top: 78px; left: 50%; transform: translateX(-50%); background: rgba(10, 15, 26, 0.90); border: 2px solid #ff007f; border-radius: 20px; padding: 6px 18px; color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.84rem; font-weight: 800; align-items: center; gap: 12px; box-shadow: 0 0 16px rgba(255,0,127,0.4); z-index: 60; pointer-events: none;">
-          <span id="mp-hud-my-info" style="color: #00f0ff;">Sen: 0m</span>
-          <span style="color: #ff007f; font-size: 1.1rem;">⚔️</span>
-          <span id="mp-hud-opp-info" style="color: #ffbe0b;">Rakip: 0m</span>
-          <span id="mp-hud-diff-badge" style="padding: 2px 8px; border-radius: 8px; background: rgba(0,255,170,0.2); color: #00ffaa; font-size: 0.76rem;">+0m</span>
+        <!-- MULTIPLAYER LIVE HIGHWAY LEADERBOARD BAR -->
+        <div id="hud-multiplayer-bar" style="display: none; position: absolute; top: 78px; left: 50%; transform: translateX(-50%); background: rgba(10, 15, 26, 0.92); border: 2px solid #ff007f; border-radius: 16px; padding: 6px 14px; color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.80rem; font-weight: 800; align-items: center; gap: 10px; box-shadow: 0 0 20px rgba(255,0,127,0.45); z-index: 60; pointer-events: none; max-width: 96vw; overflow-x: auto;">
+          <div id="mp-live-leaderboard-items" style="display: flex; align-items: center; gap: 8px;"></div>
+          <!-- Fallback legacy tags -->
+          <span id="mp-hud-my-info" style="display: none;"></span>
+          <span id="mp-hud-opp-info" style="display: none;"></span>
+          <span id="mp-hud-diff-badge" style="display: none;"></span>
         </div>
 
         <!-- Telemetry: Turn signals, Speedometer & Nitro bar -->
@@ -960,16 +961,25 @@ export class UIManager {
 
             <!-- Host Room Lobby Info (shown after room created) -->
             <div id="mp-host-room-info" style="display: none; background: rgba(255, 0, 127, 0.08); border: 1.5px dashed #ff007f; border-radius: 12px; padding: 16px; text-align: center; margin-top: 12px;">
-              <div style="font-size: 0.82rem; color: rgba(255,255,255,0.7);">ODA PIN KODU (Arkadaşına Gönder):</div>
+              <div style="font-size: 0.82rem; color: rgba(255,255,255,0.7);">ODA PIN KODU (Arkadaşlarına Gönder):</div>
               <div id="mp-room-code-display" style="font-size: 2.2rem; font-family: 'Orbitron', monospace; font-weight: 900; color: #00f0ff; letter-spacing: 8px; margin: 8px 0;">----</div>
-              <div id="mp-host-status-msg" style="font-size: 0.85rem; color: #ffbe0b; margin-bottom: 12px;">⏳ Arkadaşının odaya girmesi bekleniyor...</div>
-              
-              <div id="mp-host-opponent-badge" style="display: none; background: rgba(0, 240, 255, 0.12); border: 1px solid #00f0ff; border-radius: 8px; padding: 8px; margin-bottom: 14px; font-size: 0.88rem; color: #fff;">
-                ✅ <b>Rakip Katıldı:</b> <span id="mp-host-opp-name" style="color: #00f0ff; font-weight: 800;">-</span>
+              <div id="mp-host-status-msg" style="font-size: 0.85rem; color: #ffbe0b; margin-bottom: 12px;">⏳ Arkadaşlarının odaya girmesi bekleniyor... (En az 2 yarışçı)</div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; text-align: left;">
+                <span style="font-weight: 700; font-size: 0.82rem; color: #fff;">🏎️ OTOYOL GRID (4 ŞERİT):</span>
+                <span id="mp-host-count-badge" style="background: #ff007f; color: #fff; font-size: 0.76rem; font-weight: 800; padding: 2px 8px; border-radius: 10px;">1/4 Oyuncu</span>
+              </div>
+
+              <!-- 4-Player Grid Slots for Host -->
+              <div id="mp-host-players-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; text-align: left;"></div>
+
+              <!-- Legacy compatibility badge -->
+              <div id="mp-host-opponent-badge" style="display: none;">
+                <span id="mp-host-opp-name"></span>
               </div>
 
               <button id="btn-mp-start-race" class="btn btn-primary" disabled style="width: 100%; padding: 13px; font-size: 1.05rem; font-weight: 800; opacity: 0.5; cursor: not-allowed;">
-                ▶ YARIŞI BAŞLAT
+                ▶ YARIŞI BAŞLAT (2-4 OYUNCU)
               </button>
             </div>
           </div>
@@ -985,7 +995,16 @@ export class UIManager {
               🚀 ODAYA GİR VE BAĞLAN
             </button>
 
-            <div id="mp-join-status-box" style="margin-top: 14px; text-align: center; font-size: 0.85rem; color: #ffbe0b; display: none;"></div>
+            <div id="mp-join-status-box" style="margin-top: 14px; text-align: left; display: none;">
+              <div style="text-align: center; margin-bottom: 10px; font-size: 0.88rem; color: #00f0ff; line-height: 1.4;">
+                ✅ <b>Odaya Bağlandın!</b><br><span style="color: rgba(255,255,255,0.7); font-size: 0.78rem;">Oda kurucusu başlattığında yarış otomatik başlayacak...</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.82rem; color: #fff;">🏎️ OTOYOL GRID:</span>
+                <span id="mp-join-count-badge" style="background: #00f0ff; color: #000; font-size: 0.76rem; font-weight: 800; padding: 2px 8px; border-radius: 10px;">1/4 Oyuncu</span>
+              </div>
+              <div id="mp-join-players-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+            </div>
           </div>
 
           <div id="mp-error-msg" style="margin-top: 14px; padding: 8px 12px; border-radius: 8px; background: rgba(255, 0, 60, 0.15); border: 1px solid rgba(255, 0, 60, 0.4); color: #ff5555; font-size: 0.80rem; display: none; text-align: center;"></div>
@@ -994,20 +1013,20 @@ export class UIManager {
 
       <!-- 9. MULTIPLAYER RESULT MODAL OVERLAY -->
       <div id="screen-multiplayer-result" class="settings-overlay">
-        <div class="glass-panel settings-card" style="max-width: 480px; text-align: center; border: 2px solid #ff007f;">
-          <div id="mp-result-badge-icon" style="font-size: 4rem; margin-bottom: 8px;">🏆</div>
-          <h2 id="mp-result-title" style="font-size: 1.8rem; margin: 0 0 6px 0; color: #00f0ff; font-family: 'Orbitron', sans-serif;">KAZANDIN!</h2>
-          <p id="mp-result-subtitle" style="font-size: 0.90rem; color: rgba(255,255,255,0.8); margin-bottom: 20px;">Rakip kaza yaptı!</p>
+        <div class="glass-panel settings-card" style="max-width: 520px; text-align: center; border: 2px solid #ff007f;">
+          <div id="mp-result-badge-icon" style="font-size: 3.8rem; margin-bottom: 4px;">🏆</div>
+          <h2 id="mp-result-title" style="font-size: 1.8rem; margin: 0 0 4px 0; color: #00f0ff; font-family: 'Orbitron', sans-serif;">KAZANDIN!</h2>
+          <p id="mp-result-subtitle" style="font-size: 0.90rem; color: rgba(255,255,255,0.8); margin-bottom: 16px;">Otoyolun şampiyonu sensin!</p>
 
-          <div style="background: rgba(255,255,255,0.06); border-radius: 12px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-family: 'Rajdhani', sans-serif;">
-            <div>
-              <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6);">SENİN MESAFEN</div>
-              <div id="mp-stat-my-dist" style="font-size: 1.3rem; font-weight: 800; color: #00ffaa;">0m</div>
-            </div>
-            <div>
-              <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6);">RAKİP MESAFESİ</div>
-              <div id="mp-stat-opp-dist" style="font-size: 1.3rem; font-weight: 800; color: #ff007f;">0m</div>
-            </div>
+          <!-- 4-Player Leaderboard / Podium Table -->
+          <div id="mp-podium-table" style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 8px; font-family: 'Rajdhani', sans-serif; text-align: left;">
+            <!-- Populated dynamically with all racers' results -->
+          </div>
+
+          <!-- Fallback stats for legacy code -->
+          <div style="display: none;">
+            <span id="mp-stat-my-dist"></span>
+            <span id="mp-stat-opp-dist"></span>
           </div>
 
           <div style="display: flex; gap: 10px;">
@@ -2365,6 +2384,51 @@ export class UIManager {
     }
   }
 
+  public updateMultiplayerLeaderboard(standings: Array<{
+    rank: number;
+    id: string;
+    name: string;
+    distance: number;
+    deltaMeters: number;
+    isMe: boolean;
+    isCrashed: boolean;
+    lane: number;
+  }>): void {
+    if (!this.hudMultiplayerBar) return;
+    this.hudMultiplayerBar.style.display = 'flex';
+
+    const container = document.getElementById('mp-live-leaderboard-items');
+    if (!container) return;
+
+    const rankBadges = ['🥇', '🥈', '🥉', '4️⃣'];
+    const rankColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#94a3b8'];
+
+    container.innerHTML = standings.map((item, idx) => {
+      const badge = rankBadges[idx] || `${idx + 1}.`;
+      const color = rankColors[idx] || '#fff';
+      const isMe = item.isMe;
+
+      let statText = `${Math.round(item.distance)}m`;
+      let statusStyle = 'color: #fff;';
+
+      if (item.isCrashed) {
+        statText = '💥 KAZA';
+        statusStyle = 'color: #ff3366; font-weight: 900;';
+      } else if (idx > 0 && item.deltaMeters !== 0) {
+        statText = `${Math.round(item.deltaMeters)}m`;
+        statusStyle = 'color: #ffbe0b;';
+      }
+
+      return `
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 8px; background: ${isMe ? 'rgba(0,240,255,0.22)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${isMe ? '#00f0ff' : color};">
+          <span style="font-size: 0.95rem;">${badge}</span>
+          <span style="font-weight: 800; font-size: 0.74rem; color: ${isMe ? '#00f0ff' : '#fff'}; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</span>
+          <span style="font-size: 0.72rem; font-weight: 700; ${statusStyle}">${statText}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
   public updateMultiplayerHud(myDist: number, oppDist: number): void {
     if (!this.hudMultiplayerBar) return;
     this.hudMultiplayerBar.style.display = 'flex';
@@ -2394,12 +2458,63 @@ export class UIManager {
     }
   }
 
+  public renderMultiplayerLobby(containerId: string, players: any[]): void {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const laneNames = ['Şerit 1 (Orta-Sol)', 'Şerit 2 (Orta-Sağ)', 'Şerit 0 (En Sol)', 'Şerit 3 (En Sağ)'];
+    const maxSlots = 4;
+    let html = '';
+
+    for (let i = 0; i < maxSlots; i++) {
+      const p = players[i];
+      const laneDesc = laneNames[i] || `Şerit ${i}`;
+
+      if (p) {
+        const isMe = p.id === multiplayerManager.myPlayerId;
+        const carDef = VEHICLE_CATALOG.find((c) => c.id === p.vehicleId);
+        const carName = carDef ? carDef.name : p.vehicleId;
+        const hostTag = p.isHost ? '👑 HOST' : '🚗 YARIŞÇI';
+
+        html += `
+          <div style="background: rgba(0, 240, 255, 0.08); border: 1.5px solid ${isMe ? '#00f0ff' : 'rgba(255,255,255,0.25)'}; border-radius: 10px; padding: 10px; box-shadow: ${isMe ? '0 0 12px rgba(0,240,255,0.3)' : 'none'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 800; font-size: 0.85rem; color: ${isMe ? '#00f0ff' : '#fff'};">
+                ${p.name} ${isMe ? '<b style="color: #00ffaa;">(Sen)</b>' : ''}
+              </span>
+              <span style="font-size: 0.65rem; background: ${p.isHost ? 'rgba(255, 0, 127, 0.25)' : 'rgba(255,255,255,0.1)'}; color: ${p.isHost ? '#ff007f' : '#fff'}; padding: 2px 6px; border-radius: 6px; font-weight: 800;">
+                ${hostTag}
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: rgba(255,255,255,0.8); margin-bottom: 6px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${p.colorHex || '#fff'}; display: inline-block; border: 1px solid #fff;"></span>
+              <span>${carName}</span>
+            </div>
+            <div style="font-size: 0.70rem; color: #00ffaa; font-weight: 700; background: rgba(0, 255, 170, 0.1); padding: 2px 6px; border-radius: 4px; display: inline-block;">
+              ✅ ${laneDesc}
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1.5px dashed rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 10px; text-align: center; color: rgba(255,255,255,0.4); display: flex; flex-direction: column; justify-content: center; min-height: 72px;">
+            <div style="font-size: 0.78rem; font-weight: 700; color: rgba(255,255,255,0.5);">⏳ SÜRÜCÜ BEKLENİYOR...</div>
+            <div style="font-size: 0.68rem; color: rgba(255,255,255,0.35); margin-top: 4px;">${laneDesc}</div>
+          </div>
+        `;
+      }
+    }
+
+    container.innerHTML = html;
+  }
+
   public showMultiplayerResult(params: {
     isWinner: boolean;
     winnerName: string;
     reason: string;
     myDist: number;
     oppDist: number;
+    standings?: any[];
   }): void {
     if (!this.screenMultiplayerResult) return;
 
@@ -2408,6 +2523,7 @@ export class UIManager {
     const sub = document.getElementById('mp-result-subtitle');
     const myDistEl = document.getElementById('mp-stat-my-dist');
     const oppDistEl = document.getElementById('mp-stat-opp-dist');
+    const podiumTable = document.getElementById('mp-podium-table');
 
     if (params.isWinner) {
       if (icon) icon.innerText = '🏆';
@@ -2416,7 +2532,9 @@ export class UIManager {
         title.style.color = '#00ffaa';
       }
       if (sub) {
-        sub.innerText = params.reason === 'OPPONENT_CRASHED' ? '💥 Rakip kaza yaptı! Otoyolun şampiyonu sensin.' : '🏁 Bitiş çizgisine ilk sen ulaştın!';
+        sub.innerText = params.reason === 'LAST_SURVIVOR' || params.reason === 'OPPONENT_CRASHED'
+          ? '💥 Rakipler elendi! Otoyolun şampiyonu sensin.'
+          : '🏁 Bitiş çizgisine ilk sen ulaştın!';
       }
     } else {
       if (icon) icon.innerText = '💀';
@@ -2425,12 +2543,60 @@ export class UIManager {
         title.style.color = '#ff0055';
       }
       if (sub) {
-        sub.innerText = params.reason === 'OPPONENT_CRASHED' ? '💥 Kaza yaptın! Rakip yarışı kazandı.' : `🏁 ${params.winnerName} bitişe ilk ulaştı.`;
+        sub.innerText = params.reason === 'OPPONENT_CRASHED'
+          ? '💥 Kaza yaptın! Rakipler yarışı tamamladı.'
+          : `🏁 ${params.winnerName} bitişe ilk ulaştı.`;
       }
     }
 
     if (myDistEl) myDistEl.innerText = `${Math.round(params.myDist)}m`;
     if (oppDistEl) oppDistEl.innerText = `${Math.round(params.oppDist)}m`;
+
+    // Render multi-player podium table
+    if (podiumTable) {
+      const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+      const borderGradients = [
+        'border-left: 4px solid #ffd700; background: rgba(255, 215, 0, 0.10);',
+        'border-left: 4px solid #c0c0c0; background: rgba(192, 192, 192, 0.08);',
+        'border-left: 4px solid #cd7f32; background: rgba(205, 127, 50, 0.08);',
+        'border-left: 4px solid #94a3b8; background: rgba(148, 163, 184, 0.06);'
+      ];
+
+      const rows = (params.standings && params.standings.length > 0)
+        ? params.standings
+        : [
+            { rank: 1, name: params.isWinner ? 'Sen' : params.winnerName, distance: params.isWinner ? params.myDist : params.oppDist, isCrashed: false },
+            { rank: 2, name: params.isWinner ? params.winnerName : 'Sen', distance: params.isWinner ? params.oppDist : params.myDist, isCrashed: params.reason === 'OPPONENT_CRASHED' && !params.isWinner }
+          ];
+
+      podiumTable.innerHTML = rows.map((r: any, idx: number) => {
+        const medal = medals[idx] || `${idx + 1}.`;
+        const style = borderGradients[idx] || 'border-left: 4px solid #fff; background: rgba(255,255,255,0.05);';
+        const isMe = r.isMe || r.name === 'Sen' || r.id === multiplayerManager.myPlayerId;
+        const statusBadge = r.isCrashed
+          ? '<span style="color: #ff3366; font-size: 0.74rem; font-weight: 800;">💥 KAZA YAPTI</span>'
+          : (r.finishTime ? `<span style="color: #00ffaa; font-size: 0.74rem; font-weight: 800;">⏱️ ${r.finishTime}s</span>` : `<span style="color: #00f0ff; font-size: 0.74rem; font-weight: 800;">${Math.round(r.distance)}m</span>`);
+
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 8px; ${style}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.3rem;">${medal}</span>
+              <div>
+                <div style="font-weight: 800; font-size: 0.94rem; color: ${isMe ? '#00f0ff' : '#fff'};">
+                  ${r.name} ${isMe ? '<span style="color: #00ffaa; font-size: 0.75rem;">(Sen)</span>' : ''}
+                </div>
+                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5);">
+                  Mesafe: ${Math.round(r.distance)}m
+                </div>
+              </div>
+            </div>
+            <div>
+              ${statusBadge}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
     this.screenMultiplayerResult.classList.add('active');
   }
@@ -2744,18 +2910,38 @@ export class UIManager {
       const infoBox = document.getElementById('mp-host-room-info');
       if (infoBox) infoBox.style.display = 'block';
       if (errEl) errEl.style.display = 'none';
+
+      const players = data.players || [
+        {
+          id: multiplayerManager.myPlayerId,
+          name: multiplayerManager.myPlayerName,
+          vehicleId: gameState.selectedVehicleId,
+          colorHex: gameState.getVehicleColor(gameState.selectedVehicleId) || '#dc2626',
+          lane: data.lane ?? 1,
+          isHost: true,
+        }
+      ];
+
+      this.renderMultiplayerLobby('mp-host-players-grid', players);
+      const countBadge = document.getElementById('mp-host-count-badge');
+      if (countBadge) countBadge.innerText = `${players.length}/4 Oyuncu`;
     });
 
     eventBus.on('mp:playerJoined', (data: any) => {
-      const oppBadge = document.getElementById('mp-host-opponent-badge');
-      const oppNameEl = document.getElementById('mp-host-opp-name');
       const startBtn = document.getElementById('btn-mp-start-race') as HTMLButtonElement | null;
       const hostMsg = document.getElementById('mp-host-status-msg');
+      const hostCountBadge = document.getElementById('mp-host-count-badge');
+      const joinCountBadge = document.getElementById('mp-join-count-badge');
 
-      if (data.opponent) {
-        if (oppBadge) oppBadge.style.display = 'block';
-        if (oppNameEl) oppNameEl.innerText = data.opponent.name;
-        if (hostMsg) hostMsg.innerText = '✅ Rakip bağlandı! Hazırsan yarışı başlat.';
+      const players = data.players || [];
+      this.renderMultiplayerLobby('mp-host-players-grid', players);
+      this.renderMultiplayerLobby('mp-join-players-grid', players);
+
+      if (hostCountBadge) hostCountBadge.innerText = `${players.length}/4 Oyuncu`;
+      if (joinCountBadge) joinCountBadge.innerText = `${players.length}/4 Oyuncu`;
+
+      if (players.length >= 2) {
+        if (hostMsg) hostMsg.innerText = `✅ ${players.length} Yarışçı bağlandı! Hazırsan yarışı başlat.`;
         if (startBtn) {
           startBtn.disabled = false;
           startBtn.style.opacity = '1';
@@ -2767,25 +2953,51 @@ export class UIManager {
     eventBus.on('mp:roomJoined', (data: any) => {
       const statusBox = document.getElementById('mp-join-status-box');
       if (statusBox) {
-        statusBox.innerHTML = `✅ <b>Odaya Bağlandın! (${data.roomCode})</b><br><span style="color: #00f0ff;">Oda kurucusu yarışı başlatınca otomatik başlayacak...</span>`;
         statusBox.style.display = 'block';
       }
       if (errEl) errEl.style.display = 'none';
+
+      const players = data.players || [];
+      this.renderMultiplayerLobby('mp-join-players-grid', players);
+      const joinCountBadge = document.getElementById('mp-join-count-badge');
+      if (joinCountBadge) joinCountBadge.innerText = `${players.length}/4 Oyuncu`;
     });
 
-    eventBus.on('mp:opponentLeft', () => {
+    eventBus.on('mp:opponentLeft', (data: any) => {
       const startBtn = document.getElementById('btn-mp-start-race') as HTMLButtonElement | null;
-      const oppBadge = document.getElementById('mp-host-opponent-badge');
       const hostMsg = document.getElementById('mp-host-status-msg');
-      if (oppBadge) oppBadge.style.display = 'none';
-      if (startBtn) {
-        startBtn.disabled = true;
-        startBtn.style.opacity = '0.5';
-        startBtn.style.cursor = 'not-allowed';
+      const hostCountBadge = document.getElementById('mp-host-count-badge');
+      const joinCountBadge = document.getElementById('mp-join-count-badge');
+
+      const players = data.players || multiplayerManager.roomPlayers;
+      this.renderMultiplayerLobby('mp-host-players-grid', players);
+      this.renderMultiplayerLobby('mp-join-players-grid', players);
+
+      if (hostCountBadge) hostCountBadge.innerText = `${players.length}/4 Oyuncu`;
+      if (joinCountBadge) joinCountBadge.innerText = `${players.length}/4 Oyuncu`;
+
+      if (players.length < 2) {
+        if (startBtn) {
+          startBtn.disabled = true;
+          startBtn.style.opacity = '0.5';
+          startBtn.style.cursor = 'not-allowed';
+        }
+        if (hostMsg) hostMsg.innerText = '⚠️ Oyuncu ayrıldı. Yeni yarışçı bekleniyor... (En az 2 yarışçı)';
       }
-      if (hostMsg) hostMsg.innerText = '⚠️ Rakip odadan ayrıldı. Yeni oyuncu bekleniyor...';
-      const statusBox = document.getElementById('mp-join-status-box');
-      if (statusBox) statusBox.innerText = '⚠️ Rakip ayrıldı.';
+    });
+
+    eventBus.on('mp:hostChanged', () => {
+      if (multiplayerManager.isHost) {
+        const createTab = document.getElementById('tab-mp-create') as HTMLButtonElement | null;
+        createTab?.click();
+        const actionBox = document.getElementById('mp-create-action-box');
+        if (actionBox) actionBox.style.display = 'none';
+        const infoBox = document.getElementById('mp-host-room-info');
+        if (infoBox) infoBox.style.display = 'block';
+        const display = document.getElementById('mp-room-code-display');
+        if (display) display.innerText = multiplayerManager.roomCode || '----';
+        this.renderMultiplayerLobby('mp-host-players-grid', multiplayerManager.roomPlayers);
+      }
     });
 
     eventBus.on('mp:error', (data: any) => {
@@ -2812,6 +3024,7 @@ export class UIManager {
         reason: data.reason,
         myDist: (window as any).__TRAFFIC_RUSH_GAME__?.playerVehicle?.mesh?.position?.z || 0,
         oppDist: multiplayerManager.opponent?.distance || 0,
+        standings: data.standings,
       });
     });
   }

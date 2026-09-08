@@ -90,6 +90,39 @@ function broadcastRoom(room, data, exceptId) {
   }
 }
 
+const MAX_PLAYERS_PER_ROOM = 4;
+const STARTING_LANES = [1, 2, 0, 3]; // 4 Highway lanes: Mid-left, Mid-right, Far-left, Far-right
+
+function buildStandings(room) {
+  const players = Array.from(room.players.values());
+  return players
+    .sort((a, b) => {
+      // Finished players first (lowest finishTime wins)
+      if (a.isFinished && !b.isFinished) return -1;
+      if (!a.isFinished && b.isFinished) return 1;
+      if (a.isFinished && b.isFinished) return (a.finishTime || 0) - (b.finishTime || 0);
+
+      // Alive players before crashed players
+      if (!a.isCrashed && b.isCrashed) return -1;
+      if (a.isCrashed && !b.isCrashed) return 1;
+
+      // Highest distance wins
+      return (b.distance || 0) - (a.distance || 0);
+    })
+    .map((p, index) => ({
+      rank: index + 1,
+      id: p.id,
+      name: p.name,
+      vehicleId: p.vehicleId,
+      colorHex: p.colorHex,
+      lane: p.lane,
+      distance: Math.round(p.distance || 0),
+      isCrashed: !!p.isCrashed,
+      isFinished: !!p.isFinished,
+      finishTime: p.finishTime ? Number(p.finishTime.toFixed(2)) : undefined,
+    }));
+}
+
 wss.on('connection', (ws) => {
   const playerId = 'p_' + Math.random().toString(36).substring(2, 9);
   let currentRoomCode = null;
@@ -117,6 +150,7 @@ wss.on('connection', (ws) => {
             name: (data.playerName || 'Sürücü 1').substring(0, 16),
             vehicleId: data.vehicleId || 'opel_corsa',
             colorHex: data.colorHex || '#dc2626',
+            lane: STARTING_LANES[0],
             isHost: true,
             distance: 0,
             isCrashed: false,
@@ -132,6 +166,8 @@ wss.on('connection', (ws) => {
             roomCode,
             playerId,
             isHost: true,
+            lane: player.lane,
+            maxPlayers: MAX_PLAYERS_PER_ROOM,
             mode: room.mode,
             targetDistance: room.targetDistance,
             players: Array.from(room.players.values()).map(p => ({
@@ -139,10 +175,11 @@ wss.on('connection', (ws) => {
               name: p.name,
               vehicleId: p.vehicleId,
               colorHex: p.colorHex,
+              lane: p.lane,
               isHost: p.isHost,
             })),
           });
-          console.log(`[Room ${roomCode}] Created by ${player.name} (${playerId})`);
+          console.log(`[Room ${roomCode}] Created by ${player.name} (${playerId}) in Lane ${player.lane}`);
           break;
         }
 
@@ -160,17 +197,21 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          if (room.players.size >= 2) {
-            send(ws, { type: 'ERROR', message: 'Oda dolu! (Maksimum 2 oyuncu)' });
+          if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
+            send(ws, { type: 'ERROR', message: `Oda dolu! (Maksimum ${MAX_PLAYERS_PER_ROOM} oyuncu)` });
             return;
           }
+
+          const playerIndex = room.players.size;
+          const assignedLane = STARTING_LANES[playerIndex % STARTING_LANES.length];
 
           const player = {
             ws,
             id: playerId,
-            name: (data.playerName || 'Sürücü 2').substring(0, 16),
+            name: (data.playerName || `Sürücü ${playerIndex + 1}`).substring(0, 16),
             vehicleId: data.vehicleId || 'tofas_sahin',
             colorHex: data.colorHex || '#ffffff',
+            lane: assignedLane,
             isHost: false,
             distance: 0,
             isCrashed: false,
@@ -185,6 +226,7 @@ wss.on('connection', (ws) => {
             name: p.name,
             vehicleId: p.vehicleId,
             colorHex: p.colorHex,
+            lane: p.lane,
             isHost: p.isHost,
           }));
 
@@ -193,6 +235,8 @@ wss.on('connection', (ws) => {
             roomCode: code,
             playerId,
             isHost: false,
+            lane: player.lane,
+            maxPlayers: MAX_PLAYERS_PER_ROOM,
             mode: room.mode,
             targetDistance: room.targetDistance,
             players: playerList,
@@ -201,9 +245,16 @@ wss.on('connection', (ws) => {
           broadcastRoom(room, {
             type: 'PLAYER_JOINED',
             players: playerList,
+            newPlayer: {
+              id: player.id,
+              name: player.name,
+              vehicleId: player.vehicleId,
+              colorHex: player.colorHex,
+              lane: player.lane,
+            },
           }, playerId);
 
-          console.log(`[Room ${code}] Player joined: ${player.name} (${playerId})`);
+          console.log(`[Room ${code}] Player joined: ${player.name} (${playerId}) in Lane ${player.lane}. Total: ${room.players.size}/${MAX_PLAYERS_PER_ROOM}`);
           break;
         }
 
@@ -215,6 +266,11 @@ wss.on('connection', (ws) => {
           const hostPlayer = room.players.get(playerId);
           if (!hostPlayer || !hostPlayer.isHost) {
             send(ws, { type: 'ERROR', message: 'Yalnızca oda kurucusu yarışı başlatabilir!' });
+            return;
+          }
+
+          if (room.players.size < 2) {
+            send(ws, { type: 'ERROR', message: 'Yarışı başlatmak için en az 2 oyuncu gereklidir!' });
             return;
           }
 
@@ -232,12 +288,13 @@ wss.on('connection', (ws) => {
               name: p.name,
               vehicleId: p.vehicleId,
               colorHex: p.colorHex,
+              lane: p.lane,
               isHost: p.isHost,
             })),
           };
 
           broadcastRoom(room, startPayload);
-          console.log(`[Room ${currentRoomCode}] Race started! Seed: ${room.seed}`);
+          console.log(`[Room ${currentRoomCode}] Race started with ${room.players.size} players! Seed: ${room.seed}`);
           break;
         }
 
@@ -275,16 +332,22 @@ wss.on('connection', (ws) => {
           if (!room) return;
 
           const p = room.players.get(playerId);
-          if (p) p.isCrashed = true;
+          if (p) {
+            p.isCrashed = true;
+            p.distance = data.distance || p.distance;
+          }
 
           broadcastRoom(room, {
             type: 'OPPONENT_CRASHED',
             playerId,
+            playerName: p ? p.name : 'Bir Sürücü',
             distance: data.distance || 0,
           }, playerId);
 
+          const allPlayers = Array.from(room.players.values());
+          const alivePlayers = allPlayers.filter(pl => !pl.isCrashed);
+
           if (room.mode === 'SURVIVAL') {
-            const alivePlayers = Array.from(room.players.values()).filter(pl => !pl.isCrashed);
             if (alivePlayers.length === 1) {
               const winner = alivePlayers[0];
               room.status = 'FINISHED';
@@ -292,7 +355,18 @@ wss.on('connection', (ws) => {
                 type: 'RACE_FINISHED',
                 winnerId: winner.id,
                 winnerName: winner.name,
-                reason: 'OPPONENT_CRASHED',
+                reason: 'LAST_SURVIVOR',
+                standings: buildStandings(room),
+              });
+              console.log(`[Room ${currentRoomCode}] Survival winner: ${winner.name}`);
+            } else if (alivePlayers.length === 0) {
+              room.status = 'FINISHED';
+              broadcastRoom(room, {
+                type: 'RACE_FINISHED',
+                winnerId: p ? p.id : '',
+                winnerName: p ? p.name : 'Herkes Elendi',
+                reason: 'ALL_CRASHED',
+                standings: buildStandings(room),
               });
             }
           }
@@ -308,16 +382,19 @@ wss.on('connection', (ws) => {
           if (p) {
             p.isFinished = true;
             p.finishTime = data.finishTime || 0;
+            p.distance = data.distance || room.targetDistance;
           }
 
           room.status = 'FINISHED';
           broadcastRoom(room, {
             type: 'RACE_FINISHED',
             winnerId: playerId,
-            winnerName: p ? p.name : 'Rakip',
+            winnerName: p ? p.name : 'Şampiyon',
             reason: 'GOAL_REACHED',
             finishTime: data.finishTime,
+            standings: buildStandings(room),
           });
+          console.log(`[Room ${currentRoomCode}] Goal reached by: ${p?.name} in ${data.finishTime}s!`);
           break;
         }
 
@@ -336,21 +413,52 @@ wss.on('connection', (ws) => {
     const room = rooms.get(currentRoomCode);
     if (!room) return;
 
+    const leavingPlayer = room.players.get(playerId);
+    const leavingName = leavingPlayer ? leavingPlayer.name : 'Bir Sürücü';
+
     room.players.delete(playerId);
-    console.log(`[Room ${currentRoomCode}] Player ${playerId} left`);
+    console.log(`[Room ${currentRoomCode}] Player ${playerId} (${leavingName}) left. Remaining: ${room.players.size}`);
 
     if (room.players.size === 0) {
       rooms.delete(currentRoomCode);
       console.log(`[Room ${currentRoomCode}] Room closed (empty)`);
     } else {
+      const remainingList = Array.from(room.players.values()).map(p => ({
+        id: p.id,
+        name: p.name,
+        vehicleId: p.vehicleId,
+        colorHex: p.colorHex,
+        lane: p.lane,
+        isHost: p.isHost,
+      }));
+
       broadcastRoom(room, {
         type: 'OPPONENT_LEFT',
         playerId,
+        playerName: leavingName,
+        players: remainingList,
       });
-      const remaining = Array.from(room.players.values())[0];
-      if (remaining) {
-        remaining.isHost = true;
-        send(remaining.ws, { type: 'PROMOTED_HOST' });
+
+      const hasHost = Array.from(room.players.values()).some(p => p.isHost);
+      if (!hasHost) {
+        const newHost = Array.from(room.players.values())[0];
+        if (newHost) {
+          newHost.isHost = true;
+          send(newHost.ws, { type: 'PROMOTED_HOST' });
+          broadcastRoom(room, {
+            type: 'HOST_CHANGED',
+            newHostId: newHost.id,
+            players: Array.from(room.players.values()).map(p => ({
+              id: p.id,
+              name: p.name,
+              vehicleId: p.vehicleId,
+              colorHex: p.colorHex,
+              lane: p.lane,
+              isHost: p.isHost,
+            })),
+          });
+          console.log(`[Room ${currentRoomCode}] ${newHost.name} promoted to Host`);
+        }
       }
     }
     currentRoomCode = null;

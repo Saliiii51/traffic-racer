@@ -49,14 +49,15 @@ export interface GameEventPayloads {
 
   // Multiplayer events
   'mp:disconnected': {};
-  'mp:roomCreated': { roomCode: string; isHost: boolean; mode: string; targetDistance: number };
-  'mp:roomJoined': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; players: any[] };
-  'mp:playerJoined': { players: any[]; opponent: any };
+  'mp:roomCreated': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players?: any[] };
+  'mp:roomJoined': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players: any[] };
+  'mp:playerJoined': { players: any[]; opponent?: any; opponents?: any[]; newPlayer?: any };
   'mp:opponentUpdate': any;
-  'mp:opponentCrashed': { playerId: string; distance: number };
-  'mp:raceStarting': { seed: number; mode: string; targetDistance: number; countdownSec: number; opponent: any };
-  'mp:raceFinished': { winnerId: string; winnerName: string; isMeWinner: boolean; reason: string; finishTime?: number };
-  'mp:opponentLeft': { playerId: string };
+  'mp:opponentCrashed': { playerId: string; playerName?: string; distance: number };
+  'mp:raceStarting': { seed: number; mode: string; targetDistance: number; countdownSec: number; opponent?: any; opponents?: any[]; players?: any[] };
+  'mp:raceFinished': { winnerId: string; winnerName: string; isMeWinner: boolean; reason: string; finishTime?: number; standings?: any[] };
+  'mp:opponentLeft': { playerId: string; playerName?: string; players?: any[] };
+  'mp:hostChanged': { newHostId: string; players?: any[] };
   'mp:promotedHost': {};
   'mp:error': { message: string };
 }

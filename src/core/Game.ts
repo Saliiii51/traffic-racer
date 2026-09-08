@@ -103,7 +103,7 @@ export class Game {
   private istanbulAmbienceTimer = 6;
   private lastRadarPassedZ = 0;
   private scrapeCooldown = 0;
-  private remoteOpponentVehicle: RemotePlayerVehicle | null = null;
+  private remoteOpponentVehicles: Map<string, RemotePlayerVehicle> = new Map();
   private raceTime = 0;
 
   // Cinematic Camera Intro System
@@ -303,19 +303,28 @@ export class Game {
     });
 
     eventBus.on('mp:opponentUpdate', (update: any) => {
-      this.remoteOpponentVehicle?.applyStateUpdate(update);
+      const oppCar = this.remoteOpponentVehicles.get(update.playerId);
+      if (oppCar) {
+        oppCar.applyStateUpdate(update);
+      }
     });
 
-    eventBus.on('mp:opponentCrashed', () => {
-      this.uiManager.showScrapeNotification('💥 RAKİP KAZA YAPTI!', 'Yarış avantajı sende! Gazlamaya devam et.');
+    eventBus.on('mp:opponentCrashed', (data) => {
+      const oppCar = this.remoteOpponentVehicles.get(data.playerId);
+      if (oppCar) {
+        oppCar.updateNameplateText(`${data.playerName || oppCar.opponentName} (💥 KAZA)`, 0);
+      }
+      this.uiManager.showScrapeNotification('💥 RAKİP KAZA YAPTI!', `${data.playerName || 'Bir rakip'} kaza yaptı! Gazlamaya devam et.`);
       audioManager.playCrash();
     });
 
-    eventBus.on('mp:opponentLeft', () => {
-      if (this.remoteOpponentVehicle) {
-        this.remoteOpponentVehicle.dispose();
-        this.remoteOpponentVehicle = null;
+    eventBus.on('mp:opponentLeft', (data) => {
+      const oppCar = this.remoteOpponentVehicles.get(data.playerId);
+      if (oppCar) {
+        oppCar.dispose();
+        this.remoteOpponentVehicles.delete(data.playerId);
       }
+      this.uiManager.showScrapeNotification('⚠️ OYUNCU AYRILDI', `${data.playerName || 'Bir rakip'} odadan ayrıldı.`);
     });
   }
 
@@ -728,32 +737,32 @@ export class Game {
 
     this.startRace();
 
-    // Clean up previous opponent vehicle if any
-    if (this.remoteOpponentVehicle) {
-      this.remoteOpponentVehicle.dispose();
-      this.remoteOpponentVehicle = null;
+    // Clean up previous opponent vehicles if any
+    for (const vehicle of this.remoteOpponentVehicles.values()) {
+      vehicle.dispose();
     }
+    this.remoteOpponentVehicles.clear();
 
-    const myLane = multiplayerManager.isHost ? 1 : 2;
-    const oppLane = multiplayerManager.isHost ? 2 : 1;
-
+    const myLane = multiplayerManager.myAssignedLane;
     if (this.playerVehicle) {
       this.playerVehicle.mesh.position.set(laneSystem.getLaneX(myLane), 0.12, 0);
     }
 
-    const opp = multiplayerManager.opponent;
-    if (opp) {
-      this.remoteOpponentVehicle = new RemotePlayerVehicle(
+    // Spawn 3D vehicle for every opponent in the room
+    for (const opp of multiplayerManager.opponents.values()) {
+      const remoteVehicle = new RemotePlayerVehicle(
         opp.id,
         opp.name,
         opp.vehicleId,
         opp.colorHex
       );
-      this.remoteOpponentVehicle.mesh.position.set(laneSystem.getLaneX(oppLane), 0, 0);
-      this.scene.add(this.remoteOpponentVehicle.mesh);
+      const oppLane = opp.lane ?? 2;
+      remoteVehicle.mesh.position.set(laneSystem.getLaneX(oppLane), 0, 0);
+      this.scene.add(remoteVehicle.mesh);
+      this.remoteOpponentVehicles.set(opp.id, remoteVehicle);
     }
 
-    // Fast-track countdown in multiplayer so both racers start in sync
+    // Fast-track countdown in multiplayer so all racers start in sync
     setTimeout(() => {
       this.skipIntro();
     }, 500);
@@ -856,12 +865,15 @@ export class Game {
     setTimeout(() => {
       if (multiplayerManager.isRacing) {
         this.setScreen('GAME_OVER');
+        const standings = this.getLiveStandings();
+        const winner = standings[0];
         this.uiManager.showMultiplayerResult({
           isWinner: false,
-          winnerName: multiplayerManager.opponent?.name || 'Rakip',
+          winnerName: winner?.name || 'Rakip',
           reason: 'OPPONENT_CRASHED',
           myDist: this.playerVehicle.mesh.position.z,
-          oppDist: multiplayerManager.opponent?.distance || 0,
+          oppDist: standings.find(s => !s.isMe)?.distance || 0,
+          standings,
         });
       } else {
         this.setScreen('GAME_OVER');
@@ -1402,14 +1414,15 @@ export class Game {
       );
     }
 
-    // Multiplayer synchronization and Remote Opponent update
+    // Multiplayer synchronization and Remote Opponents update
     this.raceTime += delta;
-    if (this.remoteOpponentVehicle) {
-      this.remoteOpponentVehicle.update(delta, playerPos.z);
+    for (const remoteVehicle of this.remoteOpponentVehicles.values()) {
+      remoteVehicle.update(delta, playerPos.z);
     }
 
     if (multiplayerManager.isRacing) {
-      this.uiManager.updateMultiplayerHud(playerPos.z, multiplayerManager.opponent?.distance || 0);
+      const liveStandings = this.getLiveStandings();
+      this.uiManager.updateMultiplayerLeaderboard(liveStandings);
 
       multiplayerManager.sendState({
         x: playerPos.x,
@@ -1430,6 +1443,54 @@ export class Game {
         multiplayerManager.sendGoalReached(playerPos.z, this.raceTime);
       }
     }
+  }
+
+  public getLiveStandings(): Array<{
+    rank: number;
+    id: string;
+    name: string;
+    distance: number;
+    deltaMeters: number;
+    isMe: boolean;
+    isCrashed: boolean;
+    lane: number;
+  }> {
+    const myDist = this.playerVehicle?.mesh?.position?.z || 0;
+    const racers = [
+      {
+        id: multiplayerManager.myPlayerId || 'local_me',
+        name: multiplayerManager.myPlayerName || 'Sen',
+        distance: Math.round(myDist),
+        isMe: true,
+        isCrashed: this.isCrashed,
+        lane: multiplayerManager.myAssignedLane,
+      }
+    ];
+
+    for (const opp of multiplayerManager.opponents.values()) {
+      racers.push({
+        id: opp.id,
+        name: opp.name,
+        distance: Math.round(opp.distance || 0),
+        isMe: false,
+        isCrashed: !!opp.isCrashed,
+        lane: opp.lane ?? 2,
+      });
+    }
+
+    racers.sort((a, b) => {
+      if (!a.isCrashed && b.isCrashed) return -1;
+      if (a.isCrashed && !b.isCrashed) return 1;
+      return b.distance - a.distance;
+    });
+
+    const leaderDist = racers[0]?.distance || 0;
+
+    return racers.map((r, idx) => ({
+      ...r,
+      rank: idx + 1,
+      deltaMeters: idx === 0 ? 0 : r.distance - leaderDist,
+    }));
   }
 
   public applyGraphicsQuality(quality: 'low' | 'medium' | 'high'): void {
