@@ -8,45 +8,97 @@ export interface RadioStation {
   tagline: string;
   genre: string;
   color: string;
-  tracks: string[];
+  tracks?: string[];
+  streamUrl?: string;
+  isLive?: boolean;
 }
 
 export const RADIO_STATIONS: RadioStation[] = [
   {
-    id: 'kral_fm',
-    name: 'KRAL FM',
+    id: 'kral_turk',
+    name: 'KRAL TÜRK FM',
     frequency: '92.0 MHz',
-    tagline: 'Damar & Nostalji Arabesk',
+    tagline: 'Canlı Damar & Arabesk',
     genre: 'Arabesk',
     color: '#ff3366',
-    tracks: [
-      'Boğazda Gece (Hicaz Damar)',
-      'Bitti Bu Sevda (Saz Taksimi)',
-      'Gurbet Yolları (Keman & Ney)',
-      'Ayrılık Rüzgarı (Gece Masalı)',
-    ],
+    streamUrl: 'https://live.radyositesihazir.com/8032/stream',
+    isLive: true,
+    tracks: ['Canlı Yayın (Kral Türk FM)'],
   },
   {
-    id: 'power_turk',
-    name: 'POWER TÜRK',
-    frequency: '99.8 MHz',
-    tagline: 'İstanbul Pop & Eurodance',
-    genre: 'Pop/Dance',
+    id: 'joy_turk',
+    name: 'JOY TÜRK',
+    frequency: '89.0 MHz',
+    tagline: 'Canlı Türkçe Pop & Slow',
+    genre: 'Pop / Slow',
+    color: '#ff6b6b',
+    streamUrl: 'https://28503.live.streamtheworld.com/JOY_TURK_SC',
+    isLive: true,
+    tracks: ['Canlı Yayın (Joy Türk)'],
+  },
+  {
+    id: 'super_fm',
+    name: 'SÜPER FM',
+    frequency: '90.8 MHz',
+    tagline: 'En Çok Dinlenen Türkçe Pop',
+    genre: 'Türkçe Pop',
+    color: '#ffbe0b',
+    streamUrl: 'https://22673.live.streamtheworld.com/SUPER_FMAAC_SC',
+    isLive: true,
+    tracks: ['Canlı Yayın (Süper FM)'],
+  },
+  {
+    id: 'fenomen',
+    name: 'RADYO FENOMEN',
+    frequency: '100.4 MHz',
+    tagline: 'Maksimum Hit & Dans/EDM',
+    genre: 'Hit / EDM',
     color: '#00f0ff',
-    tracks: [
-      'Maslak Geceleri (Club Mix)',
-      'Köprü Üstü Aşkı (Eurodance 2000)',
-      'Ateş Bastı (Pop Bassline)',
-      'Yıldızların Altında (Dance Edit)',
-    ],
+    streamUrl: 'https://live.radyofenomen.com/fenomen/128/icecast.audio',
+    isLive: true,
+    tracks: ['Canlı Yayın (Radyo Fenomen)'],
+  },
+  {
+    id: 'arabesk_fm',
+    name: 'ARABESK FM',
+    frequency: '105.4 MHz',
+    tagline: 'Kesintisiz Damar & Şoför Şarkıları',
+    genre: 'Arabesk / Damar',
+    color: '#e11d48',
+    streamUrl: 'https://yayin.radyoarabesk.com.tr:8000/stream',
+    isLive: true,
+    tracks: ['Canlı Yayın (Arabesk FM)'],
+  },
+  {
+    id: 'slow_turk',
+    name: 'SLOWTÜRK',
+    frequency: '95.3 MHz',
+    tagline: 'Aşkın ve Duyguların Frekansı',
+    genre: 'Slow / Duygusal',
+    color: '#f43f5e',
+    streamUrl: 'https://radyo.duhnet.tv/slowturk',
+    isLive: true,
+    tracks: ['Canlı Yayın (SlowTürk)'],
+  },
+  {
+    id: 'metro_fm',
+    name: 'METRO FM',
+    frequency: '107.2 MHz',
+    tagline: 'Canlı Yabancı Hit Müzik',
+    genre: 'Yabancı Hit',
+    color: '#38bdf8',
+    streamUrl: 'https://27753.live.streamtheworld.com/METRO_FMAAC_SC',
+    isLive: true,
+    tracks: ['Canlı Yayın (Metro FM)'],
   },
   {
     id: 'drift_fm',
     name: 'İSTANBUL PHONK',
-    frequency: '105.4 MHz',
-    tagline: 'Makas & Drift Wave',
+    frequency: '103.8 MHz',
+    tagline: 'Makas & Drift Wave (808 Trap)',
     genre: 'Phonk/Trap',
     color: '#a855f7',
+    isLive: false,
     tracks: [
       'Kadıköy Drift (Tokyo-Istanbul Phonk)',
       'Warex Kesici (808 Sub-Bass)',
@@ -60,7 +112,8 @@ export const RADIO_STATIONS: RadioStation[] = [
     frequency: '88.6 MHz',
     tagline: '70s/80s Anadolu Rock & Funk',
     genre: 'Anadolu Rock',
-    color: '#ffbe0b',
+    color: '#10b981',
+    isLive: false,
     tracks: [
       'Dönence Rüzgarı (Anadolu Psyche)',
       'Boğaziçi Ekspresi (70s Funk)',
@@ -75,6 +128,7 @@ export const RADIO_STATIONS: RadioStation[] = [
     tagline: 'Saf Motor & Egzoz Sesi',
     genre: 'Sessiz',
     color: '#64748b',
+    isLive: false,
     tracks: ['Motor Kükremesi'],
   },
 ];
@@ -89,10 +143,15 @@ export class RadioManager {
   private freqDataArray: Uint8Array | null = null;
 
   // Current state
-  public currentStationIndex = 0; // Starts at Kral FM
+  public currentStationIndex = 0; // Starts at Kral Türk FM
   public currentTrackIndex = 0;
   public isPlaying = true;
   private isEnabled = true;
+
+  // HTML5 Live Stream Audio Element
+  private liveAudio: HTMLAudioElement | null = null;
+  private liveMediaSource: MediaElementAudioSourceNode | null = null;
+  private isConnectingLive = false;
 
   // Music loop state
   private stepTimer: number | null = null;
@@ -129,10 +188,103 @@ export class RadioManager {
     // Pre-create analog tuner static noise buffer
     this.createStaticNoiseBuffer();
 
+    // Initialize live streaming audio element
+    this.setupLiveAudio();
+
     // Start playing default station
     if (this.isEnabled && this.currentStationIndex < RADIO_STATIONS.length - 1) {
-      this.startSynthesizer();
+      this.playCurrentStation();
     }
+  }
+
+  private setupLiveAudio(): void {
+    if (typeof window === 'undefined') return;
+    this.liveAudio = new Audio();
+    this.liveAudio.crossOrigin = 'anonymous';
+    this.liveAudio.preload = 'none';
+
+    if (this.ctx && this.outputNode) {
+      try {
+        this.liveMediaSource = this.ctx.createMediaElementSource(this.liveAudio);
+        this.liveMediaSource.connect(this.outputNode);
+      } catch (e) {
+        console.warn('MediaElementSource fallback to direct audio element volume:', e);
+        this.liveAudio.volume = 0.42;
+      }
+    }
+
+    this.liveAudio.addEventListener('playing', () => {
+      this.isConnectingLive = false;
+      this.emitChange();
+    });
+
+    this.liveAudio.addEventListener('waiting', () => {
+      this.isConnectingLive = true;
+      this.emitChange();
+    });
+
+    this.liveAudio.addEventListener('error', () => {
+      const st = this.getCurrentStation();
+      console.warn('Live stream error or offline on station:', st.name);
+      this.isConnectingLive = false;
+      // Graceful fallback: start procedural synth if live stream fails
+      if (this.isPlaying && st.id !== 'off') {
+        this.startSynthesizer();
+      }
+      this.emitChange();
+    });
+  }
+
+  private playCurrentStation(): void {
+    const station = this.getCurrentStation();
+
+    if (station.id === 'off' || !this.isPlaying || !this.isEnabled) {
+      this.stopSynthesizer();
+      this.stopLiveAudio();
+      this.isConnectingLive = false;
+      this.emitChange();
+      return;
+    }
+
+    if (station.isLive && station.streamUrl) {
+      this.stopSynthesizer();
+      this.isConnectingLive = true;
+      this.emitChange();
+      this.startLiveStream(station.streamUrl);
+    } else {
+      this.stopLiveAudio();
+      this.isConnectingLive = false;
+      this.startSynthesizer();
+      this.emitChange();
+    }
+  }
+
+  private startLiveStream(url: string): void {
+    if (!this.liveAudio) return;
+    try {
+      this.liveAudio.pause();
+      this.liveAudio.src = url;
+      this.liveAudio.load();
+      const p = this.liveAudio.play();
+      if (p !== undefined) {
+        p.catch((err) => {
+          console.warn('Live stream autoplay notice:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('Live stream load error:', err);
+    }
+  }
+
+  private stopLiveAudio(): void {
+    if (this.liveAudio) {
+      try {
+        this.liveAudio.pause();
+        this.liveAudio.removeAttribute('src');
+        this.liveAudio.load();
+      } catch {}
+    }
+    this.isConnectingLive = false;
   }
 
   private createStaticNoiseBuffer(): void {
@@ -157,6 +309,9 @@ export class RadioManager {
 
   public getCurrentTrack(): string {
     const station = this.getCurrentStation();
+    if (!station.tracks || station.tracks.length === 0) {
+      return station.isLive ? 'Canlı FM Yayını' : 'Müzik Parçası';
+    }
     return station.tracks[this.currentTrackIndex % station.tracks.length];
   }
 
@@ -229,14 +384,14 @@ export class RadioManager {
   public nextStation(): void {
     this.playTunerStatic();
     this.currentStationIndex = (this.currentStationIndex + 1) % RADIO_STATIONS.length;
-    this.currentTrackIndex = Math.floor(Math.random() * 4);
+    this.currentTrackIndex = 0;
     this.onStationChanged();
   }
 
   public prevStation(): void {
     this.playTunerStatic();
     this.currentStationIndex = (this.currentStationIndex - 1 + RADIO_STATIONS.length) % RADIO_STATIONS.length;
-    this.currentTrackIndex = Math.floor(Math.random() * 4);
+    this.currentTrackIndex = 0;
     this.onStationChanged();
   }
 
@@ -256,9 +411,10 @@ export class RadioManager {
       if (this.getCurrentStation().id === 'off') {
         this.currentStationIndex = 0;
       }
-      this.startSynthesizer();
+      this.playCurrentStation();
     } else {
       this.stopSynthesizer();
+      this.stopLiveAudio();
     }
 
     this.emitChange();
@@ -268,8 +424,9 @@ export class RadioManager {
     this.isEnabled = enabled;
     if (!enabled) {
       this.stopSynthesizer();
+      this.stopLiveAudio();
     } else if (this.isPlaying && this.getCurrentStation().id !== 'off') {
-      this.startSynthesizer();
+      this.playCurrentStation();
     }
   }
 
@@ -278,17 +435,27 @@ export class RadioManager {
     if (station.id === 'off') {
       this.isPlaying = false;
       this.stopSynthesizer();
+      this.stopLiveAudio();
     } else {
       this.isPlaying = true;
-      this.startSynthesizer();
+      this.playCurrentStation();
     }
-    this.emitChange();
   }
 
   private emitChange(): void {
     const station = this.getCurrentStation();
     const track = this.getCurrentTrack();
-    const sub = station.id === 'off' ? 'Sadece Saf Motor Sesi' : `${station.tagline} • ${track}`;
+    let sub = '';
+    if (station.id === 'off') {
+      sub = 'Sadece Saf Motor Sesi';
+    } else if (this.isConnectingLive) {
+      sub = '⚡ FREKANS ARANIYOR (BAĞLANIYOR)...';
+    } else if (station.isLive) {
+      sub = `🔴 CANLI YAYIN • ${station.tagline}`;
+    } else {
+      sub = `${station.tagline} • ${track}`;
+    }
+
     eventBus.emit('radio:stationChanged', {
       stationIndex: this.currentStationIndex,
       frequency: station.frequency,
@@ -296,6 +463,8 @@ export class RadioManager {
       trackTitle: track,
       subtitle: sub,
       isPlaying: this.isPlaying,
+      isLive: station.isLive,
+      isConnecting: this.isConnectingLive,
     });
   }
 
@@ -312,6 +481,18 @@ export class RadioManager {
     const b2 = this.freqDataArray[6] / 255;
     const b3 = this.freqDataArray[11] / 255;
     const b4 = this.freqDataArray[18] / 255;
+
+    // Organic dancing waveform fallback if CORS prevents Web Audio bin inspection on certain stream hosts
+    const sum = b0 + b1 + b2 + b3 + b4;
+    if (sum === 0 && this.isPlaying && !this.isConnectingLive) {
+      const now = performance.now() * 0.007;
+      const wave0 = 0.38 + Math.sin(now * 1.8) * 0.28;
+      const wave1 = 0.48 + Math.cos(now * 2.4) * 0.32;
+      const wave2 = 0.54 + Math.sin(now * 3.2) * 0.34;
+      const wave3 = 0.42 + Math.cos(now * 2.8) * 0.26;
+      const wave4 = 0.32 + Math.sin(now * 4.2) * 0.22;
+      return [wave0, wave1, wave2, wave3, wave4];
+    }
 
     return [
       Math.min(1.0, b0 * 1.3),

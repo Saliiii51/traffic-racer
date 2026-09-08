@@ -69,6 +69,8 @@ export interface GameEventPayloads {
     trackTitle: string;
     subtitle?: string;
     isPlaying: boolean;
+    isLive?: boolean;
+    isConnecting?: boolean;
   };
   'radio:toggle': { isPlaying: boolean };
 }

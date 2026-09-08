@@ -3657,6 +3657,25 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
   letter-spacing: 0.5px;
 }
 
+.lcd-live-badge {
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  font-weight: 900;
+  color: #ff3366;
+  background: rgba(255, 51, 102, 0.2);
+  border: 1px solid rgba(255, 51, 102, 0.55);
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 0.5px;
+  animation: pulse-live 1.8s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(255, 51, 102, 0.45);
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.94); }
+}
+
 .lcd-station-title {
   font-family: var(--font-display);
   font-size: 0.85rem;

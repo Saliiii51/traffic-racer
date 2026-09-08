@@ -71,6 +71,7 @@ export class UIManager {
   private tapeLedPlay!: HTMLElement;
   private tapeLedStereo!: HTMLElement;
   private lcdStationFreq!: HTMLElement;
+  private lcdLiveBadge!: HTMLElement;
   private lcdStationName!: HTMLElement;
   private lcdStationSub!: HTMLElement;
   private eqBars: HTMLElement[] = [];
@@ -396,9 +397,12 @@ export class UIManager {
 
             <!-- VFD Retro LCD Digital Tuner Display -->
             <div class="deck-lcd" id="deck-lcd">
-              <div class="lcd-freq-badge" id="lcd-station-freq">92.0 MHz</div>
-              <div class="lcd-station-title" id="lcd-station-name">KRAL FM</div>
-              <div class="lcd-station-sub" id="lcd-station-sub">Nostaljik Arabesk & Saz</div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="lcd-freq-badge" id="lcd-station-freq">92.0 MHz</div>
+                <div class="lcd-live-badge" id="lcd-live-badge">🔴 CANLI</div>
+              </div>
+              <div class="lcd-station-title" id="lcd-station-name">KRAL TÜRK FM</div>
+              <div class="lcd-station-sub" id="lcd-station-sub">Canlı Damar & Arabesk</div>
             </div>
 
             <!-- Mechanical Cassette Controls -->
@@ -413,11 +417,11 @@ export class UIManager {
 
         <!-- Station Switch Toast Notification Banner -->
         <div id="radio-toast-banner" class="radio-toast-banner">
-          <span class="radio-toast-icon">📻</span>
+          <span class="radio-toast-icon" id="toast-radio-icon">📻</span>
           <div class="radio-toast-content">
-            <div class="radio-toast-freq" id="toast-radio-freq">92.0 MHz FM</div>
-            <div class="radio-toast-name" id="toast-radio-name">KRAL FM</div>
-            <div class="radio-toast-sub" id="toast-radio-sub">Nostaljik Arabesk & Saz</div>
+            <div class="radio-toast-freq" id="toast-radio-freq">92.0 MHz FM • CANLI</div>
+            <div class="radio-toast-name" id="toast-radio-name">KRAL TÜRK FM</div>
+            <div class="radio-toast-sub" id="toast-radio-sub">Canlı Damar & Arabesk</div>
           </div>
         </div>
 
@@ -1310,6 +1314,7 @@ export class UIManager {
     this.tapeLedPlay = document.getElementById('tape-led-play')!;
     this.tapeLedStereo = document.getElementById('tape-led-stereo')!;
     this.lcdStationFreq = document.getElementById('lcd-station-freq')!;
+    this.lcdLiveBadge = document.getElementById('lcd-live-badge')!;
     this.lcdStationName = document.getElementById('lcd-station-name')!;
     this.lcdStationSub = document.getElementById('lcd-station-sub')!;
     this.eqBars = [
@@ -1938,7 +1943,10 @@ export class UIManager {
       if (this.lcdStationFreq) this.lcdStationFreq.innerText = payload.frequency;
       if (this.lcdStationName) this.lcdStationName.innerText = payload.name;
       if (this.lcdStationSub) this.lcdStationSub.innerText = payload.subtitle;
-      this.showRadioToast(payload.frequency, payload.name, payload.subtitle);
+      if (this.lcdLiveBadge) {
+        this.lcdLiveBadge.style.display = payload.isLive ? 'inline-block' : 'none';
+      }
+      this.showRadioToast(payload.frequency, payload.name, payload.subtitle, payload.isLive);
     });
 
     eventBus.on('radio:toggle', (payload: any) => {
@@ -1948,9 +1956,9 @@ export class UIManager {
       }
       if (payload.isPlaying) {
         const cur = radioManager.getCurrentStation();
-        this.showRadioToast(cur.frequency, cur.name, cur.tagline);
+        this.showRadioToast(cur.frequency, cur.name, cur.tagline, cur.isLive);
       } else {
-        this.showRadioToast('RADYO KAPALI', 'SES KAPATILDI', 'Sadece Saf Motor Sesi');
+        this.showRadioToast('RADYO KAPALI', 'SES KAPATILDI', 'Sadece Saf Motor Sesi', false);
       }
     });
 
@@ -3391,11 +3399,17 @@ export class UIManager {
     }
   }
 
-  public showRadioToast(freq: string, name: string, subtitle: string): void {
+  public showRadioToast(freq: string, name: string, subtitle: string, isLive = false): void {
     if (this.radioToastTimeout !== null) {
       clearTimeout(this.radioToastTimeout);
     }
-    if (this.toastRadioFreq) this.toastRadioFreq.innerText = freq;
+    const icon = document.getElementById('toast-radio-icon');
+    if (icon) {
+      icon.innerText = isLive ? '📡' : '📻';
+    }
+    if (this.toastRadioFreq) {
+      this.toastRadioFreq.innerText = isLive ? `${freq} FM • CANLI YAYIN` : `${freq} FM`;
+    }
     if (this.toastRadioName) this.toastRadioName.innerText = name;
     if (this.toastRadioSub) this.toastRadioSub.innerText = subtitle;
 
@@ -3406,7 +3420,7 @@ export class UIManager {
           this.radioToastBanner.classList.remove('show');
         }
         this.radioToastTimeout = null;
-      }, 2600);
+      }, 2800);
     }
   }
 
