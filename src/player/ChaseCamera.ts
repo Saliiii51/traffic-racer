@@ -305,112 +305,241 @@ export const IDLE_CINEMATIC_SHOTS: IdleCinematicShot[] = [
   },
 ];
 
-// Ad Studio & Instagram Reels Cinematic Shot Presets
+// Ad Studio & Instagram Reels Cinematic Shot Presets (Dynamic Fly-In / Fly-Out Breathing)
 export interface AdStudioShot {
   id: string;
   name: string;
-  offsetX: number;
-  offsetY: number;
-  offsetZ: number;
+  // Dynamic fly-in close framing (intimate peak of the sweep)
+  closeOffsetX: number;
+  closeOffsetY: number;
+  closeOffsetZ: number;
+  closeFov: number;
+
+  // Dynamic fly-out far framing (wide overview & approach)
+  farOffsetX: number;
+  farOffsetY: number;
+  farOffsetZ: number;
+  farFov: number;
+
+  // Target lookAt coordinates
   lookAtX: number;
   lookAtY: number;
   lookAtZ: number;
-  fov: number;
+  closeLookAtZ?: number;
+
+  // Motion dynamics
   rollTilt: number;
   lagX: number;
   swayAmpX?: number;
   swayFreq?: number;
+  dollyFreq?: number;
   isRigid?: boolean;
+
+  // Backward compatibility fields
+  offsetX?: number;
+  offsetY?: number;
+  offsetZ?: number;
+  fov?: number;
 }
 
 export const AD_STUDIO_SHOTS: AdStudioShot[] = [
   {
-    id: 'LOW_EXHAUST',
-    name: '🔥 ALÇAK EGZOZ & DRIFT',
-    offsetX: 0.85,
-    offsetY: 0.72,
-    offsetZ: -4.3,
-    lookAtX: -0.15,
-    lookAtY: 0.72,
-    lookAtZ: 18.0,
-    fov: 72,
-    rollTilt: 0.08,
-    lagX: 0.68,
-    swayAmpX: 0.40,
-    swayFreq: 1.8,
-  },
-  {
-    id: 'COCKPIT_ACTION',
-    name: '🏎️ DİREKSİYON & MAKAS',
-    offsetX: 0.22,
-    offsetY: 1.25,
-    offsetZ: -0.55,
-    lookAtX: 0.18,
-    lookAtY: 1.05,
-    lookAtZ: 32.0,
-    fov: 76,
-    rollTilt: 0.0,
-    lagX: 1.0,
-    isRigid: true,
+    id: 'DRONE_SWOOP',
+    name: '🚁 DİNAMİK DALIŞ DRONE',
+    farOffsetX: 1.8,
+    farOffsetY: 7.5,
+    farOffsetZ: -16.5,
+    farFov: 68,
+    closeOffsetX: 0.35,
+    closeOffsetY: 1.15,
+    closeOffsetZ: -3.8,
+    closeFov: 60,
+    lookAtX: 0.0,
+    lookAtY: 0.95,
+    lookAtZ: 22.0,
+    closeLookAtZ: 14.0,
+    rollTilt: 0.04,
+    lagX: 0.65,
+    swayAmpX: 0.55,
+    swayFreq: 1.5,
+    dollyFreq: 0.85,
+    offsetX: 0.35,
+    offsetY: 1.15,
+    offsetZ: -3.8,
+    fov: 60,
   },
   {
     id: 'FRONT_DRONE',
     name: '🎬 REVERSE ÖN DRONE',
-    offsetX: -0.35,
-    offsetY: 0.92,
-    offsetZ: 5.4,
+    farOffsetX: -1.4,
+    farOffsetY: 5.0,
+    farOffsetZ: 15.0,
+    farFov: 72,
+    closeOffsetX: 0.25,
+    closeOffsetY: 0.88,
+    closeOffsetZ: 3.2,
+    closeFov: 62,
     lookAtX: 0.0,
     lookAtY: 0.78,
-    lookAtZ: -2.0,
-    fov: 66,
+    lookAtZ: -1.5,
+    closeLookAtZ: 0.2,
     rollTilt: -0.06,
-    lagX: 0.76,
-    swayAmpX: 0.75,
+    lagX: 0.78,
+    swayAmpX: 0.85,
     swayFreq: 1.3,
+    dollyFreq: 0.80,
+    offsetX: 0.25,
+    offsetY: 0.88,
+    offsetZ: 3.2,
+    fov: 62,
+  },
+  {
+    id: 'LOW_EXHAUST',
+    name: '🔥 ALÇAK EGZOZ & PUNCH',
+    farOffsetX: 1.5,
+    farOffsetY: 1.6,
+    farOffsetZ: -9.0,
+    farFov: 76,
+    closeOffsetX: 0.82,
+    closeOffsetY: 0.46,
+    closeOffsetZ: -2.6,
+    closeFov: 66,
+    lookAtX: -0.15,
+    lookAtY: 0.65,
+    lookAtZ: 20.0,
+    closeLookAtZ: 12.0,
+    rollTilt: 0.08,
+    lagX: 0.72,
+    swayAmpX: 0.40,
+    swayFreq: 1.9,
+    dollyFreq: 0.90,
+    offsetX: 0.82,
+    offsetY: 0.46,
+    offsetZ: -2.6,
+    fov: 66,
   },
   {
     id: 'SIDE_FENDER',
     name: '⚡ YAN ÇAMURLUK MAKAS',
-    offsetX: 1.80,
-    offsetY: 0.70,
-    offsetZ: -0.3,
-    lookAtX: -0.38,
-    lookAtY: 0.65,
-    lookAtZ: 14.0,
-    fov: 68,
+    farOffsetX: 4.5,
+    farOffsetY: 2.4,
+    farOffsetZ: -4.8,
+    farFov: 68,
+    closeOffsetX: 2.35,
+    closeOffsetY: 0.92,
+    closeOffsetZ: -0.75,
+    closeFov: 62,
+    lookAtX: -0.30,
+    lookAtY: 0.75,
+    lookAtZ: 16.0,
+    closeLookAtZ: 9.0,
     rollTilt: 0.04,
-    lagX: 0.88,
-    swayAmpX: 0.25,
-    swayFreq: 2.2,
+    lagX: 0.86,
+    swayAmpX: 0.30,
+    swayFreq: 2.0,
+    dollyFreq: 0.82,
+    offsetX: 2.35,
+    offsetY: 0.92,
+    offsetZ: -0.75,
+    fov: 62,
+  },
+  {
+    id: 'BRIDGE_ORBIT',
+    name: '🌉 BOĞAZ KÖPRÜSÜ ORBİT',
+    farOffsetX: -5.2,
+    farOffsetY: 8.8,
+    farOffsetZ: -17.5,
+    farFov: 66,
+    closeOffsetX: -2.1,
+    closeOffsetY: 2.2,
+    closeOffsetZ: -5.5,
+    closeFov: 58,
+    lookAtX: 0.15,
+    lookAtY: 0.80,
+    lookAtZ: 18.0,
+    closeLookAtZ: 12.0,
+    rollTilt: -0.05,
+    lagX: 0.62,
+    swayAmpX: 1.2,
+    swayFreq: 1.1,
+    dollyFreq: 0.72,
+    offsetX: -2.1,
+    offsetY: 2.2,
+    offsetZ: -5.5,
+    fov: 58,
+  },
+  {
+    id: 'COCKPIT_ACTION',
+    name: '🏎️ DİREKSİYON & MAKAS',
+    farOffsetX: -0.28,
+    farOffsetY: 1.40,
+    farOffsetZ: 0.05,
+    farFov: 74,
+    closeOffsetX: -0.28,
+    closeOffsetY: 1.36,
+    closeOffsetZ: 0.22,
+    closeFov: 70,
+    lookAtX: -0.28,
+    lookAtY: 1.26,
+    lookAtZ: 35.0,
+    closeLookAtZ: 30.0,
+    rollTilt: 0.0,
+    lagX: 1.0,
+    isRigid: true,
+    dollyFreq: 1.0,
+    offsetX: -0.28,
+    offsetY: 1.36,
+    offsetZ: 0.22,
+    fov: 70,
+  },
+  {
+    id: 'HELI_SWOOP',
+    name: '🚁 HELİKOPTER KUŞBAKIŞI',
+    farOffsetX: 0.0,
+    farOffsetY: 17.0,
+    farOffsetZ: -12.5,
+    farFov: 62,
+    closeOffsetX: 1.2,
+    closeOffsetY: 4.8,
+    closeOffsetZ: -5.8,
+    closeFov: 54,
+    lookAtX: 0.0,
+    lookAtY: 0.50,
+    lookAtZ: 14.0,
+    closeLookAtZ: 10.0,
+    rollTilt: -0.03,
+    lagX: 0.55,
+    swayAmpX: 1.4,
+    swayFreq: 0.95,
+    dollyFreq: 0.70,
+    offsetX: 1.2,
+    offsetY: 4.8,
+    offsetZ: -5.8,
+    fov: 54,
   },
   {
     id: 'BUMPER_RUSH',
     name: '🚀 ASFALT TAMPON RUSH',
-    offsetX: 0.0,
-    offsetY: 0.36,
-    offsetZ: 2.25,
+    farOffsetX: 0.0,
+    farOffsetY: 0.68,
+    farOffsetZ: 5.2,
+    farFov: 82,
+    closeOffsetX: 0.0,
+    closeOffsetY: 0.34,
+    closeOffsetZ: 2.20,
+    closeFov: 76,
     lookAtX: 0.0,
     lookAtY: 0.40,
-    lookAtZ: 36.0,
-    fov: 84,
+    lookAtZ: 40.0,
+    closeLookAtZ: 30.0,
     rollTilt: 0.0,
     lagX: 1.0,
     isRigid: true,
-  },
-  {
-    id: 'HELI_SWOOP',
-    name: '🚁 BOĞAZ KÖPRÜSÜ DRONE',
-    offsetX: 2.4,
-    offsetY: 6.5,
-    offsetZ: -10.5,
-    lookAtX: 0.0,
-    lookAtY: 0.5,
-    lookAtZ: 14.0,
-    fov: 58,
-    rollTilt: -0.04,
-    lagX: 0.58,
-    swayAmpX: 1.1,
-    swayFreq: 1.1,
+    dollyFreq: 0.92,
+    offsetX: 0.0,
+    offsetY: 0.34,
+    offsetZ: 2.20,
+    fov: 76,
   },
 ];
 
@@ -464,7 +593,7 @@ export class ChaseCamera {
   public isAdStudioActive: boolean = false;
   public adStudioShotIndex: number = 0;
   public isAutoDirector: boolean = true;
-  public adStudioShotDuration: number = 4.2;
+  public adStudioShotDuration: number = 7.4;
   private adStudioTimer: number = 0;
 
   constructor(aspect: number) {
@@ -938,7 +1067,12 @@ export class ChaseCamera {
     return AD_STUDIO_SHOTS[this.adStudioShotIndex];
   }
 
-  public updateAdStudio(delta: number, player: PlayerVehicle): void {
+  public updateAdStudio(
+    delta: number,
+    player: PlayerVehicle,
+    steerInput: number = 0,
+    isNitroActive: boolean = false
+  ): void {
     if (!this.isAdStudioActive) return;
 
     if (this.isAutoDirector) {
@@ -946,6 +1080,8 @@ export class ChaseCamera {
       if (this.adStudioTimer >= this.adStudioShotDuration) {
         this.nextAdStudioShot();
       }
+    } else {
+      this.adStudioTimer += delta;
     }
 
     const shot = AD_STUDIO_SHOTS[this.adStudioShotIndex];
@@ -953,33 +1089,64 @@ export class ChaseCamera {
     const speedRatio = Math.min(1.0, player.speedKmh / 220);
     const timeSec = performance.now() * 0.001;
 
+    // Dynamic Fly-In / Fly-Out Curve:
+    // At beginning of shot (progress=0), inOutFactor = 0 (FAR away scenic view).
+    // In the middle of shot (progress=0.5), inOutFactor = 1 (CLOSE intimate action).
+    // Toward the end (progress=1.0), inOutFactor = 0 (FAR away, smooth pull-back).
+    let inOutFactor: number;
+    if (this.isAutoDirector) {
+      const progress = Math.min(1.0, Math.max(0.0, this.adStudioTimer / this.adStudioShotDuration));
+      inOutFactor = Math.sin(progress * Math.PI);
+    } else {
+      // Continuous harmonic breathing for manual selection
+      const cycle = (this.adStudioTimer * (shot.dollyFreq || 0.85)) - Math.PI * 0.5;
+      inOutFactor = (Math.sin(cycle) + 1.0) * 0.5;
+    }
+
+    // Smoothstep interpolation for natural cinematic ease
+    const smoothT = inOutFactor * inOutFactor * (3.0 - 2.0 * inOutFactor);
+
+    // Interpolate between FAR and CLOSE camera frames
+    const basePathX = THREE.MathUtils.lerp(shot.farOffsetX, shot.closeOffsetX, smoothT);
+    const basePathY = THREE.MathUtils.lerp(shot.farOffsetY, shot.closeOffsetY, smoothT);
+    const basePathZ = THREE.MathUtils.lerp(shot.farOffsetZ, shot.closeOffsetZ, smoothT);
+    const baseFov = THREE.MathUtils.lerp(shot.farFov, shot.closeFov, smoothT);
+    const baseLookAtZ = shot.closeLookAtZ !== undefined
+      ? THREE.MathUtils.lerp(shot.lookAtZ, shot.closeLookAtZ, smoothT)
+      : shot.lookAtZ;
+
     // Organic floating sway motion
     const swayX = (shot.swayAmpX || 0) * Math.sin(timeSec * (shot.swayFreq || 1.6));
     const swayY = Math.cos(timeSec * 2.2) * 0.04;
 
-    const targetX = playerPos.x * shot.lagX + shot.offsetX + swayX;
-    const targetY = playerPos.y + shot.offsetY + swayY;
-    const targetZ = playerPos.z + shot.offsetZ;
+    // Steering momentum & Makas adrenaline surge
+    const steerAbs = Math.abs(steerInput);
+    const steerPunchZ = (shot.isRigid ? 0 : 1) * (steerAbs > 0.4 ? (steerAbs - 0.4) * 0.75 : 0);
+    const nitroPunchZ = isNitroActive ? (shot.closeOffsetZ < 0 ? -0.8 : 0.8) : 0;
+
+    const targetX = playerPos.x * shot.lagX + basePathX + swayX;
+    const targetY = playerPos.y + basePathY + swayY;
+    const targetZ = playerPos.z + basePathZ + steerPunchZ + nitroPunchZ;
 
     const targetLookAt = new THREE.Vector3(
       playerPos.x * (shot.isRigid ? 1.0 : shot.lagX) + shot.lookAtX,
       playerPos.y + shot.lookAtY,
-      playerPos.z + shot.lookAtZ
+      playerPos.z + baseLookAtZ
     );
 
     if (this.modeJustChanged) {
       this.modeJustChanged = false;
       this.currentPosition.set(targetX, targetY, targetZ);
       this.currentLookAt.copy(targetLookAt);
-      this.camera.fov = shot.fov;
+      this.camera.fov = baseFov;
       this.camera.updateProjectionMatrix();
     } else {
-      const xLerp = Math.min(1.0, delta * (shot.isRigid ? 28.0 : 14.0));
+      const xLerp = Math.min(1.0, delta * (shot.isRigid ? 30.0 : 14.0));
       this.currentPosition.x += (targetX - this.currentPosition.x) * xLerp;
       this.currentPosition.y = THREE.MathUtils.lerp(this.currentPosition.y, targetY, Math.min(1.0, delta * 16.0));
       this.currentPosition.z = targetZ;
 
-      const lookLerp = Math.min(1.0, delta * (shot.isRigid ? 28.0 : 18.0));
+      const lookLerp = Math.min(1.0, delta * (shot.isRigid ? 30.0 : 18.0));
       this.currentLookAt.lerp(targetLookAt, lookLerp);
     }
 
@@ -987,9 +1154,9 @@ export class ChaseCamera {
     let shakeX = 0;
     let shakeY = 0;
     if (player.speedKmh > 30) {
-      const rumble = 0.006 * speedRatio;
-      shakeX = Math.sin(timeSec * 45.0) * rumble;
-      shakeY = Math.cos(timeSec * 52.0) * (rumble * 0.6);
+      const rumble = 0.005 * speedRatio;
+      shakeX = Math.sin(timeSec * 48.0) * rumble;
+      shakeY = Math.cos(timeSec * 56.0) * (rumble * 0.5);
     }
 
     this.camera.position.set(
@@ -1000,12 +1167,12 @@ export class ChaseCamera {
     this.camera.lookAt(this.currentLookAt);
 
     // Dynamic Dutch roll leaning into the turn
-    const steerRoll = (player.currentSteerTilt || 0) * 0.85;
+    const steerRoll = (player.currentSteerTilt || (steerInput * -0.06)) * 0.85;
     this.camera.rotation.z += shot.rollTilt + steerRoll;
 
     // Dynamic FOV with speed kick and Nitro burst warp
-    const nitroBoost = player.speedKmh > 130 ? 6.0 : 0.0;
-    const desiredFov = shot.fov + speedRatio * 4.5 + nitroBoost;
+    const nitroBoost = isNitroActive || player.speedKmh > 130 ? 6.5 : 0.0;
+    const desiredFov = baseFov + speedRatio * 4.5 + nitroBoost;
     const fovLerp = Math.min(1.0, delta * 7.0);
     this.camera.fov += (desiredFov - this.camera.fov) * fovLerp;
     this.camera.updateProjectionMatrix();
@@ -1055,7 +1222,7 @@ export class ChaseCamera {
     isNitroActive: boolean
   ): void {
     if (this.isAdStudioActive) {
-      this.updateAdStudio(delta, player);
+      this.updateAdStudio(delta, player, steerInput, isNitroActive);
       return;
     }
 
