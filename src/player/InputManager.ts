@@ -14,6 +14,8 @@ export interface InputState {
   flashJustPressed: boolean;
   signalLeftJustPressed: boolean;
   signalRightJustPressed: boolean;
+  radioNextJustPressed: boolean;
+  radioToggleJustPressed: boolean;
 }
 
 export class InputManager {
@@ -34,6 +36,8 @@ export class InputManager {
   private virtualFlash = false;
   private virtualSignalLeft = false;
   private virtualSignalRight = false;
+  private virtualRadioNext = false;
+  private virtualRadioToggle = false;
 
   // Gyroscope tilt
   public controlType: 'buttons' | 'tilt' = 'buttons';
@@ -51,6 +55,8 @@ export class InputManager {
   private flashConsumed = false;
   private signalLeftConsumed = false;
   private signalRightConsumed = false;
+  private radioNextConsumed = false;
+  private radioToggleConsumed = false;
 
   private constructor() {
     this.controlType = gameState.settings.controlType || 'buttons';
@@ -83,6 +89,10 @@ export class InputManager {
         this.virtualSignalRight = true;
       } else if (e.code === 'KeyP' || e.code === 'Escape') {
         this.virtualPause = true;
+      } else if (e.code === 'KeyR') {
+        this.virtualRadioNext = true;
+      } else if (e.code === 'KeyM') {
+        this.virtualRadioToggle = true;
       }
     });
 
@@ -299,6 +309,8 @@ export class InputManager {
     this.virtualFlash = false;
     this.virtualSignalLeft = false;
     this.virtualSignalRight = false;
+    this.virtualRadioNext = false;
+    this.virtualRadioToggle = false;
     this.gyroSteer = 0;
   }
 
@@ -349,6 +361,14 @@ export class InputManager {
 
   public triggerSignalRight(): void {
     this.virtualSignalRight = true;
+  }
+
+  public triggerRadioNext(): void {
+    this.virtualRadioNext = true;
+  }
+
+  public triggerRadioToggle(): void {
+    this.virtualRadioToggle = true;
   }
 
   // Check state per frame with delta smoothing
@@ -456,6 +476,24 @@ export class InputManager {
       this.signalRightConsumed = false;
     }
 
+    let radioNextJustPressed = false;
+    if (this.virtualRadioNext && !this.radioNextConsumed) {
+      radioNextJustPressed = true;
+      this.radioNextConsumed = true;
+      this.virtualRadioNext = false;
+    } else if (!this.virtualRadioNext) {
+      this.radioNextConsumed = false;
+    }
+
+    let radioToggleJustPressed = false;
+    if (this.virtualRadioToggle && !this.radioToggleConsumed) {
+      radioToggleJustPressed = true;
+      this.radioToggleConsumed = true;
+      this.virtualRadioToggle = false;
+    } else if (!this.virtualRadioToggle) {
+      this.radioToggleConsumed = false;
+    }
+
     return {
       steer: this.currentSteer,
       accelerate,
@@ -468,6 +506,8 @@ export class InputManager {
       flashJustPressed,
       signalLeftJustPressed,
       signalRightJustPressed,
+      radioNextJustPressed,
+      radioToggleJustPressed,
     };
   }
 }

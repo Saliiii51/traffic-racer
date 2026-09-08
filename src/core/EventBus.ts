@@ -60,6 +60,17 @@ export interface GameEventPayloads {
   'mp:hostChanged': { newHostId: string; players?: any[] };
   'mp:promotedHost': {};
   'mp:error': { message: string };
+
+  // In-Game Radio events
+  'radio:stationChanged': {
+    stationIndex: number;
+    frequency: string;
+    name: string;
+    trackTitle: string;
+    subtitle?: string;
+    isPlaying: boolean;
+  };
+  'radio:toggle': { isPlaying: boolean };
 }
 
 export class EventBus {

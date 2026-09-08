@@ -8,6 +8,7 @@ import { VEHICLE_CATALOG, computeVehicleStats, getUpgradeCost, UPGRADE_MAX_LEVEL
 import { missionManager } from '../progression/MissionManager';
 import { CAMERA_PRESETS } from '../player/ChaseCamera';
 import { multiplayerManager } from '../network/MultiplayerManager';
+import { radioManager } from '../audio/RadioManager';
 import type { VehicleUpgradeLevels, GameMode, EnvironmentPreset, VehicleDefinition } from '../core/Constants';
 
 export class UIManager {
@@ -62,6 +63,22 @@ export class UIManager {
   private scrapeJoltSub!: HTMLElement;
   private scrapeTimeout: number | null = null;
   private btnToggleGyro!: HTMLElement;
+
+  // Cassette Deck & Istanbul Radio HUD elements
+  private hudCassetteDeck!: HTMLElement;
+  private tapeSpoolLeft!: HTMLElement;
+  private tapeSpoolRight!: HTMLElement;
+  private tapeLedPlay!: HTMLElement;
+  private tapeLedStereo!: HTMLElement;
+  private lcdStationFreq!: HTMLElement;
+  private lcdStationName!: HTMLElement;
+  private lcdStationSub!: HTMLElement;
+  private eqBars: HTMLElement[] = [];
+  private radioToastBanner!: HTMLElement;
+  private toastRadioFreq!: HTMLElement;
+  private toastRadioName!: HTMLElement;
+  private toastRadioSub!: HTMLElement;
+  private radioToastTimeout: number | null = null;
 
   // Cinematic Camera Intro elements
   private cinematicIntroWrap!: HTMLElement;
@@ -251,6 +268,8 @@ export class UIManager {
             <span>💡 <b>F:</b> Selektör</span>
             <span>⚡ <b>Boşluk:</b> Nitro</span>
             <span>🎥 <b>C:</b> Kamera</span>
+            <span>📻 <b>R:</b> Radyo</span>
+            <span>📼 <b>M:</b> Ses</span>
           </div>
         </div>
 
@@ -327,6 +346,78 @@ export class UIManager {
             <div class="health-bar-track">
               <div class="health-gauge-fill" id="hud-health-fill"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- RETRO CASSETTE PLAYER & ISTANBUL RADIO DECK -->
+        <div id="hud-cassette-deck" class="hud-cassette-deck">
+          <div class="deck-faceplate">
+            <!-- Top Vintage Header & Status LEDs -->
+            <div class="deck-top-row">
+              <div class="deck-brand">
+                <span class="deck-brand-name">AUTO-REVERSE</span>
+                <span class="deck-tape-type">CrO2 / DOLBY B NR</span>
+              </div>
+              <div class="deck-status-leds">
+                <span class="tape-led tape-led-stereo active" id="tape-led-stereo">ST</span>
+                <span class="tape-led tape-led-fm active">FM</span>
+                <span class="tape-led tape-led-play active" id="tape-led-play">PLAY</span>
+              </div>
+            </div>
+
+            <!-- Cassette Window with Rotating Spools & 5-Band VU-Meter -->
+            <div class="cassette-window">
+              <div class="spool-housing">
+                <div class="tape-spool tape-spool-left" id="tape-spool-left">
+                  <div class="spool-cog"></div>
+                  <div class="spool-cog"></div>
+                  <div class="spool-cog"></div>
+                </div>
+                <div class="tape-bridge">
+                  <div class="tape-ribbon"></div>
+                  <div class="tape-head-slot"></div>
+                </div>
+                <div class="tape-spool tape-spool-right" id="tape-spool-right">
+                  <div class="spool-cog"></div>
+                  <div class="spool-cog"></div>
+                  <div class="spool-cog"></div>
+                </div>
+              </div>
+
+              <!-- 5-Band Live Equalizer / Dancing LED VU-Meter -->
+              <div class="deck-equalizer" id="deck-equalizer">
+                <div class="eq-col" data-band="60Hz"><div class="eq-bar" id="eq-bar-0"></div></div>
+                <div class="eq-col" data-band="250Hz"><div class="eq-bar" id="eq-bar-1"></div></div>
+                <div class="eq-col" data-band="1kHz"><div class="eq-bar" id="eq-bar-2"></div></div>
+                <div class="eq-col" data-band="4kHz"><div class="eq-bar" id="eq-bar-3"></div></div>
+                <div class="eq-col" data-band="12kHz"><div class="eq-bar" id="eq-bar-4"></div></div>
+              </div>
+            </div>
+
+            <!-- VFD Retro LCD Digital Tuner Display -->
+            <div class="deck-lcd" id="deck-lcd">
+              <div class="lcd-freq-badge" id="lcd-station-freq">92.0 MHz</div>
+              <div class="lcd-station-title" id="lcd-station-name">KRAL FM</div>
+              <div class="lcd-station-sub" id="lcd-station-sub">Nostaljik Arabesk & Saz</div>
+            </div>
+
+            <!-- Mechanical Cassette Controls -->
+            <div class="deck-controls">
+              <button id="btn-radio-prev" class="deck-btn" title="Önceki İstasyon">⏮</button>
+              <button id="btn-radio-toggle" class="deck-btn deck-btn-play" title="Radyo Aç / Kapat (M)">⏯</button>
+              <button id="btn-radio-next" class="deck-btn" title="Sonraki İstasyon (R)">⏭</button>
+              <span class="deck-hotkey-badge" title="Klavye Kısayolları">R: Kanal • M: Ses</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Station Switch Toast Notification Banner -->
+        <div id="radio-toast-banner" class="radio-toast-banner">
+          <span class="radio-toast-icon">📻</span>
+          <div class="radio-toast-content">
+            <div class="radio-toast-freq" id="toast-radio-freq">92.0 MHz FM</div>
+            <div class="radio-toast-name" id="toast-radio-name">KRAL FM</div>
+            <div class="radio-toast-sub" id="toast-radio-sub">Nostaljik Arabesk & Saz</div>
           </div>
         </div>
 
@@ -1212,6 +1303,27 @@ export class UIManager {
     this.scrapeJoltSub = document.getElementById('scrape-jolt-sub')!;
     this.btnToggleGyro = document.getElementById('btn-toggle-gyro')!;
 
+    // Cache Cassette Radio Deck elements
+    this.hudCassetteDeck = document.getElementById('hud-cassette-deck')!;
+    this.tapeSpoolLeft = document.getElementById('tape-spool-left')!;
+    this.tapeSpoolRight = document.getElementById('tape-spool-right')!;
+    this.tapeLedPlay = document.getElementById('tape-led-play')!;
+    this.tapeLedStereo = document.getElementById('tape-led-stereo')!;
+    this.lcdStationFreq = document.getElementById('lcd-station-freq')!;
+    this.lcdStationName = document.getElementById('lcd-station-name')!;
+    this.lcdStationSub = document.getElementById('lcd-station-sub')!;
+    this.eqBars = [
+      document.getElementById('eq-bar-0')!,
+      document.getElementById('eq-bar-1')!,
+      document.getElementById('eq-bar-2')!,
+      document.getElementById('eq-bar-3')!,
+      document.getElementById('eq-bar-4')!,
+    ];
+    this.radioToastBanner = document.getElementById('radio-toast-banner')!;
+    this.toastRadioFreq = document.getElementById('toast-radio-freq')!;
+    this.toastRadioName = document.getElementById('toast-radio-name')!;
+    this.toastRadioSub = document.getElementById('toast-radio-sub')!;
+
     // Cache cinematic intro elements
     this.cinematicIntroWrap = document.getElementById('cinematic-intro-wrap')!;
     this.cinematicCountdownText = document.getElementById('cinematic-countdown-text')!;
@@ -1800,6 +1912,46 @@ export class UIManager {
 
     this.hudSignalRight?.addEventListener('click', () => {
       inputManager.triggerSignalRight();
+    });
+
+    // Retro Cassette Deck Controls & Hotkeys
+    document.getElementById('btn-radio-prev')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.init();
+      radioManager.prevStation();
+    });
+
+    document.getElementById('btn-radio-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.init();
+      radioManager.togglePlay();
+    });
+
+    document.getElementById('btn-radio-next')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioManager.init();
+      radioManager.nextStation();
+    });
+
+    eventBus.on('radio:stationChanged', (payload: any) => {
+      if (!payload) return;
+      if (this.lcdStationFreq) this.lcdStationFreq.innerText = payload.frequency;
+      if (this.lcdStationName) this.lcdStationName.innerText = payload.name;
+      if (this.lcdStationSub) this.lcdStationSub.innerText = payload.subtitle;
+      this.showRadioToast(payload.frequency, payload.name, payload.subtitle);
+    });
+
+    eventBus.on('radio:toggle', (payload: any) => {
+      if (!payload) return;
+      if (this.tapeLedPlay) {
+        this.tapeLedPlay.classList.toggle('active', payload.isPlaying);
+      }
+      if (payload.isPlaying) {
+        const cur = radioManager.getCurrentStation();
+        this.showRadioToast(cur.frequency, cur.name, cur.tagline);
+      } else {
+        this.showRadioToast('RADYO KAPALI', 'SES KAPATILDI', 'Sadece Saf Motor Sesi');
+      }
     });
 
     // Game Over Buttons
@@ -3204,6 +3356,57 @@ export class UIManager {
     if (this.hudSignalRight) {
       const active = (turnSignal === 'right' || turnSignal === 'hazard') && isBlinkOn;
       this.hudSignalRight.classList.toggle('blink-on', active);
+    }
+  }
+
+  public updateRadioVisuals(levels: number[], isPlaying: boolean): void {
+    if (!this.hudCassetteDeck) return;
+
+    if (this.tapeSpoolLeft && this.tapeSpoolRight) {
+      if (isPlaying) {
+        this.tapeSpoolLeft.classList.add('spinning');
+        this.tapeSpoolRight.classList.add('spinning');
+      } else {
+        this.tapeSpoolLeft.classList.remove('spinning');
+        this.tapeSpoolRight.classList.remove('spinning');
+      }
+    }
+
+    if (this.tapeLedPlay) {
+      this.tapeLedPlay.classList.toggle('active', isPlaying);
+    }
+    if (this.tapeLedStereo) {
+      this.tapeLedStereo.classList.toggle('active', isPlaying);
+    }
+
+    if (this.eqBars && this.eqBars.length > 0) {
+      for (let i = 0; i < this.eqBars.length; i++) {
+        const bar = this.eqBars[i];
+        if (bar) {
+          const lvl = isPlaying ? (levels[i] ?? 0) : 0;
+          const pct = Math.round(Math.min(100, Math.max(8, lvl * 100)));
+          bar.style.height = `${pct}%`;
+        }
+      }
+    }
+  }
+
+  public showRadioToast(freq: string, name: string, subtitle: string): void {
+    if (this.radioToastTimeout !== null) {
+      clearTimeout(this.radioToastTimeout);
+    }
+    if (this.toastRadioFreq) this.toastRadioFreq.innerText = freq;
+    if (this.toastRadioName) this.toastRadioName.innerText = name;
+    if (this.toastRadioSub) this.toastRadioSub.innerText = subtitle;
+
+    if (this.radioToastBanner) {
+      this.radioToastBanner.classList.add('show');
+      this.radioToastTimeout = window.setTimeout(() => {
+        if (this.radioToastBanner) {
+          this.radioToastBanner.classList.remove('show');
+        }
+        this.radioToastTimeout = null;
+      }, 2600);
     }
   }
 

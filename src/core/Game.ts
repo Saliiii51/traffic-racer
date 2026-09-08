@@ -19,6 +19,7 @@ import { EconomyManager } from '../economy/EconomyManager';
 import { MissionManager } from '../progression/MissionManager';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { audioManager } from '../audio/AudioManager';
+import { radioManager } from '../audio/RadioManager';
 import { UIManager } from '../ui/UIManager';
 import { npcPackManager } from '../traffic/NPCPackManager';
 import { cityPackManager } from '../world/CityPackManager';
@@ -1112,6 +1113,8 @@ export class Game {
           signalRightJustPressed: false,
           cameraToggleJustPressed: false,
           pauseJustPressed: rawInputs.pauseJustPressed,
+          radioNextJustPressed: rawInputs.radioNextJustPressed,
+          radioToggleJustPressed: rawInputs.radioToggleJustPressed,
         }
       : rawInputs;
 
@@ -1136,6 +1139,16 @@ export class Game {
       const nextView = this.chaseCamera.cycleMode();
       gameState.setCameraView(nextView);
       audioManager.playClick();
+    }
+
+    // Istanbul Radio & Cassette Player Hotkeys (R: İstasyon Değiştir, M: Radyo Aç/Kapa)
+    if (inputs.radioNextJustPressed) {
+      audioManager.init();
+      radioManager.nextStation();
+    }
+    if (inputs.radioToggleJustPressed) {
+      audioManager.init();
+      radioManager.togglePlay();
     }
 
     // Istanbul Car Horn
@@ -1181,7 +1194,9 @@ export class Game {
       inputs.flash ||
       inputs.cameraToggleJustPressed ||
       inputs.signalLeftJustPressed ||
-      inputs.signalRightJustPressed;
+      inputs.signalRightJustPressed ||
+      inputs.radioNextJustPressed ||
+      inputs.radioToggleJustPressed;
 
     if (hasActiveInput) {
       this.idleTimer = 0;
@@ -1234,6 +1249,7 @@ export class Game {
         this.trafficManager.update(delta, this.playerVehicle, 0, inputs.hornJustPressed, inputs.flash);
         this.environment.update(delta);
         this.uiManager.updateHUD(0, 0, 0, 0, 100);
+        this.uiManager.updateRadioVisuals(radioManager.getSpectrumLevels(), radioManager.isPlaying);
         return;
       }
     }
@@ -1405,6 +1421,8 @@ export class Game {
       isSignalBlinking,
       gameState.vehicleHealth
     );
+
+    this.uiManager.updateRadioVisuals(radioManager.getSpectrumLevels(), radioManager.isPlaying);
 
     if (gameState.isAdStudioMode) {
       this.uiManager.updateAdStudioHud(

@@ -1,6 +1,7 @@
 // Web Audio API Procedural Sound Engine & Synth Music
 
 import { gameState } from '../core/GameState';
+import { radioManager } from './RadioManager';
 
 export class AudioManager {
   private static instance: AudioManager;
@@ -69,11 +70,6 @@ export class AudioManager {
   private hasPlayedStopClunk: boolean = false;
   private brakeStopTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // Music sequencer state
-  private musicTimer: number | null = null;
-  private musicStep = 0;
-  private isMusicPlaying = false;
-
   // Spatial Traffic Audio Engine & Siren
   private trafficAudioRunning = false;
   private trafficOsc1: OscillatorNode | null = null;
@@ -128,8 +124,11 @@ export class AudioManager {
       this.sfxGain.connect(this.masterGain);
 
       this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = gameState.settings.musicEnabled ? 0.35 : 0;
+      this.musicGain.gain.value = gameState.settings.musicEnabled ? 0.38 : 0;
       this.musicGain.connect(this.masterGain);
+
+      // Initialize In-Game Radio & Cassette Deck
+      radioManager.init(this.ctx, this.musicGain);
 
       // Tunnel Echo / Concrete Vault Reverb Bus
       this.tunnelDelayNode = this.ctx.createDelay();
@@ -2555,88 +2554,15 @@ export class AudioManager {
     }
   }
 
-  // Background Synth Music Generator (Outrun / Synthwave Arcade Vibe)
+  // Background In-Game Radio & Cassette Music
   public startMusic(): void {
-    if (!this.ctx || this.isMusicPlaying || !gameState.settings.musicEnabled) return;
+    if (!this.ctx || !gameState.settings.musicEnabled) return;
     this.resumeContext();
-    this.isMusicPlaying = true;
-    this.musicStep = 0;
-
-    const bassNotes = [65.41, 65.41, 77.78, 77.78, 87.31, 87.31, 58.27, 58.27]; // C2, Eb2, F2, Bb1
-    const leadNotes = [261.63, 311.13, 349.23, 392.0, 466.16, 523.25];
-
-    const stepIntervalMs = 125; // 120 BPM 16th notes
-
-    this.musicTimer = window.setInterval(() => {
-      if (!this.ctx || !this.isMusicPlaying || !gameState.settings.musicEnabled) return;
-
-      const t = this.ctx.currentTime;
-      const barStep = this.musicStep % 16;
-      const chordIdx = Math.floor((this.musicStep / 16) % bassNotes.length);
-
-      // Bass pulse on every 8th note
-      if (barStep % 2 === 0) {
-        const bassOsc = this.ctx.createOscillator();
-        bassOsc.type = 'sawtooth';
-        bassOsc.frequency.setValueAtTime(bassNotes[chordIdx], t);
-
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(320, t);
-
-        const bassGain = this.ctx.createGain();
-        bassGain.gain.setValueAtTime(0.18, t);
-        bassGain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
-
-        bassOsc.connect(filter);
-        filter.connect(bassGain);
-        bassGain.connect(this.musicGain!);
-
-        bassOsc.start(t);
-        bassOsc.stop(t + 0.18);
-        bassOsc.onended = () => {
-          try {
-            bassOsc.disconnect();
-            filter.disconnect();
-            bassGain.disconnect();
-          } catch {}
-        };
-      }
-
-      // Arpeggiated high synth notes
-      if (barStep % 4 === 1 || barStep % 4 === 3) {
-        const noteIdx = (barStep * 2 + chordIdx) % leadNotes.length;
-        const leadOsc = this.ctx.createOscillator();
-        leadOsc.type = 'triangle';
-        leadOsc.frequency.setValueAtTime(leadNotes[noteIdx], t);
-
-        const leadGain = this.ctx.createGain();
-        leadGain.gain.setValueAtTime(0.07, t);
-        leadGain.gain.exponentialRampToValueAtTime(0.005, t + 0.2);
-
-        leadOsc.connect(leadGain);
-        leadGain.connect(this.musicGain!);
-
-        leadOsc.start(t);
-        leadOsc.stop(t + 0.2);
-        leadOsc.onended = () => {
-          try {
-            leadOsc.disconnect();
-            leadGain.disconnect();
-          } catch {}
-        };
-      }
-
-      this.musicStep++;
-    }, stepIntervalMs);
+    radioManager.setEnabled(true);
   }
 
   public stopMusic(): void {
-    this.isMusicPlaying = false;
-    if (this.musicTimer !== null) {
-      clearInterval(this.musicTimer);
-      this.musicTimer = null;
-    }
+    radioManager.setEnabled(false);
   }
 
   // Cinematic Camera Fly-In Whoosh Sound Effect
@@ -2747,13 +2673,9 @@ export class AudioManager {
 
   public setMusicEnabled(enabled: boolean): void {
     if (this.musicGain) {
-      this.musicGain.gain.value = enabled ? 0.35 : 0;
+      this.musicGain.gain.value = enabled ? 0.38 : 0;
     }
-    if (enabled && !this.isMusicPlaying) {
-      this.startMusic();
-    } else if (!enabled && this.isMusicPlaying) {
-      this.stopMusic();
-    }
+    radioManager.setEnabled(enabled);
   }
 }
 
