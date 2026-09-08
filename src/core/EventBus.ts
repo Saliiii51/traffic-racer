@@ -42,6 +42,9 @@ export interface GameEventPayloads {
   graphicsQualityChanged: 'low' | 'medium' | 'high';
   trafficSettingsChanged: { settings: TrafficSettings };
   menuCinematicNext: void;
+  timeScaleChanged: { timeScale: number };
+  reelsMaskChanged: { active: boolean };
+  cleanScreenChanged: { active: boolean };
 
   // Multiplayer events
   'mp:disconnected': {};

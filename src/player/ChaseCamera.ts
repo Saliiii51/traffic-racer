@@ -303,6 +303,89 @@ export const IDLE_CINEMATIC_SHOTS: IdleCinematicShot[] = [
   },
 ];
 
+// Ad Studio & Instagram Reels Cinematic Shot Presets
+export interface AdStudioShot {
+  id: string;
+  name: string;
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  lookAtX: number;
+  lookAtY: number;
+  lookAtZ: number;
+  fov: number;
+  rollTilt: number;
+  lagX: number;
+}
+
+export const AD_STUDIO_SHOTS: AdStudioShot[] = [
+  {
+    id: 'LOW_EXHAUST',
+    name: '🔥 ALÇAK EGZOZ & DRIFT',
+    offsetX: 0.75,
+    offsetY: 0.95,
+    offsetZ: -4.6,
+    lookAtX: 0.0,
+    lookAtY: 0.9,
+    lookAtZ: 14.0,
+    fov: 68,
+    rollTilt: 0.05,
+    lagX: 0.75,
+  },
+  {
+    id: 'FRONT_DRONE',
+    name: '🎬 REVERSE ÖN DRONE',
+    offsetX: -0.35,
+    offsetY: 1.15,
+    offsetZ: 6.2,
+    lookAtX: 0.0,
+    lookAtY: 0.85,
+    lookAtZ: 0.0,
+    fov: 64,
+    rollTilt: -0.04,
+    lagX: 0.80,
+  },
+  {
+    id: 'SIDE_WHEEL',
+    name: '⚡ YAN JANT & MAKAS',
+    offsetX: 2.1,
+    offsetY: 0.85,
+    offsetZ: -0.8,
+    lookAtX: -0.2,
+    lookAtY: 0.8,
+    lookAtZ: 10.0,
+    fov: 62,
+    rollTilt: 0.03,
+    lagX: 0.90,
+  },
+  {
+    id: 'BUMPER_RUSH',
+    name: '🏎️ TAMPON HIZ RUSH',
+    offsetX: 0.0,
+    offsetY: 0.42,
+    offsetZ: 2.2,
+    lookAtX: 0.0,
+    lookAtY: 0.5,
+    lookAtZ: 28.0,
+    fov: 78,
+    rollTilt: 0.0,
+    lagX: 1.0,
+  },
+  {
+    id: 'OVERHEAD_HELI',
+    name: '🚁 KÖPRÜ TEPE DRONE',
+    offsetX: 0.0,
+    offsetY: 9.5,
+    offsetZ: -14.0,
+    lookAtX: 0.0,
+    lookAtY: 0.5,
+    lookAtZ: 16.0,
+    fov: 56,
+    rollTilt: 0.0,
+    lagX: 0.65,
+  },
+];
+
 export class ChaseCamera {
   public camera: THREE.PerspectiveCamera;
   public mode: CameraViewMode = 'CHASE';
@@ -348,6 +431,13 @@ export class ChaseCamera {
   public idleShotIndex: number = 0;
   private idleShotTimer: number = 0;
   private idleBlendProgress: number = 1.0;
+
+  // Instagram Reel / Ad Studio Cinematic Director
+  public isAdStudioActive: boolean = false;
+  public adStudioShotIndex: number = 0;
+  public isAutoDirector: boolean = true;
+  public adStudioShotDuration: number = 4.2;
+  private adStudioTimer: number = 0;
 
   constructor(aspect: number) {
     const isMobile = isMobileDevice();
@@ -781,6 +871,107 @@ export class ChaseCamera {
     this.camera.updateProjectionMatrix();
   }
 
+  public startAdStudio(): void {
+    this.isAdStudioActive = true;
+    this.adStudioShotIndex = 0;
+    this.adStudioTimer = 0;
+    this.isAutoDirector = true;
+    this.modeJustChanged = true;
+  }
+
+  public exitAdStudio(): void {
+    this.isAdStudioActive = false;
+    this.adStudioTimer = 0;
+    this.modeJustChanged = true;
+  }
+
+  public setAdStudioShot(index: number): void {
+    if (index >= 0 && index < AD_STUDIO_SHOTS.length) {
+      this.adStudioShotIndex = index;
+      this.adStudioTimer = 0;
+      this.modeJustChanged = true;
+    }
+  }
+
+  public nextAdStudioShot(): number {
+    this.adStudioShotIndex = (this.adStudioShotIndex + 1) % AD_STUDIO_SHOTS.length;
+    this.adStudioTimer = 0;
+    this.modeJustChanged = true;
+    return this.adStudioShotIndex;
+  }
+
+  public getCurrentAdStudioShot(): AdStudioShot {
+    return AD_STUDIO_SHOTS[this.adStudioShotIndex];
+  }
+
+  public updateAdStudio(delta: number, player: PlayerVehicle): void {
+    if (!this.isAdStudioActive) return;
+
+    if (this.isAutoDirector) {
+      this.adStudioTimer += delta;
+      if (this.adStudioTimer >= this.adStudioShotDuration) {
+        this.nextAdStudioShot();
+      }
+    }
+
+    const shot = AD_STUDIO_SHOTS[this.adStudioShotIndex];
+    const playerPos = player.mesh.position;
+    const speedRatio = Math.min(1.0, player.speedKmh / 220);
+
+    const targetX = playerPos.x * shot.lagX + shot.offsetX;
+    const targetY = playerPos.y + shot.offsetY;
+    const targetZ = playerPos.z + shot.offsetZ;
+
+    const targetLookAt = new THREE.Vector3(
+      playerPos.x + shot.lookAtX,
+      playerPos.y + shot.lookAtY,
+      playerPos.z + shot.lookAtZ
+    );
+
+    if (this.modeJustChanged) {
+      this.modeJustChanged = false;
+      this.currentPosition.set(targetX, targetY, targetZ);
+      this.currentLookAt.copy(targetLookAt);
+      this.camera.fov = shot.fov;
+      this.camera.updateProjectionMatrix();
+    } else {
+      const xLerp = Math.min(1.0, delta * 14.0);
+      this.currentPosition.x += (targetX - this.currentPosition.x) * xLerp;
+      this.currentPosition.y = THREE.MathUtils.lerp(this.currentPosition.y, targetY, Math.min(1.0, delta * 16.0));
+      this.currentPosition.z = targetZ;
+
+      const lookLerp = Math.min(1.0, delta * 18.0);
+      this.currentLookAt.lerp(targetLookAt, lookLerp);
+    }
+
+    // Speed rumble & subtle camera vibration
+    let shakeX = 0;
+    let shakeY = 0;
+    if (player.speedKmh > 30) {
+      const rumble = 0.005 * speedRatio;
+      const t = performance.now() * 0.001;
+      shakeX = Math.sin(t * 40.0) * rumble;
+      shakeY = Math.cos(t * 48.0) * (rumble * 0.6);
+    }
+
+    this.camera.position.set(
+      this.currentPosition.x + shakeX,
+      this.currentPosition.y + shakeY,
+      this.currentPosition.z
+    );
+    this.camera.lookAt(this.currentLookAt);
+
+    if (shot.rollTilt !== 0) {
+      this.camera.rotation.z += shot.rollTilt;
+    }
+
+    // Dynamic FOV with speed kick
+    const desiredFov = shot.fov + speedRatio * 4.5;
+    const fovLerp = Math.min(1.0, delta * 6.0);
+    this.camera.fov += (desiredFov - this.camera.fov) * fovLerp;
+    this.camera.updateProjectionMatrix();
+  }
+
   public setMode(mode: CameraViewMode): void {
     if (this.mode !== mode) {
       this.mode = mode;
@@ -824,6 +1015,11 @@ export class ChaseCamera {
     steerInput: number,
     isNitroActive: boolean
   ): void {
+    if (this.isAdStudioActive) {
+      this.updateAdStudio(delta, player);
+      return;
+    }
+
     if (this.isIdleActive) {
       this.updateIdleCinematic(delta, player);
       return;

@@ -27,6 +27,7 @@ import { setupOrientationAutoLock, requestNativeLandscapeLock, isMobileDevice } 
 import { multiplayerManager } from '../network/MultiplayerManager';
 import { RemotePlayerVehicle } from '../vehicles/RemotePlayerVehicle';
 import { prng } from '../utils/PRNG';
+import { cinematicAutopilot } from '../player/CinematicAutopilot';
 
 // Garage Idle Cinematic Showcase Angles (Centered around vehicle presentation area x=0)
 const GARAGE_IDLE_SHOTS = [
@@ -252,6 +253,18 @@ export class Game {
 
     this.uiManager.onNavigate = (screen) => {
       this.setScreen(screen);
+    };
+
+    this.uiManager.onStartAdStudio = (config) => {
+      this.startAdStudioMode(config);
+    };
+
+    this.uiManager.onExitAdStudio = () => {
+      this.exitAdStudioMode();
+    };
+
+    this.uiManager.onCycleAdStudioShot = () => {
+      return this.chaseCamera.nextAdStudioShot();
     };
 
     this.uiManager.onLoadCustomModel = async (files: FileList | File[]) => {
@@ -555,6 +568,12 @@ export class Game {
     if (screen !== 'PLAYING') {
       this.isIntroActive = false;
       this.uiManager.finishCinematicIntro();
+      if (gameState.isAdStudioMode) {
+        gameState.isAdStudioMode = false;
+        gameState.timeScale = 1.0;
+        this.chaseCamera.exitAdStudio();
+        this.uiManager.hideAdStudioHud();
+      }
     }
 
     if (screen !== 'GARAGE') {
@@ -618,6 +637,30 @@ export class Game {
     }
   }
 
+  public startAdStudioMode(config: { vehicleId?: string; environment?: any; aggressive?: boolean } = {}): void {
+    gameState.isAdStudioMode = true;
+    gameState.timeScale = 1.0;
+    gameState.adStudioAggressive = config.aggressive !== false;
+    cinematicAutopilot.reset(1, gameState.adStudioAggressive ? 'AGGRESSIVE' : 'NORMAL');
+
+    if (config.vehicleId) {
+      gameState.selectVehicle(config.vehicleId);
+    }
+    if (config.environment) {
+      gameState.setEnvironment(config.environment);
+    }
+
+    this.startRace();
+  }
+
+  public exitAdStudioMode(): void {
+    gameState.isAdStudioMode = false;
+    gameState.timeScale = 1.0;
+    this.chaseCamera.exitAdStudio();
+    this.uiManager.hideAdStudioHud();
+    this.setScreen('MAIN_MENU');
+  }
+
   public startRace(): void {
     requestNativeLandscapeLock().catch(() => {});
     this.isCrashed = false;
@@ -651,21 +694,29 @@ export class Game {
     audioManager.startEngine();
     audioManager.startMusic();
 
-    // Start Cinematic Drone Intro (5 Variations, slower & cinematic)
-    this.isIntroActive = true;
-    this.introTimer = 0;
-    this.introDuration = 5.8;
-    this.introCountdownStage = -1;
-    const cinematicPreset = this.chaseCamera.startIntro(this.playerVehicle.mesh.position, this.introDuration);
+    if (gameState.isAdStudioMode) {
+      this.isIntroActive = false;
+      this.chaseCamera.startAdStudio();
+      cinematicAutopilot.reset(1, gameState.adStudioAggressive ? 'AGGRESSIVE' : 'NORMAL');
+      this.uiManager.finishCinematicIntro();
+      this.uiManager.showAdStudioHud();
+    } else {
+      // Start Cinematic Drone Intro (5 Variations, slower & cinematic)
+      this.isIntroActive = true;
+      this.introTimer = 0;
+      this.introDuration = 5.8;
+      this.introCountdownStage = -1;
+      const cinematicPreset = this.chaseCamera.startIntro(this.playerVehicle.mesh.position, this.introDuration);
 
-    const modeLabels: Record<string, string> = {
-      ONE_WAY: 'Tek Yön • Otoyol Sürüşü',
-      TWO_WAY: 'Çift Yön • Karşı Trafik Dikkat!',
-      TIME_ATTACK: 'Zamana Karşı • Hızlı Checkpoint',
-      CUSTOM_TRAFFIC: 'Özel Trafik Modu',
-    };
-    this.uiManager.startCinematicIntro(modeLabels[gameState.currentMode] || 'İstanbul Otoyolu', cinematicPreset.name);
-    audioManager.playCinematicWhoosh();
+      const modeLabels: Record<string, string> = {
+        ONE_WAY: 'Tek Yön • Otoyol Sürüşü',
+        TWO_WAY: 'Çift Yön • Karşı Trafik Dikkat!',
+        TIME_ATTACK: 'Zamana Karşı • Hızlı Checkpoint',
+        CUSTOM_TRAFFIC: 'Özel Trafik Modu',
+      };
+      this.uiManager.startCinematicIntro(modeLabels[gameState.currentMode] || 'İstanbul Otoyolu', cinematicPreset.name);
+      audioManager.playCinematicWhoosh();
+    }
 
     this.setScreen('PLAYING');
   }
@@ -943,8 +994,8 @@ export class Game {
       const rawDelta = (currentTime - this.lastTime) / 1000;
       this.lastTime = currentTime;
 
-      // Cap delta time to prevent simulation explosion on tab blur
-      const delta = Math.min(rawDelta, 0.1);
+      // Cap delta time to prevent simulation explosion on tab blur, scaled by timeScale for slow-mo
+      const delta = Math.min(rawDelta, 0.1) * gameState.timeScale;
 
       this.update(delta);
       this.render();
@@ -1031,7 +1082,26 @@ export class Game {
       return;
     }
 
-    const inputs = inputManager.update(delta);
+    const rawInputs = inputManager.update(delta);
+    const aiOutput = gameState.isAdStudioMode
+      ? cinematicAutopilot.update(delta, this.playerVehicle, this.trafficManager)
+      : null;
+
+    const inputs = aiOutput
+      ? {
+          steer: aiOutput.steer,
+          accelerate: aiOutput.accelerate,
+          brake: aiOutput.brake,
+          nitro: aiOutput.nitro,
+          hornJustPressed: false,
+          flash: aiOutput.flashHighBeams,
+          flashJustPressed: aiOutput.flashHighBeams && !this.wasFlashActive,
+          signalLeftJustPressed: false,
+          signalRightJustPressed: false,
+          cameraToggleJustPressed: false,
+          pauseJustPressed: rawInputs.pauseJustPressed,
+        }
+      : rawInputs;
 
     // Handle pause
     if (inputs.pauseJustPressed && !this.isCrashed) {
@@ -1251,22 +1321,28 @@ export class Game {
     const colResult = this.collisionSystem.checkCollisions(this.playerVehicle, activeTraffic);
 
     if (colResult.hasCollided) {
-      const isGodMode = gameState.currentMode === 'CUSTOM_TRAFFIC' && gameState.trafficSettings.godMode;
-      if (colResult.type === 'fatal_crash') {
-        if (isGodMode) {
-          if (this.scrapeCooldown <= 0) {
-            this.handleSlowBump(colResult);
-            this.uiManager.showScrapeNotification('🛡️ ÖLÜMSÜZLÜK AKTİF!', 'Çarpışma Engellendi • Gazlamaya Devam Et');
-          }
-        } else {
-          this.onCrash();
-          return;
-        }
-      } else if (this.scrapeCooldown <= 0) {
-        if (colResult.type === 'scrape') {
-          this.handleScrape(colResult);
-        } else if (colResult.type === 'slow_bump') {
+      if (gameState.isAdStudioMode) {
+        if (this.scrapeCooldown <= 0) {
           this.handleSlowBump(colResult);
+        }
+      } else {
+        const isGodMode = gameState.currentMode === 'CUSTOM_TRAFFIC' && gameState.trafficSettings.godMode;
+        if (colResult.type === 'fatal_crash') {
+          if (isGodMode) {
+            if (this.scrapeCooldown <= 0) {
+              this.handleSlowBump(colResult);
+              this.uiManager.showScrapeNotification('🛡️ ÖLÜMSÜZLÜK AKTİF!', 'Çarpışma Engellendi • Gazlamaya Devam Et');
+            }
+          } else {
+            this.onCrash();
+            return;
+          }
+        } else if (this.scrapeCooldown <= 0) {
+          if (colResult.type === 'scrape') {
+            this.handleScrape(colResult);
+          } else if (colResult.type === 'slow_bump') {
+            this.handleSlowBump(colResult);
+          }
         }
       }
     }
@@ -1317,6 +1393,14 @@ export class Game {
       isSignalBlinking,
       gameState.vehicleHealth
     );
+
+    if (gameState.isAdStudioMode) {
+      this.uiManager.updateAdStudioHud(
+        this.chaseCamera.getCurrentAdStudioShot().name,
+        speedKmh,
+        gameState.timeScale
+      );
+    }
 
     // Multiplayer synchronization and Remote Opponent update
     this.raceTime += delta;

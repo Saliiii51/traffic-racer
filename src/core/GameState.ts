@@ -33,6 +33,13 @@ export class GameState {
   public vehicleHealth: number = 100;
   public maxVehicleHealth: number = 100;
 
+  // Instagram Reel / Ad Studio Mode
+  public isAdStudioMode: boolean = false;
+  public timeScale: number = 1.0;
+  public isReelsMaskActive: boolean = false;
+  public isCleanScreenActive: boolean = false;
+  public adStudioAggressive: boolean = true;
+
   private constructor() {
     this.data = saveManager.load();
     this.currentMode = this.data.settings.selectedGameMode || 'ONE_WAY';
@@ -274,6 +281,23 @@ export class GameState {
       this.isWrongWay = wrongWay;
       eventBus.emit('wrongWayChanged', { isWrongWay: wrongWay });
     }
+  }
+
+  public setTimeScale(scale: number): void {
+    this.timeScale = Math.max(0.1, Math.min(2.0, scale));
+    eventBus.emit('timeScaleChanged', { timeScale: this.timeScale });
+  }
+
+  public toggleReelsMask(): boolean {
+    this.isReelsMaskActive = !this.isReelsMaskActive;
+    eventBus.emit('reelsMaskChanged', { active: this.isReelsMaskActive });
+    return this.isReelsMaskActive;
+  }
+
+  public toggleCleanScreen(): boolean {
+    this.isCleanScreenActive = !this.isCleanScreenActive;
+    eventBus.emit('cleanScreenChanged', { active: this.isCleanScreenActive });
+    return this.isCleanScreenActive;
   }
 
   public endSession(): { isNewHighScore: boolean; isNewBestDistance: boolean; earnings: number } {

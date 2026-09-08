@@ -96,6 +96,22 @@ export class UIManager {
   public onResetCustomModel?: () => void;
   public onGarageVehiclePreview?: (def: VehicleDefinition) => void;
   public onGarageColorChange?: (colorHex: string) => void;
+  public onStartAdStudio?: (config: { vehicleId?: string; environment?: any; aggressive?: boolean }) => void;
+  public onExitAdStudio?: () => void;
+  public onCycleAdStudioShot?: () => number;
+
+  // Ad Studio elements & state
+  private screenAdsStudio!: HTMLElement;
+  private adStudioHud!: HTMLElement;
+  private reelsAspectMask!: HTMLElement;
+  private btnUnhideUi!: HTMLElement;
+  private adHudCamName!: HTMLElement;
+  private adHudSpeed!: HTMLElement;
+  private adBtnSlowmo!: HTMLElement;
+  private adBtnReelsMask!: HTMLElement;
+  private adStudioSelectedCarId: string = 'tofas_gltf';
+  private adStudioSelectedEnv: any = 'DAY';
+  private adStudioAggressive: boolean = true;
 
   public navigateTo(screen: 'BOOT' | 'MAIN_MENU' | 'PLAYING' | 'GAME_OVER' | 'GARAGE' | 'MISSIONS'): void {
     if (this.onNavigate) {
@@ -221,6 +237,11 @@ export class UIManager {
             <button id="btn-open-missions" class="btn btn-secondary">🎯 GÖREVLER</button>
             <button id="btn-open-traffic-settings" class="btn btn-secondary" style="border-color: #38bdf8; color: #38bdf8;">🚦 TRAFİK</button>
             <button id="btn-open-settings" class="btn btn-secondary">⚙️ AYARLAR</button>
+          </div>
+          <div style="margin: 10px 0 6px 0; width: 100%;">
+            <button id="btn-open-ad-studio" class="btn" style="width: 100%; padding: 13px 18px; font-size: 0.94rem; font-weight: 900; letter-spacing: 1.2px; background: linear-gradient(135deg, #e1306c 0%, #fd1d1d 50%, #f56040 100%); color: #fff; border: 2px solid rgba(255,255,255,0.45); border-radius: 14px; box-shadow: 0 4px 20px rgba(225, 48, 108, 0.45); cursor: pointer; transition: all 0.25s ease; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span style="font-size: 1.25rem;">🎬</span> REKLAMLAR (SİNEMATİK MAKAS) <span style="background: rgba(0,0,0,0.3); font-size: 0.70rem; padding: 2px 7px; border-radius: 6px; letter-spacing: 1px;">REEL / TIKTOK</span>
+            </button>
           </div>
           <div class="menu-controls-hint">
             <span>◄ <b>Q:</b> Sol Sinyal</span>
@@ -998,6 +1019,131 @@ export class UIManager {
           </div>
         </div>
       </div>
+
+      <!-- 10. AD STUDIO / REELS SETUP MODAL -->
+      <div id="screen-ads-studio" class="settings-overlay" style="display: none;">
+        <div class="glass-panel settings-card" style="max-width: 560px; max-height: 94vh; overflow-y: auto; padding: 18px 22px 26px 22px; border: 2px solid #e1306c; box-shadow: 0 0 35px rgba(225, 48, 108, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.6rem;">🎬</span>
+              <div>
+                <h2 style="margin: 0; font-size: 1.22rem; color: #ff758c; font-family: 'Orbitron', sans-serif;">SİNEMATİK REKLAM STÜDYOSU</h2>
+                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.65);">Instagram Reels & TikTok İçin Otomatik Makas Çekimi</span>
+              </div>
+            </div>
+            <button id="btn-close-ad-studio" class="icon-btn" style="width: 34px; height: 34px; font-size: 1.1rem;">✕</button>
+          </div>
+
+          <!-- Tanıtım Açıklaması -->
+          <div style="background: rgba(225, 48, 108, 0.12); border: 1px solid rgba(225, 48, 108, 0.3); border-radius: 12px; padding: 12px; margin-bottom: 16px; font-size: 0.82rem; line-height: 1.45; color: #fff;">
+            🏎️ <b>Yapay Zeka Otopilot</b> aracı yüksek hızda (160+ km/s) otomatik sürer, araçların arasından kıl payı makas atar, selektör yakar ve 5 farklı profesyonel sinematik kamera açısından kayıt almanızı sağlar. Çarpışmada durmaz, video asla kesilmez!
+          </div>
+
+          <!-- Araç Seçimi -->
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 700; font-size: 0.86rem; margin-bottom: 8px; color: #fff; display: flex; justify-content: space-between;">
+              <span>🏎️ ÇEKİM ARACI</span>
+              <span id="ad-studio-selected-car-name" style="color: #ff758c; font-weight: 800;">Tofaş Doğan SLX</span>
+            </div>
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;" id="ad-studio-cars-row"></div>
+          </div>
+
+          <!-- Vakit / Ortam Seçimi -->
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 700; font-size: 0.86rem; margin-bottom: 8px; color: #fff;">🌆 İSTANBUL ATMOSFERİ</div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="ad-studio-env-row">
+              <button class="choice-pill active" data-env="DAY">☀️ BOĞAZİÇİ</button>
+              <button class="choice-pill" data-env="SUNSET">🌅 KIZ KULESİ</button>
+              <button class="choice-pill" data-env="NIGHT">🌃 MASLAK</button>
+              <button class="choice-pill" data-env="RAIN">🌧️ YAĞMURLU</button>
+            </div>
+          </div>
+
+          <!-- Makas Agresifliği -->
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 700; font-size: 0.86rem; margin-bottom: 8px; color: #fff;">⚡ MAKAS VE SÜRÜŞ STİLİ</div>
+            <div style="display: flex; gap: 8px;" id="ad-studio-aggr-row">
+              <button class="choice-pill active" data-aggr="aggressive" style="flex: 1; padding: 10px; font-size: 0.82rem;">
+                🔥 Çılgın Makas (165 km/s)
+              </button>
+              <button class="choice-pill" data-aggr="smooth" style="flex: 1; padding: 10px; font-size: 0.82rem;">
+                🚗 Akıcı Slalom (135 km/s)
+              </button>
+            </div>
+          </div>
+
+          <!-- 9:16 Instagram Reels Çerçevesi -->
+          <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 800; font-size: 0.88rem; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>📱</span> 9:16 INSTAGRAM REELS REHBERİ
+              </div>
+              <div style="font-size: 0.74rem; color: rgba(255,255,255,0.65); margin-top: 2px;">
+                Dikey video çekimi için kenar maskesini ve kırpma kılavuzunu açar.
+              </div>
+            </div>
+            <button id="btn-toggle-reels-mask" class="choice-pill" style="min-width: 80px; padding: 8px 12px;">KAPALI</button>
+          </div>
+
+          <!-- Actions -->
+          <div style="display: flex; gap: 10px;">
+            <button id="btn-cancel-ad-studio" class="btn btn-secondary" style="flex: 1; padding: 13px;">
+              İPTAL
+            </button>
+            <button id="btn-start-ad-studio-action" class="btn btn-primary" style="flex: 2; padding: 13px; font-size: 1.02rem; font-weight: 900; background: linear-gradient(135deg, #e1306c 0%, #fd1d1d 100%); border: none; box-shadow: 0 4px 18px rgba(225, 48, 108, 0.45);">
+              🚀 ÇEKİMİ BAŞLAT
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- IN-GAME AD STUDIO CONTROL HUD -->
+      <div id="ad-studio-hud" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 85;">
+        <div style="position: absolute; top: 18px; left: 20px; display: flex; align-items: center; gap: 10px; pointer-events: auto;">
+          <div style="background: rgba(0,0,0,0.78); border: 2px solid #e1306c; border-radius: 20px; padding: 6px 14px; display: flex; align-items: center; gap: 8px; font-family: 'Orbitron', sans-serif; font-size: 0.80rem; font-weight: 800; color: #fff; box-shadow: 0 0 16px rgba(225,48,108,0.4);">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff0055; animation: blink-rec 1s infinite;"></span>
+            <span>REEL ÇEKİMİ</span>
+          </div>
+          <div id="ad-hud-cam-name" style="background: rgba(0,0,0,0.70); border: 1px solid rgba(255,255,255,0.25); border-radius: 20px; padding: 6px 14px; font-size: 0.78rem; font-weight: 700; color: #38bdf8;">
+            🎥 ALÇAK EGZOZ
+          </div>
+          <div id="ad-hud-speed" style="background: rgba(0,0,0,0.70); border: 1px solid rgba(255,255,255,0.25); border-radius: 20px; padding: 6px 14px; font-size: 0.78rem; font-weight: 800; color: #ffbe0b;">
+            165 KM/H
+          </div>
+        </div>
+
+        <div style="position: absolute; top: 18px; right: 20px; display: flex; gap: 8px; pointer-events: auto;">
+          <button id="ad-btn-clean-ui" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.35); color: #fff; border-radius: 20px; cursor: pointer;">
+            👁️ UI GİZLE (H)
+          </button>
+          <button id="ad-btn-slowmo" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(0,0,0,0.75); border: 1px solid #ffbe0b; color: #ffbe0b; border-radius: 20px; cursor: pointer;">
+            ⏱️ SLOW-MO: KAPALI
+          </button>
+          <button id="ad-btn-reels-mask" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.35); color: #fff; border-radius: 20px; cursor: pointer;">
+            📱 9:16 REEL
+          </button>
+          <button id="ad-btn-next-cam" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(0,0,0,0.75); border: 1px solid #38bdf8; color: #38bdf8; border-radius: 20px; cursor: pointer;">
+            🎥 KAMERA
+          </button>
+          <button id="ad-btn-exit" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(225,48,108,0.85); border: 1px solid #fff; color: #fff; border-radius: 20px; cursor: pointer;">
+            ✕ ÇIKIŞ
+          </button>
+        </div>
+      </div>
+
+      <!-- Fullscreen Instagram 9:16 Vertical Framing Mask -->
+      <div id="reels-aspect-mask" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 80;">
+        <div style="position: absolute; top: 0; bottom: 0; left: 0; width: calc(50% - (100vh * 9 / 32)); background: rgba(0,0,0,0.78); backdrop-filter: blur(2px); border-right: 2px dashed rgba(225,48,108,0.6);"></div>
+        <div style="position: absolute; top: 0; bottom: 0; right: 0; width: calc(50% - (100vh * 9 / 32)); background: rgba(0,0,0,0.78); backdrop-filter: blur(2px); border-left: 2px dashed rgba(225,48,108,0.6);"></div>
+        <div style="position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.65); padding: 4px 14px; border-radius: 12px; font-size: 0.72rem; color: rgba(255,255,255,0.75); letter-spacing: 1px; font-weight: 700;">
+          📱 9:16 INSTAGRAM REELS ÇEKİM ALANI
+        </div>
+      </div>
+
+      <!-- Floating Unhide UI Trigger (Only visible when UI is hidden) -->
+      <button id="btn-unhide-ui" style="display: none; position: absolute; top: 16px; right: 16px; z-index: 100; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 50%; width: 44px; height: 44px; font-size: 1.2rem; cursor: pointer; backdrop-filter: blur(4px);">
+        👁️
+      </button>
     `;
 
     // Cache elements
@@ -1053,6 +1199,16 @@ export class UIManager {
     this.hudIdleCamBanner = document.getElementById('hud-idle-cam-banner')!;
     this.hudIdleCamName = document.getElementById('hud-idle-cam-name')!;
 
+    // Cache Ad Studio elements
+    this.screenAdsStudio = document.getElementById('screen-ads-studio')!;
+    this.adStudioHud = document.getElementById('ad-studio-hud')!;
+    this.reelsAspectMask = document.getElementById('reels-aspect-mask')!;
+    this.btnUnhideUi = document.getElementById('btn-unhide-ui')!;
+    this.adHudCamName = document.getElementById('ad-hud-cam-name')!;
+    this.adHudSpeed = document.getElementById('ad-hud-speed')!;
+    this.adBtnSlowmo = document.getElementById('ad-btn-slowmo')!;
+    this.adBtnReelsMask = document.getElementById('ad-btn-reels-mask')!;
+
     this.btnSkipIntro?.addEventListener('click', (e) => {
       e.stopPropagation();
       audioManager.playClick();
@@ -1095,6 +1251,116 @@ export class UIManager {
       audioManager.init();
       audioManager.playClick();
       this.navigateTo('GARAGE');
+    });
+
+    // Ad Studio / Reels Modal Open & Close
+    document.getElementById('btn-open-ad-studio')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.showAdStudioModal();
+    });
+
+    document.getElementById('btn-close-ad-studio')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.hideAdStudioModal();
+    });
+
+    document.getElementById('btn-cancel-ad-studio')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.hideAdStudioModal();
+    });
+
+    // Environment picker in Ad Studio
+    document.querySelectorAll('#ad-studio-env-row .choice-pill').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        audioManager.playClick();
+        const env = (e.currentTarget as HTMLElement).dataset.env as any;
+        this.adStudioSelectedEnv = env;
+        document.querySelectorAll('#ad-studio-env-row .choice-pill').forEach((p) => p.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+      });
+    });
+
+    // Aggressiveness in Ad Studio
+    document.querySelectorAll('#ad-studio-aggr-row .choice-pill').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        audioManager.playClick();
+        const aggr = (e.currentTarget as HTMLElement).dataset.aggr;
+        this.adStudioAggressive = aggr === 'aggressive';
+        document.querySelectorAll('#ad-studio-aggr-row .choice-pill').forEach((p) => p.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+      });
+    });
+
+    // 9:16 Reel Mask Toggles
+    const toggleMaskHandler = () => {
+      audioManager.playClick();
+      const active = gameState.toggleReelsMask();
+      const maskBtn = document.getElementById('btn-toggle-reels-mask');
+      if (maskBtn) {
+        maskBtn.innerText = active ? 'AÇIK' : 'KAPALI';
+        maskBtn.classList.toggle('active', active);
+      }
+      if (this.reelsAspectMask) {
+        this.reelsAspectMask.style.display = active ? 'block' : 'none';
+      }
+      if (this.adBtnReelsMask) {
+        this.adBtnReelsMask.style.borderColor = active ? '#ff0055' : 'rgba(255,255,255,0.35)';
+        this.adBtnReelsMask.style.color = active ? '#ff0055' : '#fff';
+      }
+    };
+    document.getElementById('btn-toggle-reels-mask')?.addEventListener('click', toggleMaskHandler);
+    document.getElementById('ad-btn-reels-mask')?.addEventListener('click', toggleMaskHandler);
+
+    // Start Shoot Action
+    document.getElementById('btn-start-ad-studio-action')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.hideAdStudioModal();
+      if (this.onStartAdStudio) {
+        this.onStartAdStudio({
+          vehicleId: this.adStudioSelectedCarId,
+          environment: this.adStudioSelectedEnv,
+          aggressive: this.adStudioAggressive,
+        });
+      }
+    });
+
+    // In-Game Ad Studio HUD Buttons
+    document.getElementById('ad-btn-clean-ui')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.toggleCleanScreen();
+    });
+
+    this.btnUnhideUi?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.toggleCleanScreen();
+    });
+
+    document.getElementById('ad-btn-slowmo')?.addEventListener('click', () => {
+      audioManager.playClick();
+      const newScale = gameState.timeScale < 0.9 ? 1.0 : 0.35;
+      gameState.setTimeScale(newScale);
+    });
+
+    document.getElementById('ad-btn-next-cam')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onCycleAdStudioShot?.();
+    });
+
+    document.getElementById('ad-btn-exit')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.onExitAdStudio?.();
+    });
+
+    // Keyboard 'H' or 'h' to toggle Clean Screen mode
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'h' || e.key === 'H') {
+        if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+        if (gameState.currentScreen === 'PLAYING') {
+          this.toggleCleanScreen();
+        }
+      }
     });
 
     document.getElementById('btn-open-missions')?.addEventListener('click', () => {
@@ -2152,6 +2418,124 @@ export class UIManager {
   public hideMultiplayerResult(): void {
     if (this.screenMultiplayerResult) {
       this.screenMultiplayerResult.classList.remove('active');
+    }
+  }
+
+  public showAdStudioModal(): void {
+    if (!this.screenAdsStudio) return;
+    this.screenAdsStudio.classList.add('active');
+    this.screenAdsStudio.style.display = 'flex';
+
+    // Populate car options
+    const carsRow = document.getElementById('ad-studio-cars-row');
+    if (carsRow) {
+      carsRow.innerHTML = '';
+      this.adStudioSelectedCarId = gameState.selectedVehicleId || 'tofas_gltf';
+
+      VEHICLE_CATALOG.forEach((v) => {
+        const isSelected = v.id === this.adStudioSelectedCarId;
+        const pill = document.createElement('button');
+        pill.className = `ad-car-pill ${isSelected ? 'active' : ''}`;
+        pill.dataset.vehicleId = v.id;
+        pill.innerText = v.name;
+        pill.addEventListener('click', () => {
+          this.adStudioSelectedCarId = v.id;
+          const nameLbl = document.getElementById('ad-studio-selected-car-name');
+          if (nameLbl) nameLbl.innerText = v.name;
+          carsRow.querySelectorAll('.ad-car-pill').forEach((p) => p.classList.remove('active'));
+          pill.classList.add('active');
+          audioManager.playClick();
+        });
+        carsRow.appendChild(pill);
+      });
+
+      const activeDef = VEHICLE_CATALOG.find((v) => v.id === this.adStudioSelectedCarId);
+      const nameLbl = document.getElementById('ad-studio-selected-car-name');
+      if (nameLbl && activeDef) nameLbl.innerText = activeDef.name;
+    }
+
+    // Set active environment
+    this.adStudioSelectedEnv = gameState.currentEnvironment || 'DAY';
+    document.querySelectorAll('#ad-studio-env-row .choice-pill').forEach((btn) => {
+      const el = btn as HTMLElement;
+      el.classList.toggle('active', el.dataset.env === this.adStudioSelectedEnv);
+    });
+
+    // Update 9:16 button text
+    const maskBtn = document.getElementById('btn-toggle-reels-mask');
+    if (maskBtn) {
+      maskBtn.innerText = gameState.isReelsMaskActive ? 'AÇIK' : 'KAPALI';
+      maskBtn.classList.toggle('active', gameState.isReelsMaskActive);
+    }
+  }
+
+  public hideAdStudioModal(): void {
+    if (this.screenAdsStudio) {
+      this.screenAdsStudio.classList.remove('active');
+      this.screenAdsStudio.style.display = 'none';
+    }
+  }
+
+  public showAdStudioHud(): void {
+    if (this.screenHud) {
+      this.screenHud.style.display = 'none';
+    }
+    if (this.adStudioHud) {
+      this.adStudioHud.style.display = 'block';
+    }
+    if (this.reelsAspectMask) {
+      this.reelsAspectMask.style.display = gameState.isReelsMaskActive ? 'block' : 'none';
+    }
+    if (this.adBtnReelsMask) {
+      this.adBtnReelsMask.style.borderColor = gameState.isReelsMaskActive ? '#ff0055' : 'rgba(255,255,255,0.35)';
+      this.adBtnReelsMask.style.color = gameState.isReelsMaskActive ? '#ff0055' : '#fff';
+    }
+  }
+
+  public hideAdStudioHud(): void {
+    if (this.adStudioHud) {
+      this.adStudioHud.style.display = 'none';
+    }
+    if (this.reelsAspectMask) {
+      this.reelsAspectMask.style.display = 'none';
+    }
+    if (this.btnUnhideUi) {
+      this.btnUnhideUi.style.display = 'none';
+    }
+    gameState.isCleanScreenActive = false;
+    if (this.screenHud) {
+      this.screenHud.style.display = '';
+    }
+  }
+
+  public updateAdStudioHud(camName: string, speedKmh: number, timeScale: number): void {
+    if (!gameState.isAdStudioMode) return;
+
+    if (this.adHudCamName) {
+      this.adHudCamName.innerText = `🎥 ${camName}`;
+    }
+    if (this.adHudSpeed) {
+      this.adHudSpeed.innerText = `${Math.round(speedKmh)} KM/H`;
+    }
+    if (this.adBtnSlowmo) {
+      const isSlow = timeScale < 0.9;
+      this.adBtnSlowmo.innerText = isSlow ? '⏱️ SLOW-MO: %35' : '⏱️ SLOW-MO: KAPALI';
+      this.adBtnSlowmo.style.background = isSlow ? 'rgba(255, 190, 11, 0.35)' : 'rgba(0,0,0,0.75)';
+    }
+  }
+
+  public toggleCleanScreen(): void {
+    gameState.toggleCleanScreen();
+    const isClean = gameState.isCleanScreenActive;
+
+    if (this.screenHud) {
+      this.screenHud.style.display = isClean ? 'none' : '';
+    }
+    if (this.adStudioHud) {
+      this.adStudioHud.style.display = (isClean || !gameState.isAdStudioMode) ? 'none' : 'block';
+    }
+    if (this.btnUnhideUi) {
+      this.btnUnhideUi.style.display = isClean ? 'block' : 'none';
     }
   }
 
