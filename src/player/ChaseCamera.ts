@@ -1154,9 +1154,9 @@ export class ChaseCamera {
     let shakeX = 0;
     let shakeY = 0;
     if (player.speedKmh > 30) {
-      const rumble = 0.005 * speedRatio;
-      shakeX = Math.sin(timeSec * 48.0) * rumble;
-      shakeY = Math.cos(timeSec * 56.0) * (rumble * 0.5);
+      const rumble = 0.002 * speedRatio;
+      shakeX = Math.sin(timeSec * 20.0) * rumble;
+      shakeY = Math.cos(timeSec * 24.0) * (rumble * 0.5);
     }
 
     this.camera.position.set(
@@ -1343,12 +1343,14 @@ export class ChaseCamera {
     }
 
     // High-speed asphalt rumble & subtle road texture vibration
-    if (player.speedKmh > 25) {
-      const speedNorm = Math.min(1.0, player.speedKmh / 220);
-      const vibeAmp = (preset.isRigid ? 0.006 : 0.010) * speedNorm + (isNitroActive ? 0.015 : 0);
+    // Kept ultra-subtle and smooth so the car remains rock-solid and never vibrates/trembles
+    if (player.speedKmh > 30) {
+      const speedNorm = Math.min(1.0, player.speedKmh / 240);
+      // Clean, microscopic vibration without violent buzzing or camera jitter
+      const vibeAmp = (preset.isRigid ? 0.0025 : 0.0018) * speedNorm;
       const timeSec = performance.now() * 0.001;
-      shakeOffsetX += Math.sin(timeSec * 45.0) * vibeAmp;
-      shakeOffsetY += Math.cos(timeSec * 55.0) * (vibeAmp * 0.6);
+      shakeOffsetX += Math.sin(timeSec * 20.0) * vibeAmp;
+      shakeOffsetY += Math.cos(timeSec * 24.0) * (vibeAmp * 0.4);
     }
 
     this.camera.position.set(
