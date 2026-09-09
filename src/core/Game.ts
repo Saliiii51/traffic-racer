@@ -767,7 +767,8 @@ export class Game {
         opp.colorHex
       );
       const oppLane = opp.lane ?? 2;
-      remoteVehicle.mesh.position.set(laneSystem.getLaneX(oppLane), 0, 0);
+      const initialX = laneSystem.getLaneX(oppLane);
+      remoteVehicle.setInitialPosition(initialX, 0, 0);
       this.scene.add(remoteVehicle.mesh);
       this.remoteOpponentVehicles.set(opp.id, remoteVehicle);
     }
@@ -1457,18 +1458,24 @@ export class Game {
       const liveStandings = this.getLiveStandings();
       this.uiManager.updateMultiplayerLeaderboard(liveStandings);
 
+      const speedMps = speedKmh / 3.6;
+      const steerTilt = this.playerVehicle.currentSteerTilt || 0;
+      const lateralVx = Math.sin(steerTilt * -0.12) * speedMps;
+
       multiplayerManager.sendState({
         x: playerPos.x,
         y: playerPos.y,
         z: playerPos.z,
         speed: speedKmh,
-        steer: this.playerVehicle.currentSteerTilt,
+        steer: steerTilt,
         brake: speedKmh > 10 && inputs.brake,
         nitro: isNitroActive,
         horn: inputs.hornJustPressed,
         flash: inputs.flash,
         signal: this.playerVehicle.turnSignal,
         distance: playerPos.z,
+        vx: lateralVx,
+        vz: speedMps,
       });
 
       // Goal reach check for SPRINT mode

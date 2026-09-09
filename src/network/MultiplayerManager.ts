@@ -40,6 +40,9 @@ export interface OpponentStateUpdate {
   flash: boolean;
   signal: 'none' | 'left' | 'right' | 'hazard';
   distance: number;
+  timestamp?: number;
+  vx?: number;
+  vz?: number;
 }
 
 export class MultiplayerManager {
@@ -66,9 +69,9 @@ export class MultiplayerManager {
     return this.opponents.values().next().value || null;
   }
 
-  // Rate limiter for outgoing state updates (approx 25 updates per second)
+  // Rate limiter for outgoing state updates (approx 33.3 updates per second)
   private lastSendTime: number = 0;
-  private sendIntervalMs: number = 40; // 25 Hz
+  private sendIntervalMs: number = 30; // 33.3 Hz
 
   private constructor() {}
 
@@ -398,6 +401,8 @@ export class MultiplayerManager {
     flash: boolean;
     signal: 'none' | 'left' | 'right' | 'hazard';
     distance: number;
+    vx?: number;
+    vz?: number;
   }): void {
     if (!this.isRacing || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
@@ -408,6 +413,7 @@ export class MultiplayerManager {
     this.send({
       type: 'UPDATE_STATE',
       ...state,
+      timestamp: Date.now(),
     });
   }
 

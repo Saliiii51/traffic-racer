@@ -410,11 +410,28 @@ export class InputManager {
       if (Math.abs(this.currentSteer) < 0.002) this.currentSteer = 0;
     }
 
-    const accelerate = this.keysDown.has('w') || this.keysDown.has('arrowup') || this.virtualAccelerate;
-    const brake = this.keysDown.has('s') || this.keysDown.has('arrowdown') || this.keysDown.has('b') || this.virtualBrake;
+    const accelerate =
+      this.keysDown.has('w') ||
+      this.keysDown.has('KeyW') ||
+      this.keysDown.has('arrowup') ||
+      this.keysDown.has('ArrowUp') ||
+      this.virtualAccelerate;
+
+    const brake =
+      this.keysDown.has('s') ||
+      this.keysDown.has('KeyS') ||
+      this.keysDown.has('arrowdown') ||
+      this.keysDown.has('ArrowDown') ||
+      this.keysDown.has('b') ||
+      this.keysDown.has('KeyB') ||
+      this.virtualBrake;
+
     const nitro =
       this.keysDown.has(' ') ||
+      this.keysDown.has('Space') ||
       this.keysDown.has('space') ||
+      this.keysDown.has('ShiftLeft') ||
+      this.keysDown.has('ShiftRight') ||
       this.keysDown.has('shift') ||
       this.keysDown.has('shiftleft') ||
       this.keysDown.has('shiftright') ||

@@ -322,6 +322,9 @@ wss.on('connection', (ws) => {
             flash: data.flash,
             signal: data.signal,
             distance: data.distance,
+            timestamp: data.timestamp,
+            vx: data.vx,
+            vz: data.vz,
           }, playerId);
           break;
         }
