@@ -3455,6 +3455,7 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
   right: 20px;
   z-index: 55;
   pointer-events: auto;
+  touch-action: none;
   width: 224px;
   background: linear-gradient(180deg, #1f2530 0%, #0c1017 100%);
   border: 1.5px solid rgba(255, 190, 11, 0.45);
@@ -3482,6 +3483,7 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 4px;
+  cursor: grab;
 }
 
 .deck-brand {
@@ -3743,13 +3745,22 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
 /* Minimized Compact Radio Pill Deck */
 .hud-cassette-deck.minimized {
   width: auto;
-  min-width: 175px;
-  max-width: 220px;
-  padding: 5px 9px;
-  border-radius: 20px;
-  background: rgba(12, 16, 23, 0.92);
+  min-width: 125px;
+  max-width: 160px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background: rgba(10, 14, 20, 0.94);
   border: 1px solid rgba(255, 190, 11, 0.45);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 190, 11, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 8px rgba(255, 190, 11, 0.2);
+  cursor: grab;
+}
+
+.hud-cassette-deck.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.95;
+  transform: scale(1.03);
+  box-shadow: 0 8px 24px rgba(0, 240, 255, 0.45), 0 0 16px rgba(255, 190, 11, 0.6) !important;
+  user-select: none;
 }
 
 .deck-minimize-btn {
@@ -3783,14 +3794,30 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 5px;
   user-select: none;
+  cursor: grab;
+}
+
+.mini-drag-handle {
+  font-size: 0.60rem;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: grab;
+  line-height: 1;
+  user-select: none;
+  padding: 0 1px;
+  letter-spacing: -1px;
+  transition: color 0.15s ease;
+}
+
+.mini-drag-handle:hover {
+  color: #ffbe0b;
 }
 
 .mini-radio-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   overflow: hidden;
   white-space: nowrap;
@@ -3801,23 +3828,23 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
 }
 
 .mini-radio-icon {
-  font-size: 0.85rem;
+  font-size: 0.68rem;
   animation: pulse-mini-radio 2.5s ease-in-out infinite;
 }
 
 @keyframes pulse-mini-radio {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.08); }
 }
 
 .mini-station-name {
   font-family: var(--font-display);
-  font-size: 0.74rem;
+  font-size: 0.58rem;
   font-weight: 800;
   color: #ffbe0b;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
-  max-width: 95px;
+  max-width: 58px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3827,16 +3854,18 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
 .mini-actions {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .mini-btn {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
+  border-radius: 3px;
   color: #fff;
-  font-size: 0.68rem;
-  padding: 2px 5px;
+  font-size: 0.58rem;
+  padding: 1px 3px;
+  min-width: 16px;
+  height: 17px;
   cursor: pointer;
   transition: all 0.15s ease;
   display: inline-flex;
@@ -3932,6 +3961,12 @@ body.forced-landscape .go-stat-item.highlight-earnings .go-stat-val {
     top: 74px;
     right: 12px;
     padding: 6px 8px;
+  }
+  .hud-cassette-deck.minimized {
+    width: auto;
+    min-width: 115px;
+    max-width: 145px;
+    padding: 2px 4px;
   }
   .deck-hotkey-badge {
     display: none;

@@ -70,6 +70,7 @@ export class UIManager {
   private deckFullFaceplate!: HTMLElement;
   private miniStationName!: HTMLElement;
   private isRadioMinimized = false;
+  private wasRadioDragging = false;
   private tapeSpoolLeft!: HTMLElement;
   private tapeSpoolRight!: HTMLElement;
   private tapeLedPlay!: HTMLElement;
@@ -364,9 +365,10 @@ export class UIManager {
         </div>
 
         <!-- RETRO CASSETTE PLAYER & ISTANBUL RADIO DECK -->
-        <div id="hud-cassette-deck" class="hud-cassette-deck">
+        <div id="hud-cassette-deck" class="hud-cassette-deck" title="Sürüklemek için basılı tutun">
           <!-- Minimized Compact Pill Bar -->
           <div id="deck-minimized-bar" class="deck-minimized-bar" style="display: none;">
+            <span class="mini-drag-handle" id="mini-drag-handle" title="Sürükle">⋮⋮</span>
             <div class="mini-radio-left" id="btn-mini-expand-deck" title="Kasetçaları Büyüt">
               <span class="mini-radio-icon">📻</span>
               <span class="mini-station-name" id="mini-station-name">KRAL TÜRK FM</span>
@@ -381,7 +383,7 @@ export class UIManager {
           <!-- Full Faceplate -->
           <div class="deck-faceplate" id="deck-full-faceplate">
             <!-- Top Vintage Header & Status LEDs -->
-            <div class="deck-top-row">
+            <div class="deck-top-row" id="deck-top-row" title="Sürüklemek için basılı tutun">
               <div class="deck-brand">
                 <span class="deck-brand-name">AUTO-REVERSE</span>
                 <span class="deck-tape-type">CrO2 / DOLBY B NR</span>
@@ -1964,6 +1966,7 @@ export class UIManager {
     });
 
     document.getElementById('btn-mini-expand-deck')?.addEventListener('click', (e) => {
+      if (this.wasRadioDragging) return;
       e.stopPropagation();
       audioManager.playClick();
       this.setRadioMinimized(false);
@@ -1998,6 +2001,8 @@ export class UIManager {
       audioManager.init();
       radioManager.nextStation();
     });
+
+    this.setupRadioDraggable();
 
     eventBus.on('radio:stationChanged', (payload: any) => {
       if (!payload) return;
@@ -3438,6 +3443,9 @@ export class UIManager {
     }
     if (this.hudCassetteDeck) {
       this.hudCassetteDeck.classList.toggle('minimized', minimized);
+      if (!minimized) {
+        this.clampRadioPosition();
+      }
     }
     if (this.deckMinimizedBar) {
       this.deckMinimizedBar.style.display = minimized ? 'flex' : 'none';
@@ -3445,6 +3453,145 @@ export class UIManager {
     if (this.deckFullFaceplate) {
       this.deckFullFaceplate.style.display = minimized ? 'none' : 'flex';
     }
+  }
+
+  public clampRadioPosition(): void {
+    if (!this.hudCassetteDeck) return;
+    if (!this.hudCassetteDeck.style.left && !this.hudCassetteDeck.style.top) return;
+
+    const rect = this.hudCassetteDeck.getBoundingClientRect();
+    const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+    const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+
+    const currentLeft = parseFloat(this.hudCassetteDeck.style.left) || rect.left;
+    const currentTop = parseFloat(this.hudCassetteDeck.style.top) || rect.top;
+
+    const clampedLeft = Math.max(10, Math.min(maxLeft, currentLeft));
+    const clampedTop = Math.max(10, Math.min(maxTop, currentTop));
+
+    this.hudCassetteDeck.style.left = `${clampedLeft}px`;
+    this.hudCassetteDeck.style.top = `${clampedTop}px`;
+    this.hudCassetteDeck.style.right = 'auto';
+    this.hudCassetteDeck.style.bottom = 'auto';
+  }
+
+  private setupRadioDraggable(): void {
+    if (!this.hudCassetteDeck) return;
+
+    // Restore saved position from localStorage
+    try {
+      const savedPos = localStorage.getItem('tr_radio_pos');
+      if (savedPos) {
+        const { left, top } = JSON.parse(savedPos);
+        if (typeof left === 'number' && typeof top === 'number') {
+          const maxLeft = Math.max(10, window.innerWidth - 150);
+          const maxTop = Math.max(10, window.innerHeight - 50);
+          const validLeft = Math.max(10, Math.min(maxLeft, left));
+          const validTop = Math.max(10, Math.min(maxTop, top));
+          this.hudCassetteDeck.style.left = `${validLeft}px`;
+          this.hudCassetteDeck.style.top = `${validTop}px`;
+          this.hudCassetteDeck.style.right = 'auto';
+          this.hudCassetteDeck.style.bottom = 'auto';
+        }
+      }
+    } catch {
+      // ignore storage access issues
+    }
+
+    let isPointerDown = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+    let currentPointerId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('button, input, select, textarea')) {
+        return;
+      }
+
+      isPointerDown = true;
+      this.wasRadioDragging = false;
+      currentPointerId = e.pointerId;
+
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = this.hudCassetteDeck.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      try {
+        this.hudCassetteDeck.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isPointerDown) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (!this.wasRadioDragging && Math.hypot(dx, dy) > 5) {
+        this.wasRadioDragging = true;
+        this.hudCassetteDeck.classList.add('is-dragging');
+      }
+
+      if (this.wasRadioDragging) {
+        const rect = this.hudCassetteDeck.getBoundingClientRect();
+        const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+        const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+
+        const newLeft = Math.max(10, Math.min(maxLeft, initialLeft + dx));
+        const newTop = Math.max(10, Math.min(maxTop, initialTop + dy));
+
+        this.hudCassetteDeck.style.left = `${newLeft}px`;
+        this.hudCassetteDeck.style.top = `${newTop}px`;
+        this.hudCassetteDeck.style.right = 'auto';
+        this.hudCassetteDeck.style.bottom = 'auto';
+      }
+    };
+
+    const onPointerUp = () => {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+      this.hudCassetteDeck.classList.remove('is-dragging');
+
+      if (currentPointerId !== null) {
+        try {
+          this.hudCassetteDeck.releasePointerCapture(currentPointerId);
+        } catch {
+          // ignore
+        }
+        currentPointerId = null;
+      }
+
+      if (this.wasRadioDragging) {
+        const rect = this.hudCassetteDeck.getBoundingClientRect();
+        try {
+          localStorage.setItem('tr_radio_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+        } catch {
+          // ignore
+        }
+        setTimeout(() => {
+          this.wasRadioDragging = false;
+        }, 120);
+      }
+    };
+
+    this.hudCassetteDeck.addEventListener('pointerdown', onPointerDown);
+    this.hudCassetteDeck.addEventListener('pointermove', onPointerMove);
+    this.hudCassetteDeck.addEventListener('pointerup', onPointerUp);
+    this.hudCassetteDeck.addEventListener('pointercancel', onPointerUp);
+
+    window.addEventListener('resize', () => {
+      this.clampRadioPosition();
+    });
   }
 
   public getIsRadioMinimized(): boolean {
