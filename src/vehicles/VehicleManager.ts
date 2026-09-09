@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
+import { GLTFModelLoader } from './GLTFModelLoader';
 
 export class VehicleManager {
   private static instance: VehicleManager;
@@ -31,12 +32,7 @@ export class VehicleManager {
         url,
         (gltf) => {
           const model = gltf.scene;
-          model.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
+          GLTFModelLoader.applySmartShadows(model);
           this.loadedModels.set(modelId, model);
           resolve(model.clone());
         },

@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
+import { GLTFModelLoader } from '../vehicles/GLTFModelLoader';
 import type { VehicleDimensions } from '../vehicles/Vehicle';
 
 export interface NPCTemplate {
@@ -108,12 +109,7 @@ export class NPCPackManager {
       wrapper.rotation.y = -Math.PI / 2;
       wrapper.scale.set(MASTER_SCALE, MASTER_SCALE, MASTER_SCALE);
 
-      wrapper.traverse((obj) => {
-        if ((obj as THREE.Mesh).isMesh) {
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        }
-      });
+      GLTFModelLoader.applySmartShadows(wrapper);
 
       // Flashing strobe lights for ambulance
       if (def.category === 'ambulance') {

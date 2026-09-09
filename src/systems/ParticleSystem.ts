@@ -2,6 +2,18 @@
 
 import * as THREE from 'three';
 
+const SPARK_NITRO_COLORS = [
+  new THREE.Color(0x00f5ff),
+  new THREE.Color(0x88eeff),
+  new THREE.Color(0xffffff),
+];
+
+const SPARK_STANDARD_COLORS = [
+  new THREE.Color(0xffaa00),
+  new THREE.Color(0xff4400),
+  new THREE.Color(0xffff66),
+];
+
 interface ParticleItem {
   mesh: THREE.Mesh;
   velocity: THREE.Vector3;
@@ -32,13 +44,13 @@ export class ParticleSystem {
     for (let i = 0; i < 40; i++) {
       const mesh = new THREE.Mesh(
         debrisGeo,
-        new THREE.MeshStandardMaterial({
+        new THREE.MeshBasicMaterial({
           color: 0xff3333,
-          roughness: 0.5,
-          metalness: 0.5,
         })
       );
       mesh.visible = false;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
       this.group.add(mesh);
 
       this.debrisPool.push({
@@ -218,16 +230,14 @@ export class ParticleSystem {
 
   public emitBackfireSparks(position: THREE.Vector3, isNitro = false): void {
     // 1. High-speed incandescent sparks from debrisPool
-    const sparkColors = isNitro
-      ? [new THREE.Color(0x00f5ff), new THREE.Color(0x88eeff), new THREE.Color(0xffffff)]
-      : [new THREE.Color(0xffaa00), new THREE.Color(0xff4400), new THREE.Color(0xffff66)];
+    const sparkColors = isNitro ? SPARK_NITRO_COLORS : SPARK_STANDARD_COLORS;
 
     const sparkCount = isNitro ? 6 : 9;
     for (let i = 0; i < sparkCount; i++) {
       const p = this.debrisPool.find((d) => d.life <= 0);
       if (!p) break;
 
-      (p.mesh.material as THREE.MeshStandardMaterial).color = sparkColors[i % sparkColors.length];
+      (p.mesh.material as THREE.MeshBasicMaterial).color = sparkColors[i % sparkColors.length];
       p.mesh.position.copy(position);
       p.mesh.position.x += (Math.random() * 2 - 1) * 0.06;
       p.mesh.position.y += (Math.random() * 2 - 1) * 0.04;

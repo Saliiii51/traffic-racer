@@ -1,6 +1,5 @@
-// Base Vehicle class with procedural stylized 3D geometry and visual feedback
-
 import * as THREE from 'three';
+import { GLTFModelLoader } from './GLTFModelLoader';
 
 export interface VehicleDimensions {
   length: number;
@@ -438,7 +437,7 @@ export class Vehicle {
       metalness: 0.05,
     });
     const tireMesh = new THREE.Mesh(tireGeo, tireMat);
-    tireMesh.castShadow = true;
+    tireMesh.castShadow = false;
     tireMesh.receiveShadow = true;
     rollGroup.add(tireMesh);
 
@@ -692,7 +691,6 @@ export class Vehicle {
       }
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
         mesh.receiveShadow = true;
         if (mesh.material) {
           const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -833,7 +831,6 @@ export class Vehicle {
     model.traverse((child) => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
-      mesh.castShadow = true;
       mesh.receiveShadow = true;
 
       const matArr = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -997,6 +994,7 @@ export class Vehicle {
       });
     });
 
+    GLTFModelLoader.applySmartShadows(model);
 
     // Recompute final dimensions
     const finalBox = new THREE.Box3().setFromObject(model);

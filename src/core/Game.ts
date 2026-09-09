@@ -69,11 +69,20 @@ const GARAGE_IDLE_SHOTS = [
   },
 ];
 
+const _defaultCamPos = new THREE.Vector3(0, 1.85, -5.6);
+const _defaultLookAt = new THREE.Vector3(0, 0.75, 0);
+const _tempTargetPos = new THREE.Vector3();
+const _tempTargetLookAt = new THREE.Vector3();
+
 export class Game {
   private canvas: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private chaseCamera: ChaseCamera;
+  private fpsFrameCount = 0;
+  private fpsLastCalcTime = performance.now();
+  private currentFps = 60;
+  private renderFrameCount = 0;
 
   // World & Game Systems
   private environment: EnvironmentManager;
@@ -1010,6 +1019,14 @@ export class Game {
       // Cap delta time to prevent simulation explosion on tab blur, scaled by timeScale for slow-mo
       const delta = Math.min(rawDelta, 0.1) * gameState.timeScale;
 
+      this.fpsFrameCount++;
+      if (currentTime - this.fpsLastCalcTime >= 250) {
+        this.currentFps = (this.fpsFrameCount * 1000) / (currentTime - this.fpsLastCalcTime);
+        this.fpsFrameCount = 0;
+        this.fpsLastCalcTime = currentTime;
+        this.uiManager.updateFPS(this.currentFps);
+      }
+
       this.update(delta);
       this.render();
 
@@ -1047,10 +1064,8 @@ export class Game {
       if (this.garageIdleTimer >= 6.5) {
         this.updateGarageIdleCamera(delta);
       } else {
-        const defaultCamPos = new THREE.Vector3(0, 1.85, -5.6);
-        const defaultLookAt = new THREE.Vector3(0, 0.75, 0);
-        this.chaseCamera.camera.position.lerp(defaultCamPos, Math.min(1.0, delta * 5.0));
-        this.chaseCamera.camera.lookAt(defaultLookAt);
+        this.chaseCamera.camera.position.lerp(_defaultCamPos, Math.min(1.0, delta * 5.0));
+        this.chaseCamera.camera.lookAt(_defaultLookAt);
         this.chaseCamera.camera.fov = 54;
         this.chaseCamera.camera.updateProjectionMatrix();
       }
@@ -1076,11 +1091,11 @@ export class Game {
     }
 
     const currentShot = GARAGE_IDLE_SHOTS[this.garageIdleShotIndex];
-    const targetPos = new THREE.Vector3(currentShot.pos.x, currentShot.pos.y, currentShot.pos.z);
-    const targetLookAt = new THREE.Vector3(currentShot.lookAt.x, currentShot.lookAt.y, currentShot.lookAt.z);
+    _tempTargetPos.set(currentShot.pos.x, currentShot.pos.y, currentShot.pos.z);
+    _tempTargetLookAt.set(currentShot.lookAt.x, currentShot.lookAt.y, currentShot.lookAt.z);
 
-    this.chaseCamera.camera.position.lerp(targetPos, Math.min(1.0, delta * 3.2));
-    this.chaseCamera.camera.lookAt(targetLookAt);
+    this.chaseCamera.camera.position.lerp(_tempTargetPos, Math.min(1.0, delta * 3.2));
+    this.chaseCamera.camera.lookAt(_tempTargetLookAt);
 
     const fovLerp = Math.min(1.0, delta * 3.0);
     this.chaseCamera.camera.fov += (currentShot.fov - this.chaseCamera.camera.fov) * fovLerp;
@@ -1519,7 +1534,7 @@ export class Game {
       this.renderer.shadowMap.enabled = false;
       this.renderer.setPixelRatio(1.0);
       if (this.chaseCamera?.camera) {
-        this.chaseCamera.camera.far = 380;
+        this.chaseCamera.camera.far = 340;
         this.chaseCamera.camera.updateProjectionMatrix();
       }
     } else if (quality === 'medium') {
@@ -1529,7 +1544,7 @@ export class Game {
       this.renderer.shadowMap.type = THREE.BasicShadowMap;
       this.renderer.setPixelRatio(isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.25));
       if (this.chaseCamera?.camera) {
-        this.chaseCamera.camera.far = isMobile ? 420 : 550;
+        this.chaseCamera.camera.far = isMobile ? 360 : 420;
         this.chaseCamera.camera.updateProjectionMatrix();
       }
     } else {
@@ -1537,13 +1552,19 @@ export class Game {
       this.renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
       this.renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.25) : Math.min(window.devicePixelRatio, 1.5));
       if (this.chaseCamera?.camera) {
-        this.chaseCamera.camera.far = isMobile ? 460 : 650;
+        this.chaseCamera.camera.far = isMobile ? 400 : 480;
         this.chaseCamera.camera.updateProjectionMatrix();
       }
     }
   }
 
   private render(): void {
+    this.renderFrameCount++;
+    // Shadow throttling: compute shadow maps every 2nd frame (30 Hz at 60 FPS) to halve shadow draw calls
+    if (this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.autoUpdate = false;
+      this.renderer.shadowMap.needsUpdate = (this.renderFrameCount % 2 === 0);
+    }
     this.renderer.render(this.scene, this.chaseCamera.camera);
   }
 }

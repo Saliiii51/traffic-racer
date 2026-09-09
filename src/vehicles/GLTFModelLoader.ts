@@ -157,6 +157,7 @@ export class GLTFModelLoader {
               console.warn('[GLTFModelLoader] Auto-texture mapping warning:', e);
             }
           }
+          GLTFModelLoader.applySmartShadows(gltf.scene);
           resolve(gltf.scene);
         },
         undefined,
@@ -202,9 +203,55 @@ export class GLTFModelLoader {
   }
 
   /**
+   * Smartly configure shadows on a vehicle mesh.
+   * Only external opaque body, chassis, and roof meshes cast shadows.
+   * Small internal pieces (knobs, steering wheel, glass, exhaust tips, screws) are skipped.
+   */
+  public static applySmartShadows(model: THREE.Object3D): void {
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.receiveShadow = true;
+
+        const name = (mesh.name || '').toLowerCase();
+        const mat = mesh.material;
+        const isTransparent = Array.isArray(mat)
+          ? mat.some((m) => m.transparent && m.opacity < 0.9)
+          : (mat as any)?.transparent && (mat as any)?.opacity < 0.9;
+
+        // Never cast shadow from glass / transparent parts
+        if (isTransparent || /glass|cam|window|windshield|farcam|öncam/i.test(name)) {
+          mesh.castShadow = false;
+          return;
+        }
+
+        // Skip tiny interior details, lights, decals, license plates, dials, pedals
+        const isInteriorDetail =
+          /interior|seat|koltuk|torpido|dial|gauge|pedal|carpet|paspas|steering|direksiyon|plate|plaka|bulb|light_glow|decal|mirror_glass/i.test(
+            name
+          );
+        if (isInteriorDetail) {
+          mesh.castShadow = false;
+          return;
+        }
+
+        // Skip wheels / tires (ground contact shadows are handled by decals)
+        if (/wheel|teker|tire|rim|jant/i.test(name)) {
+          mesh.castShadow = false;
+          return;
+        }
+
+        // Body panels, chassis, spoilers, bumpers cast clean silhouettes
+        mesh.castShadow = true;
+      }
+    });
+  }
+
+  /**
    * Process and calibrate FBX materials (convert to PBR MeshStandardMaterial, set glass transparency, body paint, etc.)
    */
   public static processFBXMaterials(group: THREE.Group): void {
+    GLTFModelLoader.applySmartShadows(group);
     group.traverse((child) => {
       const childName = (child.name || '').toLowerCase();
       // Hide low-detail duplicate LOD meshes and blur disc rims
@@ -214,8 +261,6 @@ export class GLTFModelLoader {
 
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
 
         const fixMaterial = (m: THREE.Material): THREE.Material => {
           const matName = (m.name || '').toLowerCase();
@@ -490,8 +535,6 @@ export class GLTFModelLoader {
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
 
         const pName = (mesh.parent?.name || '').toLowerCase();
         const mName = (mesh.name || '').toLowerCase();
@@ -580,6 +623,7 @@ export class GLTFModelLoader {
         }
       }
     });
+    GLTFModelLoader.applySmartShadows(model);
   }
 }
 

@@ -41,6 +41,7 @@ export class UIManager {
   private hudNitroFill!: HTMLElement;
   private hudHealthFill!: HTMLElement;
   private hudHealthVal!: HTMLElement;
+  private hudFpsVal!: HTMLElement;
   private hudSignalLeft!: HTMLElement;
   private hudSignalRight!: HTMLElement;
   private nearMissBanner!: HTMLElement;
@@ -319,6 +320,10 @@ export class UIManager {
             <div class="hud-stat-box">
               <div class="hud-stat-label">KAZANÇ</div>
               <div class="hud-stat-value" style="color: var(--accent-gold);" id="hud-cash">₺0</div>
+            </div>
+            <div class="hud-stat-box hud-fps-box" id="hud-fps-box" title="Canlı Kare Hızı (FPS)">
+              <div class="hud-stat-label">FPS</div>
+              <div class="hud-stat-value" id="hud-fps-val" style="color: #00ffaa; min-width: 28px; text-align: center;">60</div>
             </div>
             <button id="hud-btn-camera" class="hud-camera-btn" title="Kamera Değiştir (C)">
               🎥 <span id="hud-cam-label">TAKİP</span>
@@ -1319,6 +1324,7 @@ export class UIManager {
     this.hudNitroFill = document.getElementById('hud-nitro-fill')!;
     this.hudHealthFill = document.getElementById('hud-health-fill')!;
     this.hudHealthVal = document.getElementById('hud-health-val')!;
+    this.hudFpsVal = document.getElementById('hud-fps-val')!;
     this.hudSignalLeft = document.getElementById('hud-signal-left')!;
     this.hudSignalRight = document.getElementById('hud-signal-right')!;
     this.nearMissBanner = document.getElementById('near-miss-banner')!;
@@ -3431,6 +3437,19 @@ export class UIManager {
     if (this.hudSignalRight) {
       const active = (turnSignal === 'right' || turnSignal === 'hazard') && isBlinkOn;
       this.hudSignalRight.classList.toggle('blink-on', active);
+    }
+  }
+
+  public updateFPS(fps: number): void {
+    if (!this.hudFpsVal) return;
+    const rounded = Math.round(fps);
+    this.hudFpsVal.innerText = rounded.toString();
+    if (rounded >= 50) {
+      this.hudFpsVal.style.color = '#00ffaa';
+    } else if (rounded >= 30) {
+      this.hudFpsVal.style.color = '#ffb703';
+    } else {
+      this.hudFpsVal.style.color = '#ff3366';
     }
   }
 

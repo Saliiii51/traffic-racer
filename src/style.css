@@ -550,6 +550,17 @@ body {
   text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
 }
 
+.hud-fps-box {
+  min-width: 54px;
+  text-align: center;
+}
+
+.hud-fps-box .hud-stat-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-shadow: 0 0 8px currentColor;
+}
+
 .hud-pause-btn {
   pointer-events: auto;
   width: 44px;

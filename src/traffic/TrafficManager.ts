@@ -18,6 +18,8 @@ export class TrafficManager {
   private pool: TrafficVehicle[] = [];
   private poolSize: number;
   private spawnTimer: number = 0;
+  private activeVehiclesCache: TrafficVehicle[] = [];
+  private isCacheDirty: boolean = true;
 
   constructor() {
     this.group = new THREE.Group();
@@ -46,7 +48,17 @@ export class TrafficManager {
   }
 
   public getActiveVehicles(): TrafficVehicle[] {
-    return this.pool.filter((v) => v.isActive);
+    if (this.isCacheDirty) {
+      this.activeVehiclesCache.length = 0;
+      for (let i = 0; i < this.pool.length; i++) {
+        const v = this.pool[i];
+        if (v.isActive) {
+          this.activeVehiclesCache.push(v);
+        }
+      }
+      this.isCacheDirty = false;
+    }
+    return this.activeVehiclesCache;
   }
 
   public update(
@@ -66,11 +78,13 @@ export class TrafficManager {
       // 2. Despawn if fell behind player
       if (playerZ - vehicle.mesh.position.z > GAME_CONSTANTS.TRAFFIC.DESPAWN_DIST_BEHIND) {
         vehicle.deactivate();
+        this.isCacheDirty = true;
       }
 
       // Despawn if too far ahead (e.g. if player stopped/braked hard)
       if (vehicle.mesh.position.z - playerZ > 260) {
         vehicle.deactivate();
+        this.isCacheDirty = true;
       }
     }
 
@@ -203,6 +217,7 @@ export class TrafficManager {
     }
 
     available.spawn(lane, spawnZ, baseSpeed, chosenType, isOpposite, template);
+    this.isCacheDirty = true;
   }
 
   private resolveTrafficCollisions(vehicles: TrafficVehicle[], playerZ: number = 0): void {
@@ -290,5 +305,6 @@ export class TrafficManager {
     for (const vehicle of this.pool) {
       vehicle.deactivate();
     }
+    this.isCacheDirty = true;
   }
 }

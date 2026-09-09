@@ -153,6 +153,21 @@ export class RoadSegment {
     const isTwoWay = gameState.currentMode === 'TWO_WAY' || 
       (gameState.currentMode === 'CUSTOM_TRAFFIC' && gameState.trafficSettings.direction === 'TWO_WAY');
     this.updateTwoWayMode(isTwoWay);
+    this.freezeStaticMatrices();
+  }
+
+  public freezeStaticMatrices(): void {
+    const freezeGroup = (grp: THREE.Group) => {
+      grp.traverse((obj) => {
+        if (obj !== grp) {
+          obj.updateMatrix();
+          obj.matrixAutoUpdate = false;
+        }
+      });
+    };
+    freezeGroup(this.sceneryGroup);
+    freezeGroup(this.tunnelGroup);
+    freezeGroup(this.twoWayDividerGroup);
   }
 
   public updateTwoWayMode(isTwoWay: boolean): void {
@@ -2305,6 +2320,7 @@ export class RoadSegment {
       const roadBoundaryX = halfRoad + shoulderWidth;
       this.addRoadsideBuildings(roadBoundaryX, this.length);
     }
+    this.freezeStaticMatrices();
   }
 
   // --- LUSH ORGANIC BOTANICAL GREENERY (ZERO FLAT PANCAKES) ---
