@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { DDSLoader } from 'three/examples/jsm/loaders/DDSLoader.js';
+import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
 
 /**
  * SafeDDSLoader wraps Three.js DDSLoader to intercept invalid, corrupt,
@@ -144,6 +145,7 @@ export class GLTFModelLoader {
     }
 
     const loader = new GLTFLoader();
+    loader.setDRACOLoader(getSharedDracoLoader());
     return new Promise((resolve, reject) => {
       loader.load(
         url,
@@ -394,6 +396,7 @@ export class GLTFModelLoader {
     });
 
     const loader = new GLTFLoader(manager);
+    loader.setDRACOLoader(getSharedDracoLoader());
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

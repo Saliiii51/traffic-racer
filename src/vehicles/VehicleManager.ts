@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
 
 export class VehicleManager {
   private static instance: VehicleManager;
@@ -10,6 +11,7 @@ export class VehicleManager {
 
   private constructor() {
     this.gltfLoader = new GLTFLoader();
+    this.gltfLoader.setDRACOLoader(getSharedDracoLoader());
   }
 
   public static getInstance(): VehicleManager {

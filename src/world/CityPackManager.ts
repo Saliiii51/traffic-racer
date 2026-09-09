@@ -1,6 +1,7 @@
 // CityPackManager.ts - High-performance manager for 3D city buildings, skyscrapers, and background skyline
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
 
 export type BuildingCategory = 'commercial' | 'skyscraper' | 'background' | 'residential' | 'house';
 
@@ -116,6 +117,7 @@ export class CityPackManager {
 
     this.loadPromise = new Promise(async (resolve) => {
       const loader = new GLTFLoader();
+      loader.setDRACOLoader(getSharedDracoLoader());
       const loadPromises = BUILDING_CATALOG.map((def) => this.loadSingleBuilding(loader, def));
 
       const results = await Promise.all(loadPromises);

@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
 import type { VehicleDimensions } from '../vehicles/Vehicle';
 
 export interface NPCTemplate {
@@ -32,6 +33,7 @@ export class NPCPackManager {
 
     this.loadPromise = new Promise(async (resolve) => {
       const loader = new GLTFLoader();
+      loader.setDRACOLoader(getSharedDracoLoader());
       const url = '/models/traffic_racer_npc_vehicles_pack.glb';
 
       loader.load(

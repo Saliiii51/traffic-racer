@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getSharedDracoLoader } from '../utils/DracoLoaderHelper';
 
 export interface ShipInstanceData {
   group: THREE.Group;
@@ -50,6 +51,7 @@ export class ShipManager {
 
     this.loadPromise = new Promise((resolve) => {
       const loader = new GLTFLoader();
+      loader.setDRACOLoader(getSharedDracoLoader());
       const url = '/models/cruise_ship.glb';
 
       loader.load(

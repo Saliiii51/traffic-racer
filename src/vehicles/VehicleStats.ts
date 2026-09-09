@@ -64,7 +64,7 @@ export const VEHICLE_CATALOG: VehicleDefinition[] = [
     price: 0,
     unlockedByDefault: true,
     modelType: 'sedan',
-    modelPath: '/models/tofas.gltf',
+    modelPath: '/models/tofas.glb',
     baseStats: {
       topSpeedKmh: 185,
       acceleration: 6.7,

@@ -20,4 +20,5 @@ dist-ssr
 *.apk
 scratch/
 .system_generated/
+public/models/_backup/
 
