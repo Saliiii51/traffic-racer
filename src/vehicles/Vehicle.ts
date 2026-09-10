@@ -825,12 +825,12 @@ export class Vehicle {
     // Stop/brake light material names (including Golf GTI Index_0_2 and FBX CH_LD_7)
     const stopPattern = /redglass|stop|taillight|stopcam|stopfar|ae_stop|ayarli\.4|ch_ld_7|index_0_2/i;
     // Turn signal light material names
-    const signalPattern = /orangeglass|sinyal/i;
+    const signalPattern = /orangeglass|sinyal|turn_signal/i;
     // Headlights
-    const headPattern = /clearglass|far|headlight|farcamlar|ae_far|lights_lod/i;
-    // Window glass material names or mesh names (including Golf Index_0_3 and Mini Cooper MCar_Glass)
-    const glassPattern = /windowglass|window|cam|windscreen|windshield|öncam|mcar_glass|index_0_3/i;
-    const knownGlassNodes = new Set(['_gltfNode_60','_gltfNode_61','_gltfNode_62','_gltfNode_236','farcam002','Object_11','MCarGlass_MCar_Glass_0']);
+    const headPattern = /clearglass|far|headlight|farcamlar|ae_far|lights_lod|projector/i;
+    // Window glass material names or mesh names (including Ferrari glass_gray, Golf Index_0_3, Mini Cooper MCar_Glass)
+    const glassPattern = /windowglass|window|cam|windscreen|windshield|öncam|mcar_glass|index_0_3|\bglass\b|glass_gray|frontglass|rearglass/i;
+    const knownGlassNodes = new Set(['_gltfNode_60','_gltfNode_61','_gltfNode_62','_gltfNode_236','farcam002','Object_11','MCarGlass_MCar_Glass_0','glass','Glass_Gray']);
     // Body paint material names (covers Corsa carpaint, Golf Paint_Color, Mini MCar_Hull, BMW Standard_00FD5B, Tofas primary/kasa/main)
     const bodyPattern = /carpaint|paint|body|xr_c|kasa|primary|boot_ok\.[3-9]|boot_ok_[3-9]|boya|govde|^main|mcar_hull|standard_00fd5b|paint_color/i;
 
@@ -900,13 +900,15 @@ export class Vehicle {
           mat.metalness = 0.85;
         }
         // 4. Windows / Glass: Clear, realistic tinted glass for cockpit view
-        else if (glassPattern.test(combined) || knownGlassNodes.has(mesh.name)) {
+        else if (glassPattern.test(combined) || knownGlassNodes.has(mesh.name) || knownGlassNodes.has(mat.name)) {
           mat.transparent = true;
-          mat.opacity = mat.map ? 0.35 : 0.28;
+          mat.opacity = mat.map ? 0.22 : 0.12;
           mat.depthWrite = false;
-          mat.roughness = 0.04;
-          mat.metalness = 0.92;
+          mat.roughness = 0.05;
+          mat.metalness = 0.08;
+          mat.color = new THREE.Color(0xdceaff);
           mat.side = THREE.DoubleSide;
+          mesh.renderOrder = 10;
         }
         // 5. Body Paint (High-gloss PBR Lacquer)
         else if (bodyPattern.test(combined) || (mat as any).isBodyPaint) {
