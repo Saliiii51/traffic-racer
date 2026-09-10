@@ -132,6 +132,13 @@ export const VEHICLE_COCKPIT_CONFIGS: Record<string, VehicleCockpitConfig> = {
     lookAtY: 0.90,
     fov: 74,
   },
+  luxury_sedan: {
+    offsetX: 0.38,
+    offsetY: 1.15,
+    offsetZ: -0.05,
+    lookAtY: 1.05,
+    fov: 72,
+  },
 };
 
 export interface CinematicIntroPreset {

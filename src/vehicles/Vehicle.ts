@@ -775,7 +775,10 @@ export class Vehicle {
     }
 
     // Target length is 4.2 meters standard car
-    const targetLength = this.dimensions.length || 4.2;
+    let targetLength = this.dimensions.length || 4.2;
+    if (this.id === 'luxury_sedan') {
+      targetLength = 4.65;
+    }
     const scale = targetLength / Math.max(rawSize.z, 0.01);
     model.scale.set(scale, scale, scale);
     model.updateMatrixWorld(true);
@@ -828,11 +831,11 @@ export class Vehicle {
     const signalPattern = /orangeglass|sinyal|turn_signal/i;
     // Headlights
     const headPattern = /clearglass|far|headlight|farcamlar|ae_far|lights_lod|projector/i;
-    // Window glass material names or mesh names (including Ferrari glass_gray, Golf Index_0_3, Mini Cooper MCar_Glass)
-    const glassPattern = /windowglass|window|cam|windscreen|windshield|öncam|mcar_glass|index_0_3|\bglass\b|glass_gray|frontglass|rearglass/i;
-    const knownGlassNodes = new Set(['_gltfNode_60','_gltfNode_61','_gltfNode_62','_gltfNode_236','farcam002','Object_11','MCarGlass_MCar_Glass_0','glass','Glass_Gray']);
-    // Body paint material names (covers Corsa carpaint, Golf Paint_Color, Mini MCar_Hull, BMW Standard_00FD5B, Tofas primary/kasa/main)
-    const bodyPattern = /carpaint|paint|body|xr_c|kasa|primary|boot_ok\.[3-9]|boot_ok_[3-9]|boya|govde|^main|mcar_hull|standard_00fd5b|paint_color/i;
+    // Window glass material names or mesh names (including Ferrari glass_gray, Golf Index_0_3, Mini Cooper MCar_Glass, Charger d_glass)
+    const glassPattern = /windowglass|window|cam|windscreen|windshield|öncam|mcar_glass|index_0_3|\bglass\b|glass_gray|frontglass|rearglass|d_glass|glass_surr/i;
+    const knownGlassNodes = new Set(['_gltfNode_60','_gltfNode_61','_gltfNode_62','_gltfNode_236','farcam002','Object_11','MCarGlass_MCar_Glass_0','glass','Glass_Gray','d_glass','glass_surr','untitledVehicle_Exterior_mm_windows1']);
+    // Body paint material names (covers Corsa carpaint, Golf Paint_Color, Mini MCar_Hull, BMW Standard_00FD5B, Tofas primary/kasa/main, Charger color_CH)
+    const bodyPattern = /carpaint|paint|body|xr_c|kasa|primary|boot_ok\.[3-9]|boot_ok_[3-9]|boya|govde|^main|mcar_hull|standard_00fd5b|paint_color|color_ch/i;
 
     // === Configure materials ===
     model.traverse((child) => {

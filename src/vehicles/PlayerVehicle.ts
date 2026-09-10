@@ -747,6 +747,13 @@ export class PlayerVehicle extends Vehicle {
 
       this.rearPlateGroup.position.set(0, 0.48, -2.25);
       this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
+    } else if (id === 'luxury_sedan') {
+      // Precise Dodge Charger R/T bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.38, 2.38);
+      this.frontPlateGroup.rotation.set(-0.04, 0, 0);
+
+      this.rearPlateGroup.position.set(0, 0.54, -2.40);
+      this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
     } else {
       // Procedural & generic vehicles
       const halfL = (this.dimensions.length || 4.2) * 0.50 + 0.018;
