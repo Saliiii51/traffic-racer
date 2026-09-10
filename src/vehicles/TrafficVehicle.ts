@@ -369,8 +369,9 @@ export class TrafficVehicle extends Vehicle {
     this.mesh.position.set(laneX, 0, z);
     this.mesh.rotation.set(0, isOpposite ? Math.PI : 0, 0);
 
-    // Oncoming traffic turns on intense front headlights facing the player!
-    this.frontHeadlightsGroup.visible = isOpposite;
+    // Oncoming traffic always turns on intense headlights, and all traffic turns on headlights at NIGHT or RAIN!
+    const isNightOrRain = gameState.currentEnvironment === 'NIGHT' || gameState.currentEnvironment === 'RAIN';
+    this.frontHeadlightsGroup.visible = isOpposite || isNightOrRain;
     this.updateHeadlightPositions();
 
     this.updateBoundingBox();

@@ -342,20 +342,20 @@ export class PlayerVehicle extends Vehicle {
       this.highBeamTimer -= delta;
     }
 
-    if (isHighBeamOn) {
-      // Ensure world-stabilized elements are parented to the main scene (so road illumination NEVER tilts with chassis roll)
-      if (this.mesh.parent) {
-        if (this.highBeamRoadMesh && this.highBeamRoadMesh.parent !== this.mesh.parent) {
-          this.mesh.parent.add(this.highBeamRoadMesh);
-        }
-        if (this.highBeamLightTarget && this.highBeamLightTarget.parent !== this.mesh.parent) {
-          this.mesh.parent.add(this.highBeamLightTarget);
-        }
+    // Ensure world-stabilized elements are parented to the main scene (so road illumination NEVER tilts with chassis roll)
+    if (this.mesh.parent) {
+      if (this.highBeamRoadMesh && this.highBeamRoadMesh.parent !== this.mesh.parent) {
+        this.mesh.parent.add(this.highBeamRoadMesh);
       }
+      if (this.highBeamLightTarget && this.highBeamLightTarget.parent !== this.mesh.parent) {
+        this.mesh.parent.add(this.highBeamLightTarget);
+      }
+    }
 
-      const frontZ = (this.dimensions.length || 4.2) * 0.50 + 0.05;
-      const hlY = (this.dimensions.height || 1.4) * 0.52;
+    const frontZ = (this.dimensions.length || 4.2) * 0.50 + 0.05;
+    const hlY = (this.dimensions.height || 1.4) * 0.52;
 
+    if (isHighBeamOn) {
       // Stabilize SpotLight target: projects straight down the road at vehicle level (zero roll, zero pitch)
       if (this.highBeamLightTarget) {
         this.highBeamLightTarget.position.set(
@@ -372,13 +372,13 @@ export class PlayerVehicle extends Vehicle {
       // Stabilize Road Projection: ALWAYS flat on the asphalt (Y = 0.04), zero roll, zero pitch
       if (this.highBeamRoadMesh) {
         this.highBeamRoadMesh.visible = true;
-        (this.highBeamRoadMesh.material as THREE.MeshBasicMaterial).opacity = 0.85;
+        (this.highBeamRoadMesh.material as THREE.MeshBasicMaterial).opacity = 0.95;
+        this.highBeamRoadMesh.scale.set(1.15, 1.0, 1.0);
         this.highBeamRoadMesh.position.set(
           this.mesh.position.x,
           0.04,
           this.mesh.position.z + frontZ
         );
-        // Swivel gently across lanes with steering, but strictly 0 roll and 0 pitch
         this.highBeamRoadMesh.rotation.set(-Math.PI / 2, 0, this.currentYaw * 0.45);
       }
 
@@ -420,6 +420,71 @@ export class PlayerVehicle extends Vehicle {
               if (m && m.emissive) {
                 m.emissiveIntensity = 3.2;
                 m.emissive.set(0xffffff);
+              }
+            });
+          }
+        });
+      }
+    } else if (gameState.currentEnvironment === 'NIGHT' || gameState.currentEnvironment === 'RAIN') {
+      // Active Low Beams (Kısa Farlar) for Night / Rain Driving
+      if (this.highBeamLight) {
+        this.highBeamLight.intensity = 8.0;
+      }
+
+      if (this.highBeamLightTarget) {
+        this.highBeamLightTarget.position.set(
+          this.mesh.position.x + Math.sin(this.currentYaw * 0.4) * 60,
+          hlY,
+          this.mesh.position.z + 60
+        );
+      }
+
+      if (this.highBeamRoadMesh) {
+        this.highBeamRoadMesh.visible = true;
+        (this.highBeamRoadMesh.material as THREE.MeshBasicMaterial).opacity = 0.55;
+        this.highBeamRoadMesh.scale.set(0.95, 0.65, 1.0);
+        this.highBeamRoadMesh.position.set(
+          this.mesh.position.x,
+          0.04,
+          this.mesh.position.z + frontZ
+        );
+        this.highBeamRoadMesh.rotation.set(-Math.PI / 2, 0, this.currentYaw * 0.45);
+      }
+
+      if (this.highBeamShaftLeft && this.highBeamShaftRight) {
+        this.highBeamShaftLeft.visible = true;
+        this.highBeamShaftRight.visible = true;
+        (this.highBeamShaftLeft.material as THREE.MeshBasicMaterial).opacity = 0.25;
+        (this.highBeamShaftRight.material as THREE.MeshBasicMaterial).opacity = 0.25;
+
+        this.highBeamShaftLeft.rotation.z = -this.currentSteerTilt;
+        this.highBeamShaftLeft.rotation.x = -this.currentPitch;
+        this.highBeamShaftRight.rotation.z = -this.currentSteerTilt;
+        this.highBeamShaftRight.rotation.x = -this.currentPitch;
+      }
+
+      if (this.highBeamFlareLeft && this.highBeamFlareRight) {
+        this.highBeamFlareLeft.visible = true;
+        this.highBeamFlareRight.visible = true;
+        (this.highBeamFlareLeft.material as THREE.MeshBasicMaterial).opacity = 0.60;
+        (this.highBeamFlareRight.material as THREE.MeshBasicMaterial).opacity = 0.60;
+
+        this.highBeamFlareLeft.rotation.z = -this.currentSteerTilt;
+        this.highBeamFlareRight.rotation.z = -this.currentSteerTilt;
+      }
+
+      if (this.headLightMaterial) {
+        this.headLightMaterial.color.set(0xffffff);
+      }
+      if (this.isUsingCustomModel && this.customModelGroup) {
+        this.customModelGroup.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh && /far|headlight|sinyal|lights_lod/i.test((child as THREE.Mesh).name || '')) {
+            const mesh = child as THREE.Mesh;
+            const mats: any[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((m: any) => {
+              if (m && m.emissive) {
+                m.emissiveIntensity = 1.6;
+                m.emissive.set(0xfff5e6);
               }
             });
           }
@@ -1163,6 +1228,7 @@ export class PlayerVehicle extends Vehicle {
     this.highBeamRoadMesh = new THREE.Mesh(beamGeo, beamMat);
     this.highBeamRoadMesh.rotation.x = -Math.PI / 2;
     this.highBeamRoadMesh.visible = false;
+    this.mesh.add(this.highBeamRoadMesh);
 
     // 3. Volumetric 3D Light Shafts (realistic 22m atmospheric beam cones projecting straight ahead)
     const shaftGeo = new THREE.CylinderGeometry(0.12, 0.90, 22, 16, 1, true);

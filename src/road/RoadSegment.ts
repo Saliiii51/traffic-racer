@@ -78,6 +78,10 @@ export class RoadSegment {
   private static bridgeTowerMaterial: THREE.MeshStandardMaterial;
   private static bridgeWhiteMaterial: THREE.MeshStandardMaterial;
   private static bridgeCableMaterial: THREE.MeshStandardMaterial;
+  private static bridgePierMaterial: THREE.MeshStandardMaterial;
+  private static bridgeSignMaterial: THREE.MeshBasicMaterial;
+  private static bridgeGantrySignMaterial: THREE.MeshBasicMaterial;
+  private static bridgeTrussMaterial: THREE.MeshStandardMaterial;
   private static gantryMaterial: THREE.MeshStandardMaterial;
   private static ferryHullMaterial: THREE.MeshStandardMaterial;
   private static ferryWhiteMaterial: THREE.MeshStandardMaterial;
@@ -1072,6 +1076,28 @@ export class RoadSegment {
       roughness: 0.2,
     });
 
+    this.bridgePierMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8d99ae, // Weathered concrete caisson
+      roughness: 0.88,
+      metalness: 0.1,
+    });
+
+    this.bridgeTrussMaterial = new THREE.MeshStandardMaterial({
+      color: 0x495057,
+      metalness: 0.75,
+      roughness: 0.35,
+    });
+
+    const bridgeSignTex = typeof document !== 'undefined' ? RoadSegment.createBridgeSignTexture() : null;
+    this.bridgeSignMaterial = new THREE.MeshBasicMaterial({
+      map: bridgeSignTex,
+    });
+
+    const bridgeGantryTex = typeof document !== 'undefined' ? RoadSegment.createBridgePortalGantryTexture() : null;
+    this.bridgeGantrySignMaterial = new THREE.MeshBasicMaterial({
+      map: bridgeGantryTex,
+    });
+
     this.gantryMaterial = new THREE.MeshStandardMaterial({
       color: 0x343a40,
       metalness: 0.75,
@@ -1193,10 +1219,28 @@ export class RoadSegment {
       roughness: 0.55,
     });
 
+    let streetlightDecalTex: THREE.CanvasTexture | null = null;
+    if (typeof document !== 'undefined') {
+      const sCanvas = document.createElement('canvas');
+      sCanvas.width = 128;
+      sCanvas.height = 128;
+      const sctx = sCanvas.getContext('2d');
+      if (sctx) {
+        const grad = sctx.createRadialGradient(64, 64, 2, 64, 64, 64);
+        grad.addColorStop(0, 'rgba(255, 235, 170, 0.80)');
+        grad.addColorStop(0.35, 'rgba(255, 215, 130, 0.40)');
+        grad.addColorStop(0.70, 'rgba(255, 190, 80, 0.12)');
+        grad.addColorStop(1, 'rgba(255, 180, 50, 0)');
+        sctx.fillStyle = grad;
+        sctx.fillRect(0, 0, 128, 128);
+      }
+      streetlightDecalTex = new THREE.CanvasTexture(sCanvas);
+    }
     this.streetlightGlowDecalMaterial = new THREE.MeshBasicMaterial({
-      color: 0xfff3b0,
+      map: streetlightDecalTex,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
@@ -1204,6 +1248,89 @@ export class RoadSegment {
     this.initHighwaySignMaterials();
     this.initBillboardMaterials();
     this.initKmStoneMaterial();
+  }
+
+  private static createBridgeSignTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Dark navy/charcoal matrix panel
+      ctx.fillStyle = '#080d1a';
+      ctx.fillRect(0, 0, 512, 96);
+
+      // Red border frame
+      ctx.strokeStyle = '#e63946';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(6, 6, 500, 84);
+
+      // Turkish Flag on the left
+      ctx.fillStyle = '#e63946';
+      ctx.fillRect(18, 16, 75, 54);
+      // Crescent
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(48, 43, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.arc(53, 43, 12.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Star
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(64, 43, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glowing Header: 15 TEMMUZ ŞEHİTLER KÖPRÜSÜ
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 25px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('15 TEMMUZ ŞEHİTLER KÖPRÜSÜ', 110, 36);
+
+      ctx.fillStyle = '#00f0ff';
+      ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('İSTANBUL BOĞAZI  •  BOSPHORUS STRAIT', 112, 66);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = true;
+    return tex;
+  }
+
+  private static createBridgePortalGantryTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // LED Matrix background
+      ctx.fillStyle = '#080c16';
+      ctx.fillRect(0, 0, 512, 128);
+
+      // Matrix golden border
+      ctx.strokeStyle = '#ffbe0b';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(4, 4, 504, 120);
+
+      // Header: 15 TEMMUZ ŞEHİTLER KÖPRÜSÜ GİRİŞİ
+      ctx.fillStyle = '#ffbe0b';
+      ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('15 TEMMUZ ŞEHİTLER KÖPRÜSÜ GİRİŞİ', 256, 36);
+
+      // Lane Arrows: Green illuminated LED arrows for 4 lanes
+      ctx.fillStyle = '#00ff88';
+      ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('↓          ↓          ↓          ↓', 256, 82);
+
+      ctx.fillStyle = '#8ecae6';
+      ctx.font = '13px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('OGS / HGS OTOMATİK GEÇİŞ - İYİ YOLCULUKLAR', 256, 112);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    return tex;
   }
 
   private static initHighwaySignMaterials(): void {
@@ -1531,22 +1658,30 @@ export class RoadSegment {
       }
     }
 
-    // Cat-eye highway reflectors (Kedi Gözü Reflektör) via single InstancedMesh
-    const reflectorCount = Math.floor(segLength / 10);
-    const reflectorGeo = new THREE.BoxGeometry(0.12, 0.05, 0.22);
-    const reflectorMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
-    const instReflectors = new THREE.InstancedMesh(reflectorGeo, reflectorMat, reflectorCount * 2);
+    // Cat-eye highway reflectors (Kedi Gözü Reflektörler):
+    // Authentic Turkish motorways have reflective studs along every lane divider line and outer road edges!
+    const studSpacing = 6;
+    const studsPerLine = Math.floor(segLength / studSpacing);
+    const lineXPositions = [
+      -halfRoad + 0.25,                                     // Far left edge
+      (laneSystem.getLaneX(0) + laneSystem.getLaneX(1)) / 2, // Lane 0 - 1 divider
+      0,                                                    // Center median / double yellow/white
+      (laneSystem.getLaneX(2) + laneSystem.getLaneX(3)) / 2, // Lane 2 - 3 divider
+      halfRoad - 0.25,                                      // Far right edge
+    ];
+    const totalStuds = studsPerLine * lineXPositions.length;
+    const reflectorGeo = new THREE.BoxGeometry(0.14, 0.05, 0.20);
+    const reflectorMat = new THREE.MeshBasicMaterial({ color: 0xfff2a6 });
+    const instReflectors = new THREE.InstancedMesh(reflectorGeo, reflectorMat, totalStuds);
     const dummyRefl = new THREE.Object3D();
     let rIdx = 0;
-    for (let r = 0; r < reflectorCount; r++) {
-      const refZ = r * 10 + 5;
-      dummyRefl.position.set(-halfRoad + 0.2, 0.04, refZ);
-      dummyRefl.updateMatrix();
-      instReflectors.setMatrixAt(rIdx++, dummyRefl.matrix);
-
-      dummyRefl.position.set(halfRoad - 0.2, 0.04, refZ);
-      dummyRefl.updateMatrix();
-      instReflectors.setMatrixAt(rIdx++, dummyRefl.matrix);
+    for (let r = 0; r < studsPerLine; r++) {
+      const refZ = r * studSpacing + studSpacing / 2;
+      for (const lx of lineXPositions) {
+        dummyRefl.position.set(lx, 0.04, refZ);
+        dummyRefl.updateMatrix();
+        instReflectors.setMatrixAt(rIdx++, dummyRefl.matrix);
+      }
     }
     instReflectors.instanceMatrix.needsUpdate = true;
     this.mesh.add(instReflectors);
@@ -1612,7 +1747,7 @@ export class RoadSegment {
 
     // 7. Streetlights along highway (only outside tunnel!)
     if (!this.isTunnel) {
-      const lightSpacing = 40;
+      const lightSpacing = 30;
       const lightsCount = Math.floor(segLength / lightSpacing);
       for (let i = 0; i < lightsCount; i++) {
         const zOffset = i * lightSpacing + lightSpacing / 2;
@@ -1646,91 +1781,264 @@ export class RoadSegment {
     const towerZ = segLength / 2;
     towerGroup.position.set(0, 0, towerZ);
 
-    const pylonHeight = 32.0;
-    const pylonWidth = 1.8;
-    const pylonDepth = 2.2;
-    const pylonGeo = new THREE.BoxGeometry(pylonWidth, pylonHeight, pylonDepth);
+    const pylonHeight = 48.0;
+    const pylonX = roadBoundaryX + 3.2;
+    const crossSpan = pylonX * 2;
 
-    // Left Vertical Pylon (Red)
-    const leftPylon = new THREE.Mesh(pylonGeo, RoadSegment.bridgeTowerMaterial);
-    leftPylon.position.set(-roadBoundaryX - 1.2, pylonHeight / 2 - 1.2, 0);
-    leftPylon.castShadow = false;
-    towerGroup.add(leftPylon);
+    // 1. Massive Concrete Caisson / Pier Foundations (Gracefully rising from water up to curb level)
+    const pierGeo = new THREE.BoxGeometry(4.4, 5.5, 6.6);
+    const leftPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
+    leftPier.position.set(-pylonX, -1.0, 0); // from y = -3.75 to y = 1.75
+    towerGroup.add(leftPier);
 
-    // Right Vertical Pylon (Red)
-    const rightPylon = new THREE.Mesh(pylonGeo, RoadSegment.bridgeTowerMaterial);
-    rightPylon.position.set(roadBoundaryX + 1.2, pylonHeight / 2 - 1.2, 0);
-    rightPylon.castShadow = false;
-    towerGroup.add(rightPylon);
+    const rightPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
+    rightPier.position.set(pylonX, -1.0, 0);
+    towerGroup.add(rightPier);
 
-    // White horizontal crossbeams connecting left & right towers
-    const crossWidth = (roadBoundaryX + 1.2) * 2;
-    const beamGeo = new THREE.BoxGeometry(crossWidth, 1.4, 1.6);
+    // Marine warning beacons on caissons (Red port / Green starboard for passing ships)
+    const marineLightGeo = new THREE.SphereGeometry(0.40, 8, 8);
+    const leftMarineLight = new THREE.Mesh(marineLightGeo, new THREE.MeshBasicMaterial({ color: 0xff1e00 }));
+    leftMarineLight.position.set(-pylonX, 2.0, 3.1);
+    towerGroup.add(leftMarineLight);
 
-    const lowerBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
-    lowerBeam.position.set(0, 13.5, 0);
-    towerGroup.add(lowerBeam);
+    const rightMarineLight = new THREE.Mesh(marineLightGeo, new THREE.MeshBasicMaterial({ color: 0x00ff66 }));
+    rightMarineLight.position.set(pylonX, 2.0, 3.1);
+    towerGroup.add(rightMarineLight);
 
-    const upperBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
-    upperBeam.position.set(0, 26.5, 0);
-    towerGroup.add(upperBeam);
+    // Caisson Uplight Floodlights aiming upward at the crimson steel pylons
+    const uplightGeo = new THREE.CylinderGeometry(0.38, 0.28, 0.45, 8);
+    for (let side = -1; side <= 1; side += 2) {
+      const uplight = new THREE.Mesh(uplightGeo, RoadSegment.lightGlowMaterial);
+      uplight.position.set(side * pylonX, 2.1, 1.8);
+      towerGroup.add(uplight);
+    }
 
-    // Aircraft warning flashing red beacons on pylon tips
-    const beaconGeo = new THREE.SphereGeometry(0.45, 8, 8);
-    const leftBeacon = new THREE.Mesh(beaconGeo, new THREE.MeshBasicMaterial({ color: 0xff0033 }));
-    leftBeacon.position.set(-roadBoundaryX - 1.2, pylonHeight - 1.0, 0);
-    towerGroup.add(leftBeacon);
-    this.beaconLights.push(leftBeacon);
+    // 2. Soaring Multi-Stage Tapered Steel Pylons (Red 0xd90429)
+    // Lower Stage: from caisson deck (y=1.75) to mid portal (y=26)
+    const lowerPylonGeo = new THREE.BoxGeometry(2.4, 24.0, 3.0);
+    const leftLower = new THREE.Mesh(lowerPylonGeo, RoadSegment.bridgeTowerMaterial);
+    leftLower.position.set(-pylonX, 13.8, 0);
+    towerGroup.add(leftLower);
 
-    const rightBeacon = new THREE.Mesh(beaconGeo, new THREE.MeshBasicMaterial({ color: 0xff0033 }));
-    rightBeacon.position.set(roadBoundaryX + 1.2, pylonHeight - 1.0, 0);
-    towerGroup.add(rightBeacon);
-    this.beaconLights.push(rightBeacon);
+    const rightLower = new THREE.Mesh(lowerPylonGeo, RoadSegment.bridgeTowerMaterial);
+    rightLower.position.set(pylonX, 13.8, 0);
+    towerGroup.add(rightLower);
 
-    // Suspension cables stretching from tower top along the segment
-    this.addBridgeCables(towerGroup, roadBoundaryX, segLength);
+    // Upper Stage: from mid portal (y=26) to crown (y=48), slightly tapered
+    const upperPylonGeo = new THREE.BoxGeometry(1.9, 22.0, 2.4);
+    const leftUpper = new THREE.Mesh(upperPylonGeo, RoadSegment.bridgeTowerMaterial);
+    leftUpper.position.set(-pylonX, 37.0, 0);
+    towerGroup.add(leftUpper);
+
+    const rightUpper = new THREE.Mesh(upperPylonGeo, RoadSegment.bridgeTowerMaterial);
+    rightUpper.position.set(pylonX, 37.0, 0);
+    towerGroup.add(rightUpper);
+
+    // Vertical structural stiffener flanges along outer edges of the pylons
+    const flangeGeo = new THREE.BoxGeometry(0.25, pylonHeight - 2.0, 0.4);
+    for (let side = -1; side <= 1; side += 2) {
+      const f1 = new THREE.Mesh(flangeGeo, RoadSegment.bridgeTowerMaterial);
+      f1.position.set(side * (pylonX + 1.15), 25.0, 0);
+      towerGroup.add(f1);
+
+      const f2 = new THREE.Mesh(flangeGeo, RoadSegment.bridgeTowerMaterial);
+      f2.position.set(side * (pylonX - 1.15), 25.0, 0);
+      towerGroup.add(f2);
+    }
+
+    // 3. Multi-Tier Horizontal Box Girders
+    const beamGeo = new THREE.BoxGeometry(crossSpan, 1.8, 2.2);
+
+    // Deck clearance girder (y = 12.0)
+    const deckBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
+    deckBeam.position.set(0, 12.0, 0);
+    towerGroup.add(deckBeam);
+
+    // Mid portal girder (y = 27.5)
+    const midBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
+    midBeam.position.set(0, 27.5, 0);
+    towerGroup.add(midBeam);
+
+    // Upper crown girder (y = 44.5)
+    const crownBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
+    crownBeam.position.set(0, 44.5, 0);
+    towerGroup.add(crownBeam);
+
+    // 4. Authentic Diagonal X-Lattice Cross Bracing Trusses
+    // Lower Tier X (between y=12.0 and y=27.5)
+    this.createXBrace(towerGroup, crossSpan, 12.0, 27.5);
+
+    // Upper Tier X (between y=27.5 and y=44.5)
+    this.createXBrace(towerGroup, crossSpan, 27.5, 44.5);
+
+    // 5. Crown Portal Header: "15 TEMMUZ ŞEHİTLER KÖPRÜSÜ" & Turkish Flag
+    const signBoardBox = new THREE.Mesh(new THREE.BoxGeometry(crossSpan * 0.72, 3.6, 0.3), RoadSegment.bridgeTowerMaterial);
+    signBoardBox.position.set(0, 46.5, 0);
+    towerGroup.add(signBoardBox);
+
+    const signPlaneGeo = new THREE.PlaneGeometry(crossSpan * 0.70, 3.4);
+    const signBoardFront = new THREE.Mesh(signPlaneGeo, RoadSegment.bridgeSignMaterial);
+    signBoardFront.position.set(0, 46.5, -0.18);
+    signBoardFront.rotation.y = Math.PI; // Face approaching cars (-Z)
+    towerGroup.add(signBoardFront);
+
+    const signBoardBack = new THREE.Mesh(signPlaneGeo, RoadSegment.bridgeSignMaterial);
+    signBoardBack.position.set(0, 46.5, 0.18);
+    towerGroup.add(signBoardBack);
+
+    // 6. Pinnacle Spires & Aircraft Flashing Obstruction Strobes
+    const spireGeo = new THREE.CylinderGeometry(0.12, 0.35, 4.5, 8);
+    const beaconGeo = new THREE.SphereGeometry(0.55, 8, 8);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff0033 });
+
+    for (let side = -1; side <= 1; side += 2) {
+      const spire = new THREE.Mesh(spireGeo, RoadSegment.bridgeTowerMaterial);
+      spire.position.set(side * pylonX, pylonHeight + 2.0, 0);
+      towerGroup.add(spire);
+
+      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+      beacon.position.set(side * pylonX, pylonHeight + 4.3, 0);
+      towerGroup.add(beacon);
+      this.beaconLights.push(beacon);
+    }
+
+    // 7. Sweeping Parabolic Suspension Cables & Dynamic LED Ribbon
+    this.addBridgeCables(towerGroup, roadBoundaryX, segLength, pylonX);
+
+    // 8. Under-deck Steel Stiffening Truss along the segment & entrance gantry
+    this.addBridgeDeckTruss(roadBoundaryX, segLength);
 
     this.mesh.add(towerGroup);
   }
 
-  private addBridgeCables(towerGroup: THREE.Group, roadBoundaryX: number, segLength: number): void {
+  private createXBrace(parent: THREE.Group, width: number, yBottom: number, yTop: number): void {
+    const dy = yTop - yBottom;
+    const len = Math.hypot(width, dy);
+    const angle = Math.atan2(dy, width);
+    const braceGeo = new THREE.BoxGeometry(len, 0.9, 0.9);
+
+    const brace1 = new THREE.Mesh(braceGeo, RoadSegment.bridgeTowerMaterial);
+    brace1.position.set(0, (yBottom + yTop) / 2, 0);
+    brace1.rotation.z = angle;
+    parent.add(brace1);
+
+    const brace2 = new THREE.Mesh(braceGeo, RoadSegment.bridgeTowerMaterial);
+    brace2.position.set(0, (yBottom + yTop) / 2, 0);
+    brace2.rotation.z = -angle;
+    parent.add(brace2);
+  }
+
+  private addBridgeCables(
+    towerGroup: THREE.Group,
+    _roadBoundaryX: number,
+    segLength: number,
+    pylonX: number
+  ): void {
     const halfLen = segLength / 2;
-    const cableSteps = 6;
-    const cableRadius = 0.08;
+    const cableSteps = 16;
+    const cableRadius = 0.12;
 
     for (let side = -1; side <= 1; side += 2) {
-      const pylonX = side * (roadBoundaryX + 1.2);
+      const posX = side * pylonX;
 
-      // Vertical hanger cables
+      // Vertical hanger suspenders spaced along segment
       for (let i = -cableSteps; i <= cableSteps; i++) {
         if (i === 0) continue;
-        const z = (i / cableSteps) * (halfLen * 0.95);
-        const heightFactor = Math.pow(Math.abs(i) / cableSteps, 1.6);
-        const cableTopY = 2.0 + (28.0 - 2.0) * (1.0 - heightFactor * 0.7);
-        const hangerHeight = cableTopY - 0.5;
+        const normZ = i / cableSteps;
+        const z = normZ * (halfLen * 0.96);
+        const sag = Math.cos(normZ * Math.PI * 0.5);
+        const cableTopY = 4.5 + (46.0 - 4.5) * Math.pow(sag, 1.8);
+        const hangerHeight = Math.max(0.5, cableTopY - 0.8);
 
-        const hangerGeo = new THREE.CylinderGeometry(cableRadius * 0.6, cableRadius * 0.6, hangerHeight, 4);
+        const hangerGeo = new THREE.CylinderGeometry(0.045, 0.045, hangerHeight, 4);
         const hanger = new THREE.Mesh(hangerGeo, RoadSegment.bridgeCableMaterial);
-        hanger.position.set(pylonX, hangerHeight / 2 + 0.5, z);
+        hanger.position.set(posX, hangerHeight / 2 + 0.8, z);
         towerGroup.add(hanger);
 
-        // Glowing bridge LED puck at deck level with dynamic colors
-        const lightPuckGeo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+        // Deck-level dynamic LED puck
+        const puckGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
         const puckMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const lightPuck = new THREE.Mesh(lightPuckGeo, puckMat);
-        lightPuck.position.set(pylonX, 0.9, z);
-        towerGroup.add(lightPuck);
-        this.bridgeLights.push(lightPuck);
+        const puck = new THREE.Mesh(puckGeo, puckMat);
+        puck.position.set(posX, 1.0, z);
+        towerGroup.add(puck);
+        this.bridgeLights.push(puck);
 
-        // Glowing bridge LED node along main suspension cable curve
-        const cableLedGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-        const cableLedMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-        const cableLed = new THREE.Mesh(cableLedGeo, cableLedMat);
-        cableLed.position.set(pylonX, cableTopY, z);
+        // Cable-level dynamic LED node (continuous glowing ribbon)
+        const nodeGeo = new THREE.BoxGeometry(0.36, 0.36, 0.36);
+        const nodeMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+        const cableLed = new THREE.Mesh(nodeGeo, nodeMat);
+        cableLed.position.set(posX, cableTopY, z);
         towerGroup.add(cableLed);
         this.bridgeLights.push(cableLed);
       }
+
+      // Continuous curved main catenary cable segments
+      for (let i = -cableSteps; i < cableSteps; i++) {
+        const z1 = (i / cableSteps) * (halfLen * 0.96);
+        const z2 = ((i + 1) / cableSteps) * (halfLen * 0.96);
+        const sag1 = Math.cos(Math.abs(i / cableSteps) * Math.PI * 0.5);
+        const sag2 = Math.cos(Math.abs((i + 1) / cableSteps) * Math.PI * 0.5);
+        const y1 = 4.5 + (46.0 - 4.5) * Math.pow(sag1, 1.8);
+        const y2 = 4.5 + (46.0 - 4.5) * Math.pow(sag2, 1.8);
+
+        const dz = z2 - z1;
+        const dy = y2 - y1;
+        const segLen = Math.hypot(dz, dy);
+        const segAngle = Math.atan2(dy, dz);
+
+        const segGeo = new THREE.CylinderGeometry(cableRadius, cableRadius, segLen, 6);
+        segGeo.rotateX(Math.PI / 2);
+        const cableMesh = new THREE.Mesh(segGeo, RoadSegment.bridgeCableMaterial);
+        cableMesh.position.set(posX, (y1 + y2) / 2, (z1 + z2) / 2);
+        cableMesh.rotation.x = -segAngle;
+        towerGroup.add(cableMesh);
+      }
     }
+  }
+
+  private addBridgeDeckTruss(roadBoundaryX: number, segLength: number): void {
+    const trussDepth = 1.6;
+    const trussWidth = 0.5;
+    const trussGeo = new THREE.BoxGeometry(trussWidth, trussDepth, segLength);
+
+    const leftTruss = new THREE.Mesh(trussGeo, RoadSegment.bridgeTrussMaterial);
+    leftTruss.position.set(-roadBoundaryX - 0.3, -0.6, segLength / 2);
+    this.mesh.add(leftTruss);
+
+    const rightTruss = new THREE.Mesh(trussGeo, RoadSegment.bridgeTrussMaterial);
+    rightTruss.position.set(roadBoundaryX + 0.3, -0.6, segLength / 2);
+    this.mesh.add(rightTruss);
+
+    // Glowing bridge entrance LED matrix gantry at start of bridge
+    this.addBridgeEntranceGantry(roadBoundaryX, 10);
+  }
+
+  private addBridgeEntranceGantry(roadBoundaryX: number, z: number): void {
+    const gantryGroup = new THREE.Group();
+    gantryGroup.position.set(0, 0, z);
+
+    const span = (roadBoundaryX + 0.8) * 2;
+    const legGeo = new THREE.BoxGeometry(0.5, 7.2, 0.5);
+    const leftLeg = new THREE.Mesh(legGeo, RoadSegment.gantryMaterial);
+    leftLeg.position.set(-roadBoundaryX - 0.8, 3.6, 0);
+    gantryGroup.add(leftLeg);
+
+    const rightLeg = new THREE.Mesh(legGeo, RoadSegment.gantryMaterial);
+    rightLeg.position.set(roadBoundaryX + 0.8, 3.6, 0);
+    gantryGroup.add(rightLeg);
+
+    const topBeamGeo = new THREE.BoxGeometry(span, 0.6, 0.6);
+    const topBeam = new THREE.Mesh(topBeamGeo, RoadSegment.gantryMaterial);
+    topBeam.position.set(0, 7.2, 0);
+    gantryGroup.add(topBeam);
+
+    // Illuminated digital matrix board: "15 TEMMUZ ŞEHİTLER KÖPRÜSÜ" with green lane arrows
+    const signBoardGeo = new THREE.BoxGeometry(span * 0.85, 2.4, 0.18);
+    const signBoard = new THREE.Mesh(signBoardGeo, RoadSegment.bridgeGantrySignMaterial);
+    signBoard.position.set(0, 6.2, 0);
+    gantryGroup.add(signBoard);
+
+    this.mesh.add(gantryGroup);
   }
 
   // --- BOSPHORUS MARINE TRAFFIC (Cruise Ship & Istanbul Ferry) ---
@@ -2551,10 +2859,10 @@ export class RoadSegment {
     poleGroup.add(lamp);
 
     // Warm ambient ground light decal pool beneath the streetlight
-    const decalGeo = new THREE.PlaneGeometry(8.5, 9.5);
+    const decalGeo = new THREE.PlaneGeometry(12.0, 12.0);
     const groundDecal = new THREE.Mesh(decalGeo, RoadSegment.streetlightGlowDecalMaterial);
     groundDecal.rotation.x = -Math.PI / 2;
-    groundDecal.position.set(isRightSide ? -2.2 : 2.2, 0.025, 0);
+    groundDecal.position.set(isRightSide ? -2.0 : 2.0, 0.03, 0);
     poleGroup.add(groundDecal);
 
     this.mesh.add(poleGroup);

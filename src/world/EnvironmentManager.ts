@@ -135,11 +135,12 @@ export class EnvironmentManager {
 
     // NIGHT: Cosmic deep navy -> Midnight indigo -> Soft amber city glow at horizon
     this.skyTextures.set('NIGHT', this.createSkyGradientTexture([
-      { stop: 0.0, color: '#01040a' },
-      { stop: 0.35, color: '#080d1a' },
-      { stop: 0.72, color: '#111728' },
-      { stop: 0.90, color: '#1c2035' },
-      { stop: 1.0, color: '#090a14' },
+      { stop: 0.0, color: '#050c1f' },
+      { stop: 0.28, color: '#0c1a38' },
+      { stop: 0.58, color: '#162852' },
+      { stop: 0.80, color: '#27345e' },
+      { stop: 0.93, color: '#4d3625' }, // warm golden city horizon glow
+      { stop: 1.0, color: '#241612' },
     ]));
 
     // RAIN: Storm slate navy -> Rainy overcast gray -> Misty horizon silver
@@ -616,7 +617,10 @@ export class EnvironmentManager {
         this.hemiLight.groundColor.set(0x384830);
         this.hemiLight.intensity = 0.85;
 
-        if (fog) fog.color.set(0x72b4db);
+        if (fog) {
+          fog.color.set(0x72b4db);
+          fog.density = 0.0028;
+        }
         this.scene.background = new THREE.Color(0x72b4db);
         this.rainActive = false;
         this.rainSystem.visible = false;
@@ -645,7 +649,10 @@ export class EnvironmentManager {
         this.hemiLight.groundColor.set(0x3f37c9);
         this.hemiLight.intensity = 0.80;
 
-        if (fog) fog.color.set(0x560bad);
+        if (fog) {
+          fog.color.set(0x560bad);
+          fog.density = 0.0025;
+        }
         this.scene.background = new THREE.Color(0x560bad);
         this.rainActive = false;
         this.rainSystem.visible = false;
@@ -664,18 +671,21 @@ export class EnvironmentManager {
         break;
 
       case 'NIGHT':
-        this.dirLight.color.set(0x4361ee);
-        this.dirLight.intensity = 0.65;
-        this.rimLight.color.set(0x48cae4);
-        this.rimLight.intensity = 0.65;
-        this.ambientLight.color.set(0x1d3557);
-        this.ambientLight.intensity = 0.48;
-        this.hemiLight.color.set(0x240046);
-        this.hemiLight.groundColor.set(0x03071e);
-        this.hemiLight.intensity = 0.55;
+        this.dirLight.color.set(0xd0e2ff);
+        this.dirLight.intensity = 1.35;
+        this.rimLight.color.set(0x7fe3ff);
+        this.rimLight.intensity = 0.95;
+        this.ambientLight.color.set(0x42587a);
+        this.ambientLight.intensity = 0.95;
+        this.hemiLight.color.set(0x5c7ea8);
+        this.hemiLight.groundColor.set(0x323a48);
+        this.hemiLight.intensity = 1.15;
 
-        if (fog) fog.color.set(0x08081c);
-        this.scene.background = new THREE.Color(0x08081c);
+        if (fog) {
+          fog.color.set(0x131a2e);
+          fog.density = 0.0016;
+        }
+        this.scene.background = new THREE.Color(0x131a2e);
         this.rainActive = false;
         this.rainSystem.visible = false;
 
@@ -684,7 +694,7 @@ export class EnvironmentManager {
         this.moonGroup.visible = true;
         this.starfield.visible = true;
 
-        this.cloudMaterial.color.set(0x222938);
+        this.cloudMaterial.color.set(0x283042);
         this.cloudMaterial.opacity = 0.55;
         this.seagullsGroup.visible = false;
         break;
@@ -700,7 +710,10 @@ export class EnvironmentManager {
         this.hemiLight.groundColor.set(0x1b263b);
         this.hemiLight.intensity = 0.70;
 
-        if (fog) fog.color.set(0x283044);
+        if (fog) {
+          fog.color.set(0x283044);
+          fog.density = 0.0035;
+        }
         this.scene.background = new THREE.Color(0x283044);
         this.rainActive = true;
         this.rainSystem.visible = true;
