@@ -55,7 +55,6 @@ export class RoadSegment {
   private static gantrySignalRedMaterial: THREE.MeshBasicMaterial;
   private static gantrySignalGreenMaterial: THREE.MeshBasicMaterial;
   private static curbMaterial: THREE.MeshStandardMaterial;
-  private static barrierMaterial: THREE.MeshStandardMaterial;
   private static grassMaterial: THREE.MeshStandardMaterial;
   private static dirtVergeMaterial: THREE.MeshStandardMaterial;
   private static grassTuftMaterial: THREE.MeshStandardMaterial;
@@ -116,6 +115,18 @@ export class RoadSegment {
   private static overpassGlassMaterial: THREE.MeshStandardMaterial;
   private static sosBayMaterial: THREE.MeshStandardMaterial;
   private static streetlightGlowDecalMaterial: THREE.MeshBasicMaterial;
+
+  // Modern Highway Guardrail & Roadside Scenery Materials
+  private static guardrailSteelMaterial: THREE.MeshStandardMaterial;
+  private static guardrailPostMaterial: THREE.MeshStandardMaterial;
+  private static guardrailReflectorRedMaterial: THREE.MeshBasicMaterial;
+  private static guardrailReflectorWhiteMaterial: THREE.MeshBasicMaterial;
+  private static drainageGrateMaterial: THREE.MeshStandardMaterial;
+  private static soundBarrierGlassMaterial: THREE.MeshStandardMaterial;
+  private static soundBarrierFrameMaterial: THREE.MeshStandardMaterial;
+  private static stonePineFoliageMaterials: THREE.MeshStandardMaterial[] = [];
+  private static exitSignMaterials: THREE.MeshBasicMaterial[] = [];
+  private static sosBoxOrangeMaterial: THREE.MeshStandardMaterial;
 
   public static setRainWetness(isRain: boolean): void {
     if (!RoadSegment.asphaltMaterial) return;
@@ -937,12 +948,6 @@ export class RoadSegment {
       metalness: 0.08,
     });
 
-    this.barrierMaterial = new THREE.MeshStandardMaterial({
-      color: 0x9a8c98,
-      metalness: 0.65,
-      roughness: 0.3,
-    });
-
     // Photorealistic Lush Grass Terrain with diffuse & normal relief maps
     const grassDiffuse = typeof document !== 'undefined' ? RoadSegment.createGrassTexture() : null;
     const grassNormal = typeof document !== 'undefined' ? RoadSegment.createGrassNormalTexture() : null;
@@ -1244,10 +1249,145 @@ export class RoadSegment {
       depthWrite: false,
     });
 
+    // Modern Highway Guardrail, Acoustic Sound Barrier & Roadside Materials
+    this.guardrailSteelMaterial = new THREE.MeshStandardMaterial({
+      color: 0xcfd5de,
+      roughness: 0.32,
+      metalness: 0.82,
+    });
+
+    this.guardrailPostMaterial = new THREE.MeshStandardMaterial({
+      color: 0x5a6372,
+      roughness: 0.58,
+      metalness: 0.68,
+    });
+
+    this.guardrailReflectorRedMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff1e27,
+    });
+
+    this.guardrailReflectorWhiteMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+    });
+
+    this.drainageGrateMaterial = new THREE.MeshStandardMaterial({
+      color: 0x22262c,
+      roughness: 0.85,
+      metalness: 0.60,
+    });
+
+    this.soundBarrierGlassMaterial = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.42,
+      roughness: 0.12,
+      metalness: 0.18,
+    });
+
+    this.soundBarrierFrameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x334155,
+      roughness: 0.45,
+      metalness: 0.75,
+    });
+
+    this.stonePineFoliageMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0x123524, roughness: 0.82 }),
+      new THREE.MeshStandardMaterial({ color: 0x18422e, roughness: 0.84 }),
+      new THREE.MeshStandardMaterial({ color: 0x0e2b1d, roughness: 0.86 }),
+    ];
+
+    this.sosBoxOrangeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff7700,
+      roughness: 0.40,
+    });
+
     // Generate authentic Turkish green highway sign textures & billboards & km stones
     this.initHighwaySignMaterials();
+    this.initExitSignMaterials();
     this.initBillboardMaterials();
     this.initKmStoneMaterial();
+  }
+
+  private static initExitSignMaterials(): void {
+    if (typeof document === 'undefined') return;
+
+    const exitConfigs = [
+      {
+        badge: 'K12 ÇIKIŞ / EXIT 500m',
+        line1: 'Kadıköy • Üsküdar',
+        line2: 'Havalimanı ✈',
+      },
+      {
+        badge: 'K8 ÇIKIŞ / EXIT 1000m',
+        line1: 'Beşiktaş • Levent',
+        line2: 'Maslak • Sarıyer',
+      },
+      {
+        badge: 'TEM OTOYOL AYRIMI',
+        line1: 'Edirne • Ankara',
+        line2: 'Çamlıca Bağlantısı',
+      },
+      {
+        badge: 'O-7 KUZEY MARMARA',
+        line1: 'İstanbul Havalimanı ✈',
+        line2: 'YSS Köprüsü',
+      },
+    ];
+
+    for (const cfg of exitConfigs) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Turkish Motorway Blue (RAL 5017 Traffic Blue)
+        ctx.fillStyle = '#00539c';
+        ctx.fillRect(0, 0, 512, 256);
+
+        // White outer border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 10;
+        ctx.strokeRect(8, 8, 496, 240);
+
+        // Yellow exit header bar
+        ctx.fillStyle = '#ffbe0b';
+        ctx.fillRect(14, 14, 484, 52);
+
+        // Black text on yellow bar
+        ctx.fillStyle = '#111827';
+        ctx.font = '900 24px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cfg.badge, 256, 40);
+
+        // White destinations text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(cfg.line1, 36, 115);
+
+        ctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(cfg.line2, 36, 165);
+
+        // Slanted Exit Arrow ↗
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('↗', 476, 150);
+
+        // Distance / OGS strip at bottom
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(24, 204, 464, 32);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('OTOYOL SERVİS ALANI • OGS / HGS', 256, 225);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.anisotropy = 4;
+      this.exitSignMaterials.push(new THREE.MeshBasicMaterial({ map: texture }));
+    }
   }
 
   private static createBridgeSignTexture(): THREE.CanvasTexture {
@@ -1699,21 +1839,8 @@ export class RoadSegment {
     rightCurb.receiveShadow = true;
     this.mesh.add(rightCurb);
 
-    // 5. Guardrails / Crash Barriers
-    const barrierHeight = GAME_CONSTANTS.ROAD.BARRIER_HEIGHT;
-    const barrierGeo = new THREE.BoxGeometry(0.25, barrierHeight, segLength);
-
-    const leftBarrier = new THREE.Mesh(barrierGeo, RoadSegment.barrierMaterial);
-    leftBarrier.position.set(-halfRoad - shoulderWidth, barrierHeight / 2 + 0.1, segLength / 2);
-    leftBarrier.castShadow = false;
-    leftBarrier.receiveShadow = true;
-    this.mesh.add(leftBarrier);
-
-    const rightBarrier = new THREE.Mesh(barrierGeo, RoadSegment.barrierMaterial);
-    rightBarrier.position.set(halfRoad + shoulderWidth, barrierHeight / 2 + 0.1, segLength / 2);
-    rightBarrier.castShadow = false;
-    rightBarrier.receiveShadow = true;
-    this.mesh.add(rightBarrier);
+    // 5. Modern Corrugated W-Beam Guardrails, I-Beam Posts, Reflectors & Drainage Grates
+    this.addModernGuardrail(halfRoad, shoulderWidth, segLength);
 
     // 6. Theme specific layout: Bosphorus Bridge vs Avrasya Tunnel vs E-5 Highway
     if (this.isBridge) {
@@ -2395,61 +2522,104 @@ export class RoadSegment {
   }
 
   private addRoadsideScenery(roadBoundaryX: number, segLength: number): void {
-    // 1. Varied Botanical Greenery: Stylized Plane Trees, Italian Cypress, Judas Blossom Trees, and Flowering Bushes
-    // Strictly lined up outside safety barrier (x >= 12.8m)
-    const floraSpacing = 20;
-    const floraCount = Math.floor(segLength / floraSpacing);
+    // 1. Transparent Acoustic Sound Barriers (Gürültü Panelleri) on residential corridors
+    const hasSoundBarrierLeft = (this.segmentIndex % 4 === 1);
+    const hasSoundBarrierRight = (this.segmentIndex % 4 === 3);
+    if (hasSoundBarrierLeft) {
+      this.addSoundBarrier(roadBoundaryX, segLength, false);
+    }
+    if (hasSoundBarrierRight) {
+      this.addSoundBarrier(roadBoundaryX, segLength, true);
+    }
 
-    for (let i = 0; i < floraCount; i++) {
-      const z = i * floraSpacing + 10;
-      const type = (i + this.segmentIndex) % 3;
+    // 2. Multi-Layer Botanical Parkway (Stone Pines, Plane Trees, Italian Cypresses, Judas Trees & Bushes)
+    const treeSpacing = 12.0;
+    const treeCount = Math.floor(segLength / treeSpacing);
 
-      // Left side flora
-      const leftX = -(roadBoundaryX + 2.7);
+    for (let i = 0; i < treeCount; i++) {
+      const z = i * treeSpacing + 6;
+      const type = (i * 3 + this.segmentIndex * 2) % 4;
+
+      // Staggered offsets for natural parkway appearance
+      const leftOffset = hasSoundBarrierLeft ? 5.2 + (i % 2) * 1.5 : 3.6 + (i % 3) * 0.8;
+      const rightOffset = hasSoundBarrierRight ? 5.2 + ((i + 1) % 2) * 1.5 : 3.6 + ((i + 1) % 3) * 0.8;
+
+      const leftX = -(roadBoundaryX + leftOffset);
+      const rightX = roadBoundaryX + rightOffset;
+
+      // Left parkway flora
       if (type === 0) {
-        this.addLushPlaneTree(leftX, z);
+        this.addStonePine(leftX, z);
       } else if (type === 1) {
+        this.addLushPlaneTree(leftX, z);
+      } else if (type === 2) {
         this.addCypressTree(leftX, z);
       } else {
         this.addJudasTree(leftX, z);
       }
 
-      // Right side flora
-      const rightX = roadBoundaryX + 2.7;
-      if (type === 0) {
-        this.addCypressTree(rightX, z);
-      } else if (type === 1) {
-        this.addJudasTree(rightX, z);
-      } else {
+      // Right parkway flora (staggered type for varied roadside scenery)
+      const rightType = (type + 2) % 4;
+      if (rightType === 0) {
+        this.addStonePine(rightX, z);
+      } else if (rightType === 1) {
         this.addLushPlaneTree(rightX, z);
+      } else if (rightType === 2) {
+        this.addCypressTree(rightX, z);
+      } else {
+        this.addJudasTree(rightX, z);
       }
 
-      // Small flower bushes along barrier verge
+      // Background Embankment Woodlands (Layer 3 - deeper landscape depth)
       if (i % 2 === 0) {
-        this.addRoadsideBush(-(roadBoundaryX + 1.6), z + 5);
-        this.addRoadsideBush(roadBoundaryX + 1.6, z + 5);
+        const bgLeftX = -(roadBoundaryX + 10.0 + ((i * 5) % 4));
+        const bgRightX = roadBoundaryX + 10.0 + (((i + 2) * 5) % 4);
+        if (i % 4 === 0) {
+          this.addStonePine(bgLeftX, z + 3);
+          this.addCypressTree(bgRightX, z + 3);
+        } else {
+          this.addCypressTree(bgLeftX, z + 3);
+          this.addStonePine(bgRightX, z + 3);
+        }
+      }
+
+      // Low manicured shrubs & oleander bushes along the guardrail verge
+      this.addRoadsideBush(-(roadBoundaryX + 1.8), z + 3);
+      this.addRoadsideBush(roadBoundaryX + 1.8, z + 3);
+      if (i % 2 === 1) {
+        this.addRoadsideBush(-(roadBoundaryX + 2.4), z + 8);
+        this.addRoadsideBush(roadBoundaryX + 2.4, z + 8);
       }
     }
 
-    // 2. Turkish Highway Kilometer Stone (KGM) on every 2nd segment
+    // 3. Turkish Highway Milestone (KGM) & SOS Emergency Call Boxes
     if (this.segmentIndex % 2 === 0) {
       this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3);
     }
+    if (this.segmentIndex % 4 === 2) {
+      this.addSosBox(roadBoundaryX + 0.45, segLength * 0.75);
+    }
 
-    // 3. Elevated Highway Advertising Billboard on alternating segments
+    // 4. Cantilever Overhead Motorway Exit Sign (Mavi Otoyol Çıkış Tabelası)
+    if (this.segmentIndex % 4 === 2 && !hasSoundBarrierRight) {
+      const exitSignIdx = Math.floor(this.segmentIndex / 4);
+      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx);
+    }
+
+    // 5. Elevated Highway Advertising Billboard on alternating segments
     if (this.segmentIndex % 3 === 2) {
       const billboardMat = RoadSegment.billboardMaterials[this.segmentIndex % RoadSegment.billboardMaterials.length];
       if (billboardMat) {
-        this.addHighwayBillboard(roadBoundaryX + 15.0, segLength * 0.5, billboardMat, true);
+        this.addHighwayBillboard(roadBoundaryX + 16.0, segLength * 0.5, billboardMat, true);
       }
     } else if (this.segmentIndex % 3 === 0) {
       const billboardMat = RoadSegment.billboardMaterials[(this.segmentIndex + 1) % RoadSegment.billboardMaterials.length];
       if (billboardMat) {
-        this.addHighwayBillboard(-(roadBoundaryX + 15.0), segLength * 0.5, billboardMat, false);
+        this.addHighwayBillboard(-(roadBoundaryX + 16.0), segLength * 0.5, billboardMat, false);
       }
     }
 
-    // 4. Authentic Istanbul Architecture (Clean, modern, aesthetic buildings - ZERO airplane pieces!)
+    // 6. Authentic Istanbul Architecture (Clean, modern, aesthetic buildings)
     this.addRoadsideBuildings(roadBoundaryX, segLength);
   }
 
@@ -2835,7 +3005,340 @@ export class RoadSegment {
     this.mesh.add(billboardGroup);
   }
 
+  private addModernGuardrail(halfRoad: number, shoulderWidth: number, segLength: number): void {
+    const postSpacing = 2.5;
+    const postCount = Math.floor(segLength / postSpacing);
+    const postGeo = new THREE.BoxGeometry(0.08, 0.72, 0.08);
 
+    // Left and right posts using InstancedMesh for high performance
+    const leftPosts = new THREE.InstancedMesh(postGeo, RoadSegment.guardrailPostMaterial, postCount);
+    const rightPosts = new THREE.InstancedMesh(postGeo, RoadSegment.guardrailPostMaterial, postCount);
+
+    const dummy = new THREE.Object3D();
+    const leftX = -halfRoad - shoulderWidth;
+    const rightX = halfRoad + shoulderWidth;
+
+    for (let i = 0; i < postCount; i++) {
+      const pz = i * postSpacing + postSpacing * 0.5;
+
+      dummy.position.set(leftX, 0.36, pz);
+      dummy.updateMatrix();
+      leftPosts.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(rightX, 0.36, pz);
+      dummy.updateMatrix();
+      rightPosts.setMatrixAt(i, dummy.matrix);
+    }
+    leftPosts.instanceMatrix.needsUpdate = true;
+    rightPosts.instanceMatrix.needsUpdate = true;
+    this.mesh.add(leftPosts);
+    this.mesh.add(rightPosts);
+
+    // Continuous horizontal corrugated W-beam rails
+    // Upper corrugated ridge (y=0.62)
+    const upperRailGeo = new THREE.BoxGeometry(0.07, 0.16, segLength);
+    // Lower corrugated ridge (y=0.42)
+    const lowerRailGeo = new THREE.BoxGeometry(0.07, 0.16, segLength);
+    // Top safety tubular rail (y=0.78)
+    const topTubeGeo = new THREE.CylinderGeometry(0.035, 0.035, segLength, 8);
+    topTubeGeo.rotateX(Math.PI / 2);
+
+    const leftUpper = new THREE.Mesh(upperRailGeo, RoadSegment.guardrailSteelMaterial);
+    leftUpper.position.set(leftX + 0.04, 0.62, segLength / 2);
+    this.mesh.add(leftUpper);
+
+    const leftLower = new THREE.Mesh(lowerRailGeo, RoadSegment.guardrailSteelMaterial);
+    leftLower.position.set(leftX + 0.04, 0.42, segLength / 2);
+    this.mesh.add(leftLower);
+
+    const leftTop = new THREE.Mesh(topTubeGeo, RoadSegment.guardrailSteelMaterial);
+    leftTop.position.set(leftX, 0.78, segLength / 2);
+    this.mesh.add(leftTop);
+
+    const rightUpper = new THREE.Mesh(upperRailGeo, RoadSegment.guardrailSteelMaterial);
+    rightUpper.position.set(rightX - 0.04, 0.62, segLength / 2);
+    this.mesh.add(rightUpper);
+
+    const rightLower = new THREE.Mesh(lowerRailGeo, RoadSegment.guardrailSteelMaterial);
+    rightLower.position.set(rightX - 0.04, 0.42, segLength / 2);
+    this.mesh.add(rightLower);
+
+    const rightTop = new THREE.Mesh(topTubeGeo, RoadSegment.guardrailSteelMaterial);
+    rightTop.position.set(rightX, 0.78, segLength / 2);
+    this.mesh.add(rightTop);
+
+    // Retro-reflective "Kelebek" studs mounted on the guardrail face every 5m
+    const reflSpacing = 5.0;
+    const reflCount = Math.floor(segLength / reflSpacing);
+    const reflGeo = new THREE.BoxGeometry(0.05, 0.09, 0.07);
+
+    const leftRefls = new THREE.InstancedMesh(reflGeo, RoadSegment.guardrailReflectorWhiteMaterial, reflCount);
+    const rightRefls = new THREE.InstancedMesh(reflGeo, RoadSegment.guardrailReflectorRedMaterial, reflCount);
+
+    for (let i = 0; i < reflCount; i++) {
+      const rz = i * reflSpacing + reflSpacing * 0.5;
+
+      // Left reflector (White) facing oncoming traffic
+      dummy.position.set(leftX + 0.08, 0.52, rz);
+      dummy.rotation.set(0, 0.2, 0);
+      dummy.updateMatrix();
+      leftRefls.setMatrixAt(i, dummy.matrix);
+
+      // Right reflector (Ruby Red) facing oncoming traffic
+      dummy.position.set(rightX - 0.08, 0.52, rz);
+      dummy.rotation.set(0, -0.2, 0);
+      dummy.updateMatrix();
+      rightRefls.setMatrixAt(i, dummy.matrix);
+    }
+    dummy.rotation.set(0, 0, 0);
+    leftRefls.instanceMatrix.needsUpdate = true;
+    rightRefls.instanceMatrix.needsUpdate = true;
+    this.mesh.add(leftRefls);
+    this.mesh.add(rightRefls);
+
+    // Concrete curb drainage grates (every 15m along the concrete shoulder edge)
+    const grateSpacing = 15.0;
+    const grateCount = Math.floor(segLength / grateSpacing);
+    const grateGeo = new THREE.BoxGeometry(0.48, 0.02, 0.75);
+    const leftGrates = new THREE.InstancedMesh(grateGeo, RoadSegment.drainageGrateMaterial, grateCount);
+    const rightGrates = new THREE.InstancedMesh(grateGeo, RoadSegment.drainageGrateMaterial, grateCount);
+
+    for (let i = 0; i < grateCount; i++) {
+      const gz = i * grateSpacing + grateSpacing * 0.5;
+
+      dummy.position.set(-halfRoad - 0.35, 0.185, gz);
+      dummy.updateMatrix();
+      leftGrates.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(halfRoad + 0.35, 0.185, gz);
+      dummy.updateMatrix();
+      rightGrates.setMatrixAt(i, dummy.matrix);
+    }
+    leftGrates.instanceMatrix.needsUpdate = true;
+    rightGrates.instanceMatrix.needsUpdate = true;
+    this.mesh.add(leftGrates);
+    this.mesh.add(rightGrates);
+  }
+
+  private addStonePine(x: number, z: number): void {
+    const pineGroup = new THREE.Group();
+    pineGroup.position.set(x, 0, z);
+
+    // Weathered Mediterranean pine trunk with slight organic lean
+    const trunkGeo = new THREE.CylinderGeometry(0.24, 0.44, 3.8, 8);
+    const trunk = new THREE.Mesh(trunkGeo, RoadSegment.treeTrunkMaterial);
+    trunk.position.y = 1.9;
+    trunk.rotation.z = (Math.random() - 0.5) * 0.12;
+    trunk.rotation.x = (Math.random() - 0.5) * 0.12;
+    trunk.castShadow = false;
+    pineGroup.add(trunk);
+
+    // 3 Radiating umbrella boughs branching out at top
+    const boughAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+    for (const angle of boughAngles) {
+      const bough = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.10, 0.18, 2.2, 5),
+        RoadSegment.treeTrunkMaterial
+      );
+      bough.position.set(
+        Math.cos(angle) * 0.6,
+        3.2,
+        Math.sin(angle) * 0.6
+      );
+      bough.rotation.y = angle;
+      bough.rotation.z = 0.55;
+      pineGroup.add(bough);
+    }
+
+    // Authentic umbrella parasol canopy (Geniş fıstık çamı tacı)
+    const mat1 = RoadSegment.stonePineFoliageMaterials[0] || RoadSegment.treeFoliageMaterials[0];
+    const mat2 = RoadSegment.stonePineFoliageMaterials[1] || RoadSegment.treeFoliageMaterials[1];
+    const mat3 = RoadSegment.stonePineFoliageMaterials[2] || RoadSegment.treeFoliageMaterials[2];
+
+    // Broad flattened parasol dome
+    const mainDome = new THREE.Mesh(new THREE.DodecahedronGeometry(2.8, 1), mat1);
+    mainDome.position.set(0, 4.8, 0);
+    mainDome.scale.set(1.6, 0.55, 1.6);
+    mainDome.castShadow = false;
+    pineGroup.add(mainDome);
+
+    // Upper crown tier
+    const topDome = new THREE.Mesh(new THREE.DodecahedronGeometry(2.1, 1), mat2);
+    topDome.position.set(0, 5.4, 0);
+    topDome.scale.set(1.3, 0.5, 1.3);
+    topDome.castShadow = false;
+    pineGroup.add(topDome);
+
+    // Side puffs creating organic edge silhouette
+    const subPuffs = [
+      { x: 1.6, y: 4.6, z: 0.8, r: 1.1, mat: mat3 },
+      { x: -1.7, y: 4.6, z: -0.6, r: 1.15, mat: mat2 },
+      { x: 0.5, y: 4.7, z: -1.8, r: 1.2, mat: mat1 },
+      { x: -0.6, y: 4.7, z: 1.7, r: 1.1, mat: mat3 },
+    ];
+    for (const p of subPuffs) {
+      const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(p.r, 1), p.mat);
+      puff.position.set(p.x, p.y, p.z);
+      puff.scale.set(1.2, 0.6, 1.2);
+      puff.castShadow = false;
+      pineGroup.add(puff);
+    }
+
+    const scale = 0.85 + Math.random() * 0.35;
+    pineGroup.scale.set(scale, scale, scale);
+    this.mesh.add(pineGroup);
+  }
+
+  private addCantileverExitSign(roadBoundaryX: number, z: number, signIndex: number): void {
+    const signMat = RoadSegment.exitSignMaterials[signIndex % (RoadSegment.exitSignMaterials.length || 1)];
+    if (!signMat) return;
+
+    const gantryGroup = new THREE.Group();
+    gantryGroup.position.set(roadBoundaryX + 2.4, 0, z);
+
+    // Concrete foundation footing
+    const footing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 0.4, 0.7),
+      RoadSegment.curbMaterial
+    );
+    footing.position.y = 0.2;
+    gantryGroup.add(footing);
+
+    // Tubular steel mast
+    const mastHeight = 7.2;
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.20, 0.24, mastHeight, 10),
+      RoadSegment.gantryMaterial
+    );
+    mast.position.y = mastHeight / 2;
+    gantryGroup.add(mast);
+
+    // Cantilever horizontal arm extending across right shoulder and lane (-X direction)
+    const armLength = 5.6;
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(armLength, 0.24, 0.24),
+      RoadSegment.gantryMaterial
+    );
+    arm.position.set(-armLength / 2 + 0.1, mastHeight - 0.2, 0);
+    gantryGroup.add(arm);
+
+    // Diagonal gusset strut
+    const strut = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 2.4, 6),
+      RoadSegment.gantryMaterial
+    );
+    strut.position.set(-1.0, mastHeight - 0.9, 0);
+    strut.rotation.z = Math.PI / 4;
+    gantryGroup.add(strut);
+
+    // Turkish Highway Blue Exit Board
+    const boardWidth = 4.4;
+    const boardHeight = 2.2;
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(boardWidth, boardHeight, 0.18),
+      signMat
+    );
+    // Position suspended from cantilever arm over lane
+    board.position.set(-armLength * 0.55, mastHeight - 0.3 - boardHeight / 2, 0);
+    gantryGroup.add(board);
+
+    // Top lighting fixtures for night visibility
+    for (let i = -1; i <= 1; i += 2) {
+      const lampArm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.1, 0.8),
+        RoadSegment.gantryMaterial
+      );
+      lampArm.position.set(board.position.x + i * 1.4, mastHeight + 0.1, 0.4);
+      gantryGroup.add(lampArm);
+
+      const lamp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.35, 0.12, 0.25),
+        RoadSegment.lightGlowMaterial
+      );
+      lamp.position.set(board.position.x + i * 1.4, mastHeight + 0.05, 0.7);
+      gantryGroup.add(lamp);
+    }
+
+    this.mesh.add(gantryGroup);
+  }
+
+  private addSoundBarrier(roadBoundaryX: number, segLength: number, isRightSide: boolean): void {
+    const barrierGroup = new THREE.Group();
+    const bx = isRightSide ? roadBoundaryX + 0.95 : -(roadBoundaryX + 0.95);
+    barrierGroup.position.set(bx, 0, 0);
+
+    const postSpacing = 3.5;
+    const count = Math.floor(segLength / postSpacing);
+    const wallHeight = 3.6;
+
+    // Concrete crash wall base
+    const baseHeight = 0.65;
+    const baseGeo = new THREE.BoxGeometry(0.32, baseHeight, segLength);
+    const baseMesh = new THREE.Mesh(baseGeo, RoadSegment.curbMaterial);
+    baseMesh.position.set(0, baseHeight / 2, segLength / 2);
+    barrierGroup.add(baseMesh);
+
+    // Translucent acoustic acrylic glass panels
+    const glassHeight = wallHeight - baseHeight;
+    const glassGeo = new THREE.BoxGeometry(0.12, glassHeight, segLength);
+    const glassMesh = new THREE.Mesh(glassGeo, RoadSegment.soundBarrierGlassMaterial);
+    glassMesh.position.set(0, baseHeight + glassHeight / 2, segLength / 2);
+    barrierGroup.add(glassMesh);
+
+    // Steel H-beam structural columns along the wall
+    const postGeo = new THREE.BoxGeometry(0.24, wallHeight + 0.1, 0.20);
+    const posts = new THREE.InstancedMesh(postGeo, RoadSegment.soundBarrierFrameMaterial, count + 1);
+    const dummy = new THREE.Object3D();
+
+    for (let i = 0; i <= count; i++) {
+      const pz = i * postSpacing;
+      dummy.position.set(0, (wallHeight + 0.1) / 2, pz);
+      dummy.updateMatrix();
+      posts.setMatrixAt(i, dummy.matrix);
+    }
+    posts.instanceMatrix.needsUpdate = true;
+    barrierGroup.add(posts);
+
+    // Top metal capping rail
+    const capGeo = new THREE.BoxGeometry(0.28, 0.12, segLength);
+    const capMesh = new THREE.Mesh(capGeo, RoadSegment.soundBarrierFrameMaterial);
+    capMesh.position.set(0, wallHeight + 0.06, segLength / 2);
+    barrierGroup.add(capMesh);
+
+    this.mesh.add(barrierGroup);
+  }
+
+  private addSosBox(x: number, z: number): void {
+    const sosGroup = new THREE.Group();
+    sosGroup.position.set(x, 0, z);
+
+    // Steel pole
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 2.0, 6),
+      RoadSegment.guardrailPostMaterial
+    );
+    pole.position.y = 1.0;
+    sosGroup.add(pole);
+
+    // Orange box with SOS sign
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(0.35, 0.55, 0.28),
+      RoadSegment.sosBoxOrangeMaterial
+    );
+    box.position.y = 1.5;
+    sosGroup.add(box);
+
+    // Top angled solar panel
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.04, 0.35),
+      RoadSegment.soundBarrierFrameMaterial
+    );
+    panel.position.set(0, 2.05, 0);
+    panel.rotation.x = 0.35;
+    sosGroup.add(panel);
+
+    this.mesh.add(sosGroup);
+  }
 
   private addStreetLight(x: number, z: number, isRightSide: boolean): void {
     const poleGroup = new THREE.Group();
