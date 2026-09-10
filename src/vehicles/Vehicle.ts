@@ -767,6 +767,13 @@ export class Vehicle {
       rawBox.getSize(rawSize);
     }
 
+    if (this.id === 'phantom_super') {
+      model.rotation.y += Math.PI;
+      model.updateMatrixWorld(true);
+      rawBox.setFromObject(model);
+      rawBox.getSize(rawSize);
+    }
+
     // Target length is 4.2 meters standard car
     const targetLength = this.dimensions.length || 4.2;
     const scale = targetLength / Math.max(rawSize.z, 0.01);

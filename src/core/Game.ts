@@ -662,6 +662,7 @@ export class Game {
     } else if (screen === 'GARAGE') {
       this.garageTurntable.visible = true;
       if (this.garageLightsGroup) this.garageLightsGroup.visible = true;
+      this.playerVehicle.mesh.visible = true;
       this.playerVehicle.reconfigureStats();
       this.playerVehicle.updateLicensePlatePositions();
       this.playerVehicle.mesh.position.set(0, 0.12, 0);
@@ -721,6 +722,7 @@ export class Game {
     gameState.startSession();
     this.garageTurntable.visible = false;
     if (this.garageLightsGroup) this.garageLightsGroup.visible = false;
+    this.playerVehicle.mesh.visible = true;
 
     // Reset systems
     this.environment.setPreset(gameState.currentEnvironment);

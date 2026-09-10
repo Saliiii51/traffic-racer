@@ -127,6 +127,7 @@ export class PlayerVehicle extends Vehicle {
       this.updateLicensePlatePositions(def.id);
       this.updateWheelPositions(def.id);
       this.updateCockpitClusterPositions();
+      this.mesh.visible = true;
       return true;
     }
 
@@ -135,6 +136,7 @@ export class PlayerVehicle extends Vehicle {
       this.updateLicensePlatePositions(def.id);
       this.updateWheelPositions(def.id);
       this.updateCockpitClusterPositions();
+      this.mesh.visible = true;
       return true;
     }
 
@@ -155,6 +157,7 @@ export class PlayerVehicle extends Vehicle {
       this.updateLicensePlatePositions(def.id);
       this.updateWheelPositions(def.id);
       this.updateCockpitClusterPositions();
+      this.mesh.visible = true;
       console.log(`[PlayerVehicle] Custom model loaded successfully for ${def.name}`);
       return true;
     } catch (err) {
@@ -737,6 +740,13 @@ export class PlayerVehicle extends Vehicle {
 
       this.rearPlateGroup.position.set(0, 0.56, -2.238);
       this.rearPlateGroup.rotation.set(0, Math.PI, 0);
+    } else if (id === 'phantom_super') {
+      // Precise Ferrari 458 Italia bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.32, 2.24);
+      this.frontPlateGroup.rotation.set(-0.06, 0, 0);
+
+      this.rearPlateGroup.position.set(0, 0.48, -2.25);
+      this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
     } else {
       // Procedural & generic vehicles
       const halfL = (this.dimensions.length || 4.2) * 0.50 + 0.018;
