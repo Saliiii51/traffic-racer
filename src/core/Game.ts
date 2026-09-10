@@ -767,7 +767,7 @@ export class Game {
       cinematicAutopilot.reset(1, gameState.adStudioAggressive ? 'AGGRESSIVE' : 'NORMAL');
       this.uiManager.finishCinematicIntro();
       this.uiManager.showAdStudioHud();
-    } else {
+    } else if (!multiplayerManager.isMultiplayerActive) {
       this.isIntroActive = true;
       this.raceStarterSystem.startStaging(
         this.playerVehicle,
@@ -793,6 +793,8 @@ export class Game {
     }
     this.remoteOpponentVehicles.clear();
 
+    const myLane = typeof multiplayerManager.myAssignedLane === 'number' ? multiplayerManager.myAssignedLane : 1;
+
     if (multiplayerManager.isSpectator) {
       this.isSpectatorActive = true;
       if (this.playerVehicle) {
@@ -803,22 +805,22 @@ export class Game {
       this.isSpectatorActive = false;
       if (this.playerVehicle) {
         this.playerVehicle.mesh.visible = true;
-        const myLane = multiplayerManager.myAssignedLane;
-        this.playerVehicle.mesh.position.set(laneSystem.getLaneX(myLane), 0.12, 0);
+        this.playerVehicle.resetPosition(myLane);
       }
     }
 
     // Spawn 3D vehicle for every opponent in the room
     for (const opp of multiplayerManager.opponents.values()) {
+      const oppLane = typeof opp.lane === 'number' ? opp.lane : 2;
       const remoteVehicle = new RemotePlayerVehicle(
         opp.id,
         opp.name,
         opp.vehicleId,
-        opp.colorHex
+        opp.colorHex,
+        oppLane
       );
-      const oppLane = opp.lane ?? 2;
       const initialX = laneSystem.getLaneX(oppLane);
-      remoteVehicle.setInitialPosition(initialX, 0, opp.distance || 0);
+      remoteVehicle.setInitialPosition(initialX, 0.12, opp.distance || 0);
       this.scene.add(remoteVehicle.mesh);
       this.remoteOpponentVehicles.set(opp.id, remoteVehicle);
     }

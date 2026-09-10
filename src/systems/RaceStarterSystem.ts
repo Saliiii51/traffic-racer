@@ -11,6 +11,7 @@ import { ParticleSystem } from './ParticleSystem';
 import { LaneSystem } from '../road/LaneSystem';
 import { VEHICLE_CATALOG } from '../vehicles/VehicleStats';
 import { gameState } from '../core/GameState';
+import { multiplayerManager } from '../network/MultiplayerManager';
 
 export type StarterSystemPhase =
   | 'IDLE'
@@ -113,17 +114,31 @@ export class RaceStarterSystem {
     this.starterCharacter.setRotationY(Math.PI); // Facing oncoming cars coming from -Z
     this.starterCharacter.setState('IDLE');
 
-    // 1. Build Local Player Participant
+    // Staggered motorsport starting grid calculator
+    const getGridTargetZ = (rankIndex: number) => -2.4 - rankIndex * 2.2;
+    const getGridStartZ = (rankIndex: number) => -28.0 - rankIndex * 4.0;
+
+    // 1. Determine Local Player Lane (guaranteed unique)
+    let myLane = 1;
+    if (isMultiplayer && typeof (multiplayerManager as any)?.myAssignedLane === 'number') {
+      myLane = (multiplayerManager as any).myAssignedLane;
+    } else {
+      myLane = 1;
+    }
+    myLane = Math.max(0, Math.min(3, Math.floor(myLane)));
+
+    const usedLanes = new Set<number>();
+    usedLanes.add(myLane);
+
     const playerDef = VEHICLE_CATALOG.find((v) => v.id === gameState.selectedVehicleId) || VEHICLE_CATALOG[0];
-    const myLane = (playerVehicle as any).currentLaneIndex ?? 1;
     const playerPlate = gameState.licensePlate || '34 TR 1923';
 
-    // Staging start: -30m behind start line, target grid box: -2.4m
     const playerStartX = this.laneSystem.getLaneX(myLane);
-    const playerTargetZ = -2.4 - (myLane % 2) * 0.4;
-    const playerStartZ = -28.0 - (myLane % 2) * 4.0;
+    const playerTargetZ = getGridTargetZ(0);
+    const playerStartZ = getGridStartZ(0);
 
     playerVehicle.mesh.position.set(playerStartX, 0.12, playerStartZ);
+    playerVehicle.mesh.rotation.set(0, 0, 0);
     playerVehicle.speedMps = 6.0;
     playerVehicle.speedKmh = 21.6;
 
@@ -150,14 +165,38 @@ export class RaceStarterSystem {
       let oppIdx = 0;
       for (const [oppId, oppVehicle] of opponents.entries()) {
         const rawInfo = rawPlayerList?.find((p) => p.id === oppId);
-        const oppLane = rawInfo?.lane ?? ((myLane + 1 + oppIdx) % 4);
-        const oppDef = VEHICLE_CATALOG.find((v) => v.id === oppVehicle.vehicleId) || VEHICLE_CATALOG[1] || VEHICLE_CATALOG[0];
+        const oppData = (multiplayerManager as any)?.opponents?.get(oppId);
 
+        // Find assigned lane, strictly ensuring NO collisions with already assigned lanes
+        let oppLane: number | undefined = undefined;
+        if (rawInfo && typeof rawInfo.lane === 'number' && !usedLanes.has(rawInfo.lane)) {
+          oppLane = rawInfo.lane;
+        } else if (oppData && typeof oppData.lane === 'number' && !usedLanes.has(oppData.lane)) {
+          oppLane = oppData.lane;
+        } else if (typeof (oppVehicle as any).assignedLane === 'number' && !usedLanes.has((oppVehicle as any).assignedLane)) {
+          oppLane = (oppVehicle as any).assignedLane;
+        }
+
+        // Guaranteed unique lane fallback from [1, 2, 0, 3]
+        if (oppLane === undefined) {
+          const preferredOrder = [1, 2, 0, 3];
+          const freeLane = preferredOrder.find((l) => !usedLanes.has(l));
+          oppLane = freeLane !== undefined ? freeLane : (myLane + oppIdx + 1) % 4;
+        }
+
+        usedLanes.add(oppLane);
+        (oppVehicle as any).assignedLane = oppLane;
+
+        const rankIndex = oppIdx + 1;
         const oppStartX = this.laneSystem.getLaneX(oppLane);
-        const oppTargetZ = -2.4 - (oppLane % 2) * 0.4;
-        const oppStartZ = -30.0 - (oppLane % 2) * 4.0;
+        const oppTargetZ = getGridTargetZ(rankIndex);
+        const oppStartZ = getGridStartZ(rankIndex);
 
         oppVehicle.setInitialPosition(oppStartX, 0.12, oppStartZ);
+        oppVehicle.mesh.position.set(oppStartX, 0.12, oppStartZ);
+        oppVehicle.mesh.rotation.set(0, 0, 0);
+
+        const oppDef = VEHICLE_CATALOG.find((v) => v.id === oppVehicle.vehicleId) || VEHICLE_CATALOG[1] || VEHICLE_CATALOG[0];
 
         this.participants.push({
           id: oppId,
@@ -197,11 +236,14 @@ export class RaceStarterSystem {
   public skip(): void {
     if (!this.isActive) return;
 
-    // Immediately snap all cars to their grid staging boxes
+    // Immediately snap all cars to their distinct grid staging boxes
     for (const p of this.participants) {
       p.currentZ = p.targetZ;
       p.currentSpeedMps = 0;
+      p.vehicle.mesh.position.x = p.startX;
+      p.vehicle.mesh.position.y = 0.12;
       p.vehicle.mesh.position.z = p.targetZ;
+      p.vehicle.mesh.rotation.set(0, 0, 0);
       p.vehicle.updateWheels(0, 0, 0.016);
       p.isStaged = true;
     }
@@ -287,7 +329,14 @@ export class RaceStarterSystem {
 
   private advanceVehiclesToGrid(delta: number): void {
     for (const p of this.participants) {
-      if (p.isStaged) continue;
+      if (p.isStaged) {
+        // Keep staged vehicle locked strictly in its assigned grid box
+        p.vehicle.mesh.position.x = p.startX;
+        p.vehicle.mesh.position.y = 0.12;
+        p.vehicle.mesh.position.z = p.targetZ;
+        p.vehicle.mesh.rotation.set(0, 0, 0);
+        continue;
+      }
       const distToTarget = p.targetZ - p.currentZ;
 
       if (distToTarget > 0.05) {
@@ -296,7 +345,12 @@ export class RaceStarterSystem {
         p.currentSpeedMps = THREE.MathUtils.damp(p.currentSpeedMps, desiredSpeed, 4.0, delta);
 
         p.currentZ += p.currentSpeedMps * delta;
+
+        // CRITICAL: Strictly lock vehicle to its assigned lane X and upright pose
+        p.vehicle.mesh.position.x = p.startX;
+        p.vehicle.mesh.position.y = 0.12;
         p.vehicle.mesh.position.z = p.currentZ;
+        p.vehicle.mesh.rotation.set(0, 0, 0);
 
         // Realistic wheel roll forward
         p.vehicle.updateWheels(p.currentSpeedMps, 0, delta);
@@ -309,7 +363,10 @@ export class RaceStarterSystem {
         // Staged in box
         p.currentZ = p.targetZ;
         p.currentSpeedMps = 0;
+        p.vehicle.mesh.position.x = p.startX;
+        p.vehicle.mesh.position.y = 0.12;
         p.vehicle.mesh.position.z = p.targetZ;
+        p.vehicle.mesh.rotation.set(0, 0, 0);
         p.vehicle.updateWheels(0, 0, delta);
         p.isStaged = true;
       }
@@ -321,8 +378,10 @@ export class RaceStarterSystem {
     const t = Math.min(1.0, progress);
 
     // Dynamic sweeping shot: Low front-quarter angle panning smoothly to dynamic profile
-    const startOffset = new THREE.Vector3(-2.4, 0.75, 4.2);
-    const endOffset = new THREE.Vector3(-1.8, 1.1, 2.0);
+    // Side angle adapts relative to whether vehicle is in left lanes or right lanes
+    const sideSign = carPos.x >= 0 ? -1 : 1;
+    const startOffset = new THREE.Vector3(sideSign * 2.2, 0.75, 4.0);
+    const endOffset = new THREE.Vector3(sideSign * 1.6, 1.05, 1.9);
 
     this.tempCamPos.lerpVectors(startOffset, endOffset, t).add(carPos);
     this.tempLookAt.set(carPos.x, carPos.y + 0.65, carPos.z + 0.5);

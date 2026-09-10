@@ -9,6 +9,7 @@ export class RemotePlayerVehicle extends Vehicle {
   public opponentId: string;
   public opponentName: string;
   public vehicleId: string;
+  public assignedLane: number = 2;
 
   // Dead Reckoning & Smooth Position Error Bleeding
   private simulatedPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -45,13 +46,20 @@ export class RemotePlayerVehicle extends Vehicle {
   private lastNameplateUpdate: number = 0;
   private lastNameplateDiff: number = -9999;
 
-  constructor(opponentId: string, opponentName: string, vehicleId: string, colorHex: string) {
+  constructor(
+    opponentId: string,
+    opponentName: string,
+    vehicleId: string,
+    colorHex: string,
+    assignedLane: number = 2
+  ) {
     const def = VEHICLE_CATALOG.find((v) => v.id === vehicleId) || VEHICLE_CATALOG[0];
     super((def.modelType as any) || 'coupe', colorHex);
 
     this.opponentId = opponentId;
     this.opponentName = opponentName;
     this.vehicleId = vehicleId;
+    this.assignedLane = assignedLane;
 
     this.mesh.name = `RemotePlayer_${opponentId}`;
 

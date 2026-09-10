@@ -196,14 +196,14 @@ export class PlayerVehicle extends Vehicle {
     this.setColor(color);
   }
 
-  public resetPosition(): void {
+  public resetPosition(customLane?: number): void {
     this.speedKmh = 0;
     this.speedMps = 0;
     this.currentSteerTilt = 0;
     this.currentYaw = 0;
     this.currentPitch = 0;
     this.mesh.rotation.set(0, 0, 0);
-    const startLane = 1;
+    const startLane = typeof customLane === 'number' ? customLane : 1;
     this.mesh.position.set(laneSystem.getLaneX(startLane), 0, 0);
     this.setBraking(false);
     this.setNitroFlames(false);
