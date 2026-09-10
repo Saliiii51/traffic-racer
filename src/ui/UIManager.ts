@@ -9,6 +9,7 @@ import { missionManager } from '../progression/MissionManager';
 import { CAMERA_PRESETS } from '../player/ChaseCamera';
 import { multiplayerManager } from '../network/MultiplayerManager';
 import { radioManager } from '../audio/RadioManager';
+import { PARKING_LEVELS } from '../parking/ParkingLotManager';
 import type { VehicleUpgradeLevels, GameMode, EnvironmentPreset, VehicleDefinition } from '../core/Constants';
 
 export class UIManager {
@@ -67,6 +68,32 @@ export class UIManager {
   private scrapeJoltSub!: HTMLElement;
   private scrapeTimeout: number | null = null;
   private btnToggleGyro!: HTMLElement;
+
+  // Parking Mode Elements & Callbacks
+  private hudParkingOverlay!: HTMLElement;
+  private parkingSensorDistText!: HTMLElement;
+  private parkingSensorStatus!: HTMLElement;
+  private parkingAccBar!: HTMLElement;
+  private parkingAccText!: HTMLElement;
+  private parkingHudLevelName!: HTMLElement;
+  private parkingHudTimer!: HTMLElement;
+  private parkingHudDamage!: HTMLElement;
+  private btnParkingGear!: HTMLElement;
+  private gearIndicatorLabel!: HTMLElement;
+  private btnParkingCamera!: HTMLElement;
+  private parkingCamLabel!: HTMLElement;
+  private sonarArcs: Record<string, HTMLElement> = {};
+  private modalParkingLevels!: HTMLElement;
+  private modalParkingVictory!: HTMLElement;
+  private parkingModeQuickBadge!: HTMLElement;
+  private badgeParkingLevel!: HTMLElement;
+  private badgeParkingStars!: HTMLElement;
+
+  public onSelectParkingLevel?: (levelId: number) => void;
+  public onToggleParkingGear?: () => void;
+  public onToggleParkingCamera?: () => void;
+  public onRetryParkingLevel?: () => void;
+  public onNextParkingLevel?: () => void;
 
   // Cassette Deck & Istanbul Radio HUD elements
   private hudCassetteDeck!: HTMLElement;
@@ -250,11 +277,16 @@ export class UIManager {
               <button class="choice-pill active-mode" data-mode="ONE_WAY">TEK YÖN</button>
               <button class="choice-pill" data-mode="TWO_WAY">ÇİFT YÖN</button>
               <button class="choice-pill" data-mode="TIME_ATTACK">ZAMANA KARŞI</button>
-              <button class="choice-pill" data-mode="CUSTOM_TRAFFIC" style="border-color: #38bdf8; color: #38bdf8;">🚦 TRAFİK MODU</button>
+              <button class="choice-pill" data-mode="CUSTOM_TRAFFIC" style="border-color: #38bdf8; color: #38bdf8;">🚦 TRAFİK</button>
+              <button class="choice-pill" data-mode="PARKING" style="border-color: #ffbe0b; color: #ffbe0b;">🅿️ PARK MODU</button>
             </div>
             <div id="traffic-mode-quick-badge" style="display: none; justify-content: space-between; align-items: center; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 6px 10px; margin-top: 6px; font-size: 0.78rem;">
               <span style="color: #e0f2fe;">Yoğunluk: <b id="badge-density-val" style="color: #38bdf8;">%100</b> • <b id="badge-fleet-val" style="color: #ffbe0b;">Karışık</b></span>
               <button id="btn-edit-traffic" class="btn btn-pill" style="padding: 3px 8px; font-size: 0.72rem; border-color: #38bdf8; color: #38bdf8;">⚙️ Trafiği Ayarla</button>
+            </div>
+            <div id="parking-mode-quick-badge" style="display: none; justify-content: space-between; align-items: center; background: rgba(255, 190, 11, 0.12); border: 1px solid rgba(255, 190, 11, 0.35); border-radius: 8px; padding: 6px 10px; margin-top: 6px; font-size: 0.78rem;">
+              <span style="color: #fef08a;"><span id="badge-parking-level">1. AVM Açık Otoparkı</span> • <span id="badge-parking-stars" style="color: #ffbe0b;">⭐⭐⭐</span></span>
+              <button id="btn-open-parking-levels" class="btn btn-pill" style="padding: 3px 8px; font-size: 0.72rem; border-color: #ffbe0b; color: #ffbe0b;">🗺️ Bölüm Seç</button>
             </div>
           </div>
 
@@ -595,6 +627,62 @@ export class UIManager {
           <span class="idle-cam-touch-icon">👆</span>
           <span class="idle-cam-touch-text">Sürüşe dönmek için dokunun</span>
           <span id="hud-idle-cam-name" style="display: none;"></span>
+        </div>
+
+        <!-- PARKING MODE HUD OVERLAY -->
+        <div id="hud-parking-overlay" style="display: none; position: absolute; inset: 0; pointer-events: none; z-index: 25;">
+          <!-- Top Center: Ultrasonic Radar Sonar Widget -->
+          <div id="parking-sonar-card" style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.90); border: 1.5px solid rgba(56, 189, 248, 0.45); backdrop-filter: blur(8px); border-radius: 14px; padding: 7px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); pointer-events: auto;">
+            <!-- Sonar car schematic -->
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+              <div id="sonar-front-arcs" style="display: flex; gap: 3px;">
+                <span id="sonar-fl" style="width: 10px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+                <span id="sonar-fc" style="width: 16px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+                <span id="sonar-fr" style="width: 10px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+              </div>
+              <div style="width: 30px; height: 42px; background: #334155; border: 1px solid #64748b; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">🚗</div>
+              <div id="sonar-rear-arcs" style="display: flex; gap: 3px;">
+                <span id="sonar-rl" style="width: 10px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+                <span id="sonar-rc" style="width: 16px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+                <span id="sonar-rr" style="width: 10px; height: 5px; border-radius: 2px; background: #22c55e;"></span>
+              </div>
+            </div>
+            <!-- Proximity Readout -->
+            <div style="display: flex; flex-direction: column; min-width: 80px;">
+              <span style="font-size: 0.65rem; color: #94a3b8; letter-spacing: 1px; font-weight: 700;">PARK SENSÖRÜ</span>
+              <span id="parking-sensor-dist-text" style="font-family: 'Orbitron', monospace; font-size: 1.35rem; font-weight: 900; color: #38bdf8;">-- m</span>
+              <span id="parking-sensor-status" style="font-size: 0.70rem; color: #22c55e; font-weight: 700;">GÜVENLİ</span>
+            </div>
+            <!-- Parking Slot Accuracy Bar -->
+            <div style="border-left: 1px solid rgba(255,255,255,0.15); padding-left: 12px; display: flex; flex-direction: column; min-width: 95px;">
+              <span style="font-size: 0.65rem; color: #94a3b8; font-weight: 700;">YERLEŞİM</span>
+              <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; margin: 4px 0;">
+                <div id="parking-acc-bar" style="width: 0%; height: 100%; background: #ffbe0b; transition: width 0.12s ease;"></div>
+              </div>
+              <span id="parking-acc-text" style="font-size: 0.78rem; font-weight: 800; color: #ffbe0b;">%0</span>
+            </div>
+          </div>
+
+          <!-- Top-Left: Level info & Damage -->
+          <div style="position: absolute; top: 16px; left: 16px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 8px 14px; display: flex; flex-direction: column; gap: 3px; pointer-events: auto;">
+            <span id="parking-hud-level-name" style="font-size: 0.84rem; font-weight: 800; color: #ffbe0b;">1. AVM Otoparkı</span>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem;">
+              <span id="parking-hud-timer" style="color: #fff; font-family: monospace; font-weight: 700;">⏱️ 00:00</span>
+              <span id="parking-hud-damage" style="color: #ef4444; font-weight: 700;">💥 Hasar: 0/3</span>
+            </div>
+          </div>
+
+          <!-- Bottom-Right Controls: Gear Switcher & Camera Toggle -->
+          <div style="position: absolute; bottom: 85px; right: 18px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto;">
+            <!-- Camera View Mode Toggle -->
+            <button id="btn-parking-camera" class="btn" style="padding: 9px 14px; font-size: 0.80rem; font-weight: 800; background: rgba(15, 23, 42, 0.88); border: 1.5px solid #38bdf8; color: #38bdf8; border-radius: 10px; cursor: pointer;">
+              🎥 <span id="parking-cam-label">TAKİP</span>
+            </button>
+            <!-- Gear Selector: [ D | R ] -->
+            <button id="btn-parking-gear" class="btn" style="padding: 12px 18px; font-size: 1.25rem; font-family: 'Orbitron', monospace; font-weight: 900; background: linear-gradient(135deg, #15803d, #22c55e); border: 2px solid #4ade80; color: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span style="font-size: 0.70rem; color: rgba(255,255,255,0.7);">VİTES:</span> <span id="gear-indicator-label">D</span>
+            </button>
+          </div>
         </div>
 
         <!-- Mobile Touch Controls -->
@@ -1419,6 +1507,57 @@ export class UIManager {
       <!-- Cinematic Camera Transition Flash & Vignette -->
       <div id="ad-camera-transition-flash" style="display: block; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.75) 0%, rgba(225,48,108,0.35) 45%, rgba(0,0,0,0.85) 100%); mix-blend-mode: screen; z-index: 95; backdrop-filter: blur(2px);"></div>
 
+      <!-- PARKING LEVEL SELECTOR MODAL -->
+      <div id="modal-parking-levels" class="menu-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 120; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+        <div style="background: #0f172a; border: 2px solid #ffbe0b; border-radius: 18px; width: 92%; max-width: 520px; padding: 22px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 14px; max-height: 90vh; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px;">
+            <div>
+              <div style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 900; color: #ffbe0b;">🅿️ PARK SEVİYELERİ</div>
+              <div style="font-size: 0.78rem; color: #94a3b8;">İstanbul Park Parkurları & Yıldız Hedefleri</div>
+            </div>
+            <button id="btn-close-parking-levels" class="btn btn-secondary" style="padding: 4px 10px; font-size: 1.0rem;">✕</button>
+          </div>
+
+          <div id="parking-levels-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+      </div>
+
+      <!-- PARKING VICTORY MODAL -->
+      <div id="modal-parking-victory" class="menu-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 125; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+        <div style="background: linear-gradient(145deg, #0f172a, #1e293b); border: 2px solid #00ff88; border-radius: 20px; width: 90%; max-width: 440px; padding: 26px; box-shadow: 0 10px 50px rgba(0, 255, 136, 0.35); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px;">
+          <div style="font-size: 2.8rem; line-height: 1;">🎉</div>
+          <div style="font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #00ff88;">PARK BAŞARILI!</div>
+          <div id="victory-level-title" style="font-size: 0.88rem; color: #cbd5e1; font-weight: 700;">1. AVM Açık Otoparkı</div>
+
+          <!-- Stars Banner -->
+          <div id="victory-stars-row" style="font-size: 2.2rem; letter-spacing: 6px; margin: 4px 0;">⭐⭐⭐</div>
+
+          <!-- Stats Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin: 6px 0;">
+            <div style="background: rgba(255,255,255,0.06); padding: 10px; border-radius: 10px;">
+              <div style="font-size: 0.70rem; color: #94a3b8;">SÜRE</div>
+              <div id="victory-time-val" style="font-size: 1.1rem; font-weight: 800; color: #fff;">18s</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px; border-radius: 10px;">
+              <div style="font-size: 0.70rem; color: #94a3b8;">KAZANÇ</div>
+              <div id="victory-cash-val" style="font-size: 1.1rem; font-weight: 800; color: #ffbe0b;">+₺2,500</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; width: 100%; margin-top: 8px;">
+            <button id="btn-parking-retry" class="btn btn-secondary" style="flex: 1; padding: 12px; font-weight: 800;">
+              🔄 TEKRAR
+            </button>
+            <button id="btn-parking-next" class="btn btn-primary" style="flex: 1; padding: 12px; font-weight: 800; background: #00ff88; color: #0f172a; border-color: #00ff88;">
+              SONRAKİ ⏭️
+            </button>
+          </div>
+          <button id="btn-parking-menu" class="btn" style="background: transparent; color: #94a3b8; font-size: 0.82rem; padding: 6px; cursor: pointer; border: none;">
+            🏠 Ana Menüye Dön
+          </button>
+        </div>
+      </div>
+
       <!-- Floating Unhide UI Trigger (Only visible when UI is hidden) -->
       <button id="btn-unhide-ui" style="display: none; position: absolute; top: 16px; right: 16px; z-index: 100; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 50%; width: 44px; height: 44px; font-size: 1.2rem; cursor: pointer; backdrop-filter: blur(4px);">
         👁️
@@ -1542,6 +1681,30 @@ export class UIManager {
     this.btnPauseMusic = document.getElementById('btn-pause-music')!;
     this.btnPauseGyro = document.getElementById('btn-pause-gyro')!;
 
+    // Cache Parking HUD & Modal elements
+    this.hudParkingOverlay = document.getElementById('hud-parking-overlay')!;
+    this.parkingSensorDistText = document.getElementById('parking-sensor-dist-text')!;
+    this.parkingSensorStatus = document.getElementById('parking-sensor-status')!;
+    this.parkingAccBar = document.getElementById('parking-acc-bar')!;
+    this.parkingAccText = document.getElementById('parking-acc-text')!;
+    this.parkingHudLevelName = document.getElementById('parking-hud-level-name')!;
+    this.parkingHudTimer = document.getElementById('parking-hud-timer')!;
+    this.parkingHudDamage = document.getElementById('parking-hud-damage')!;
+    this.btnParkingGear = document.getElementById('btn-parking-gear')!;
+    this.gearIndicatorLabel = document.getElementById('gear-indicator-label')!;
+    this.btnParkingCamera = document.getElementById('btn-parking-camera')!;
+    this.parkingCamLabel = document.getElementById('parking-cam-label')!;
+    this.modalParkingLevels = document.getElementById('modal-parking-levels')!;
+    this.modalParkingVictory = document.getElementById('modal-parking-victory')!;
+    this.parkingModeQuickBadge = document.getElementById('parking-mode-quick-badge')!;
+    this.badgeParkingLevel = document.getElementById('badge-parking-level')!;
+    this.badgeParkingStars = document.getElementById('badge-parking-stars')!;
+
+    ['sonar-fl', 'sonar-fc', 'sonar-fr', 'sonar-rl', 'sonar-rc', 'sonar-rr'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) this.sonarArcs[id] = el;
+    });
+
     this.updateMenuStats();
     this.updateModeSelectorUI();
     this.updateEnvSelectorUI();
@@ -1564,6 +1727,51 @@ export class UIManager {
       audioManager.init();
       audioManager.playClick();
       this.navigateTo('GARAGE');
+    });
+
+    // Parking Mode Listeners
+    document.getElementById('btn-open-parking-levels')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.showParkingLevelsModal();
+    });
+
+    document.getElementById('btn-close-parking-levels')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.hideParkingLevelsModal();
+    });
+
+    this.btnParkingGear?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.onToggleParkingGear?.();
+    });
+
+    this.btnParkingCamera?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.onToggleParkingCamera?.();
+    });
+
+    document.getElementById('btn-parking-retry')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.hideParkingVictoryModal();
+      this.onRetryParkingLevel?.();
+    });
+
+    document.getElementById('btn-parking-next')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.hideParkingVictoryModal();
+      this.onNextParkingLevel?.();
+    });
+
+    document.getElementById('btn-parking-menu')?.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.playClick();
+      this.hideParkingVictoryModal();
+      this.navigateTo('MAIN_MENU');
     });
 
     // Ad Studio / Reels Modal Open & Close
@@ -4477,6 +4685,23 @@ export class UIManager {
         trafficBadge.style.display = 'none';
       }
     }
+
+    const parkingBadge = this.parkingModeQuickBadge || document.getElementById('parking-mode-quick-badge');
+    if (parkingBadge) {
+      if (currentMode === 'PARKING') {
+        parkingBadge.style.display = 'flex';
+        const curLvl = PARKING_LEVELS.find((l) => l.id === gameState.parkingLevel) || PARKING_LEVELS[0];
+        if (this.badgeParkingLevel) {
+          this.badgeParkingLevel.innerText = `${curLvl.id}. ${curLvl.name}`;
+        }
+        if (this.badgeParkingStars) {
+          const stars = gameState.getParkingStars(curLvl.id);
+          this.badgeParkingStars.innerText = stars > 0 ? '⭐'.repeat(stars) : '☆☆☆';
+        }
+      } else {
+        parkingBadge.style.display = 'none';
+      }
+    }
   }
 
   private updateEnvSelectorUI(): void {
@@ -4833,5 +5058,268 @@ export class UIManager {
         }
       }
     });
+  }
+
+  // ==========================================
+  // PARKING MODE UI METHODS
+  // ==========================================
+
+  public showParkingLevelsModal(): void {
+    if (!this.modalParkingLevels) return;
+    this.renderParkingLevelsList();
+    this.modalParkingLevels.style.display = 'flex';
+  }
+
+  public hideParkingLevelsModal(): void {
+    if (this.modalParkingLevels) {
+      this.modalParkingLevels.style.display = 'none';
+    }
+  }
+
+  public renderParkingLevelsList(): void {
+    const listEl = document.getElementById('parking-levels-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    PARKING_LEVELS.forEach((lvl) => {
+      const stars = gameState.getParkingStars(lvl.id);
+      const starsDisplay = stars > 0 ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '☆☆☆';
+      const isCurrent = gameState.parkingLevel === lvl.id;
+
+      const card = document.createElement('div');
+      card.style.cssText = `
+        background: ${isCurrent ? 'rgba(255, 190, 11, 0.12)' : 'rgba(255,255,255,0.05)'};
+        border: 1.5px solid ${isCurrent ? '#ffbe0b' : 'rgba(255,255,255,0.12)'};
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        transition: all 0.2s ease;
+      `;
+
+      const diffDots = '●'.repeat(lvl.difficulty) + '○'.repeat(5 - lvl.difficulty);
+
+      card.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-family: 'Orbitron', monospace; font-size: 0.95rem; font-weight: 800; color: #fff;">${lvl.id}. ${lvl.name}</span>
+            <span style="font-size: 0.85rem; color: #ffbe0b; letter-spacing: 2px;">${starsDisplay}</span>
+          </div>
+          <div style="font-size: 0.74rem; color: #94a3b8;">${lvl.subtitle}</div>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 0.70rem; color: #cbd5e1; margin-top: 3px;">
+            <span style="color: #38bdf8;">Zorluk: ${diffDots}</span>
+            <span>⏱️ 3★ < ${lvl.starTimes[0]}s</span>
+            <span style="color: #22c55e;">💰 +₺${lvl.cashReward.toLocaleString('tr-TR')}</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-select-parking-lvl" data-id="${lvl.id}" style="padding: 8px 16px; font-size: 0.82rem; font-weight: 800; background: ${isCurrent ? '#ffbe0b' : '#38bdf8'}; color: #0f172a; border-color: ${isCurrent ? '#ffbe0b' : '#38bdf8'};">
+          ${isCurrent ? 'SEÇİLİ' : 'BAŞLA ▶'}
+        </button>
+      `;
+
+      listEl.appendChild(card);
+    });
+
+    listEl.querySelectorAll('.btn-select-parking-lvl').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        audioManager.playClick();
+        const id = parseInt((e.currentTarget as HTMLElement).dataset.id || '1', 10);
+        gameState.parkingLevel = id;
+        this.hideParkingLevelsModal();
+        this.updateModeSelectorUI();
+        if (this.onSelectParkingLevel) {
+          this.onSelectParkingLevel(id);
+        }
+      });
+    });
+  }
+
+  public showParkingVictoryModal(data: {
+    levelId: number;
+    levelTitle: string;
+    stars: number;
+    timeSec: number;
+    damageCount: number;
+    rewardCash: number;
+  }): void {
+    if (!this.modalParkingVictory) return;
+
+    const titleEl = document.getElementById('victory-level-title');
+    if (titleEl) titleEl.innerText = `${data.levelId}. ${data.levelTitle}`;
+
+    const starsEl = document.getElementById('victory-stars-row');
+    if (starsEl) {
+      starsEl.innerText = '⭐'.repeat(data.stars) + '☆'.repeat(3 - data.stars);
+    }
+
+    const timeEl = document.getElementById('victory-time-val');
+    if (timeEl) timeEl.innerText = `${data.timeSec.toFixed(1)}s`;
+
+    const cashEl = document.getElementById('victory-cash-val');
+    if (cashEl) cashEl.innerText = `+₺${data.rewardCash.toLocaleString('tr-TR')}`;
+
+    const nextBtn = document.getElementById('btn-parking-next') as HTMLButtonElement | null;
+    if (nextBtn) {
+      if (data.levelId >= PARKING_LEVELS.length) {
+        nextBtn.style.display = 'none';
+      } else {
+        nextBtn.style.display = 'block';
+      }
+    }
+
+    this.modalParkingVictory.style.display = 'flex';
+  }
+
+  public hideParkingVictoryModal(): void {
+    if (this.modalParkingVictory) {
+      this.modalParkingVictory.style.display = 'none';
+    }
+  }
+
+  public setParkingHudVisible(visible: boolean): void {
+    if (this.hudParkingOverlay) {
+      this.hudParkingOverlay.style.display = visible ? 'block' : 'none';
+    }
+
+    // When parking HUD is visible, hide highway score/nitro/distance/telemetry
+    const hudTopBar = document.querySelector('.hud-top-bar') as HTMLElement | null;
+    if (hudTopBar) {
+      hudTopBar.style.display = visible ? 'none' : 'flex';
+    }
+    const telemetry = document.querySelector('.hud-telemetry') as HTMLElement | null;
+    if (telemetry) {
+      telemetry.style.display = visible ? 'none' : '';
+    }
+    const nitroTouchBtn = document.getElementById('touch-nitro');
+    if (nitroTouchBtn) {
+      nitroTouchBtn.style.display = visible ? 'none' : '';
+    }
+    if (visible) {
+      this.setRadioMinimized(true);
+    }
+    const radioToast = document.getElementById('radio-toast-banner');
+    if (radioToast && visible) {
+      radioToast.style.top = '105px';
+    } else if (radioToast) {
+      radioToast.style.top = '';
+    }
+    const wrongWay = document.getElementById('wrong-way-banner');
+    if (wrongWay && visible) {
+      wrongWay.classList.remove('show');
+    }
+    const edsBanner = document.getElementById('eds-radar-banner');
+    if (edsBanner && visible) {
+      edsBanner.classList.remove('show');
+    }
+  }
+
+  public updateParkingHUD(data: {
+    levelName: string;
+    timeSec: number;
+    damageCount: number;
+    gear: 'D' | 'R';
+    camLabel: string;
+    sensorDist: number;
+    sensorStatus: string;
+    sensorColor: string;
+    accuracyPercent: number;
+    sensorArcs: Record<string, number>;
+  }): void {
+    if (this.parkingHudLevelName) {
+      this.parkingHudLevelName.innerText = data.levelName;
+    }
+
+    if (this.parkingHudTimer) {
+      const mins = Math.floor(data.timeSec / 60).toString().padStart(2, '0');
+      const secs = Math.floor(data.timeSec % 60).toString().padStart(2, '0');
+      this.parkingHudTimer.innerText = `⏱️ ${mins}:${secs}`;
+    }
+
+    if (this.parkingHudDamage) {
+      this.parkingHudDamage.innerText = `💥 Hasar: ${data.damageCount}/3`;
+      this.parkingHudDamage.style.color = data.damageCount >= 2 ? '#ef4444' : data.damageCount === 1 ? '#eab308' : '#22c55e';
+    }
+
+    if (this.gearIndicatorLabel) {
+      this.gearIndicatorLabel.innerText = data.gear;
+    }
+
+    if (this.btnParkingGear) {
+      if (data.gear === 'R') {
+        this.btnParkingGear.style.background = 'linear-gradient(135deg, #b91c1c, #ef4444)';
+        this.btnParkingGear.style.borderColor = '#f87171';
+        this.btnParkingGear.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)';
+      } else {
+        this.btnParkingGear.style.background = 'linear-gradient(135deg, #15803d, #22c55e)';
+        this.btnParkingGear.style.borderColor = '#4ade80';
+        this.btnParkingGear.style.boxShadow = '0 4px 15px rgba(34, 197, 94, 0.4)';
+      }
+    }
+
+    if (this.parkingCamLabel) {
+      this.parkingCamLabel.innerText = data.camLabel;
+    }
+
+    if (this.parkingSensorDistText) {
+      this.parkingSensorDistText.innerText = data.sensorDist > 9.9 ? '-- m' : `${data.sensorDist.toFixed(1)} m`;
+      this.parkingSensorDistText.style.color = data.sensorColor;
+    }
+
+    if (this.parkingSensorStatus) {
+      this.parkingSensorStatus.innerText = data.sensorStatus;
+      this.parkingSensorStatus.style.color = data.sensorColor;
+    }
+
+    if (this.parkingAccBar) {
+      this.parkingAccBar.style.width = `${Math.min(100, Math.max(0, data.accuracyPercent))}%`;
+      if (data.accuracyPercent >= 90) {
+        this.parkingAccBar.style.background = '#22c55e';
+      } else if (data.accuracyPercent >= 60) {
+        this.parkingAccBar.style.background = '#ffbe0b';
+      } else {
+        this.parkingAccBar.style.background = '#f97316';
+      }
+    }
+
+    if (this.parkingAccText) {
+      this.parkingAccText.innerText = `%${Math.round(data.accuracyPercent)}`;
+      this.parkingAccText.style.color = data.accuracyPercent >= 90 ? '#22c55e' : '#ffbe0b';
+    }
+
+    // Update individual sonar radar arcs
+    const arcKeys: Record<string, string> = {
+      FL: 'sonar-fl',
+      FC: 'sonar-fc',
+      FR: 'sonar-fr',
+      RL: 'sonar-rl',
+      RC: 'sonar-rc',
+      RR: 'sonar-rr',
+    };
+
+    for (const [key, domId] of Object.entries(arcKeys)) {
+      const el = this.sonarArcs[domId];
+      if (!el) continue;
+      const dist = data.sensorArcs[key] ?? 99;
+      if (dist <= 0.45) {
+        el.style.background = '#ef4444';
+        el.style.boxShadow = '0 0 8px #ef4444';
+        el.style.opacity = '1';
+      } else if (dist <= 1.0) {
+        el.style.background = '#f97316';
+        el.style.boxShadow = '0 0 5px #f97316';
+        el.style.opacity = '0.9';
+      } else if (dist <= 2.2) {
+        el.style.background = '#eab308';
+        el.style.boxShadow = 'none';
+        el.style.opacity = '0.7';
+      } else {
+        el.style.background = 'rgba(255,255,255,0.18)';
+        el.style.boxShadow = 'none';
+        el.style.opacity = '0.35';
+      }
+    }
   }
 }

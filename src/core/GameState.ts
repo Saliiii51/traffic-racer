@@ -33,6 +33,15 @@ export class GameState {
   public vehicleHealth: number = 100;
   public maxVehicleHealth: number = 100;
 
+  // Parking Mode State
+  public parkingLevel: number = 1;
+  public parkingGear: 'D' | 'R' = 'D';
+  public parkingDamageCount: number = 0;
+  public parkingAccuracy: number = 0;
+  public parkingAlignment: number = 0;
+  public isParkedSuccessfully: boolean = false;
+  public parkingTimeElapsed: number = 0;
+
   // Instagram Reel / Ad Studio Mode
   public isAdStudioMode: boolean = false;
   public timeScale: number = 1.0;
@@ -347,6 +356,33 @@ export class GameState {
     });
 
     return { isNewHighScore, isNewBestDistance, earnings };
+  }
+
+  public getParkingStars(level: number): number {
+    return (this.data.parkingStars && this.data.parkingStars[level]) || 0;
+  }
+
+  public setParkingStars(level: number, stars: number): void {
+    if (!this.data.parkingStars) this.data.parkingStars = {};
+    const current = this.data.parkingStars[level] || 0;
+    if (stars > current) {
+      this.data.parkingStars[level] = stars;
+      this.save();
+      eventBus.emit('parkingStarsUpdated', { levelId: level, stars });
+    }
+  }
+
+  public setParkingGear(gear: 'D' | 'R'): void {
+    if (this.parkingGear !== gear) {
+      this.parkingGear = gear;
+      eventBus.emit('parkingGearChanged', { gear });
+    }
+  }
+
+  public toggleParkingGear(): 'D' | 'R' {
+    const nextGear: 'D' | 'R' = this.parkingGear === 'D' ? 'R' : 'D';
+    this.setParkingGear(nextGear);
+    return nextGear;
   }
 
   public setScreen(screen: GameStateEnum): void {

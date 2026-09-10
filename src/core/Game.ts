@@ -30,6 +30,9 @@ import { RemotePlayerVehicle } from '../vehicles/RemotePlayerVehicle';
 import { prng } from '../utils/PRNG';
 import { cinematicAutopilot } from '../player/CinematicAutopilot';
 import { RaceStarterSystem } from '../systems/RaceStarterSystem';
+import { parkingLotManager } from '../parking/ParkingLotManager';
+import { parkingVehicleController } from '../parking/ParkingVehicleController';
+import { parkingSensor } from '../parking/ParkingSensor';
 
 // Garage Idle Cinematic Showcase Angles (Centered around vehicle presentation area x=0)
 const GARAGE_IDLE_SHOTS = [
@@ -98,6 +101,7 @@ export class Game {
   private missionManager: MissionManager;
   private particleSystem: ParticleSystem;
   private uiManager: UIManager;
+  private parkingLotManagerAttached = false;
 
   // Turntable platform & showroom for Garage
   private garageTurntable!: THREE.Group;
@@ -253,6 +257,17 @@ export class Game {
     window.addEventListener('pointerdown', onUserActivity);
     window.addEventListener('touchstart', onUserActivity, { passive: true });
 
+    // Parking mode gear shift hotkey (Space / Shift)
+    window.addEventListener('keydown', (e) => {
+      if (gameState.currentMode === 'PARKING' && gameState.currentScreen === 'PLAYING') {
+        if (e.code === 'Space' || e.key === ' ' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+          e.preventDefault();
+          audioManager.playClick();
+          gameState.toggleParkingGear();
+        }
+      }
+    });
+
     // 9. Start loop and boot sequence
     this.setScreen('BOOT');
     this.startLoop();
@@ -265,6 +280,29 @@ export class Game {
     };
 
     this.uiManager.onRestartGame = () => {
+      this.startRace();
+    };
+
+    this.uiManager.onSelectParkingLevel = (levelId) => {
+      gameState.parkingLevel = levelId;
+      gameState.setGameMode('PARKING');
+      this.startRace();
+    };
+
+    this.uiManager.onToggleParkingGear = () => {
+      gameState.toggleParkingGear();
+    };
+
+    this.uiManager.onToggleParkingCamera = () => {
+      this.chaseCamera.cycleParkingCamMode();
+    };
+
+    this.uiManager.onRetryParkingLevel = () => {
+      this.startRace();
+    };
+
+    this.uiManager.onNextParkingLevel = () => {
+      gameState.parkingLevel = Math.min(5, gameState.parkingLevel + 1);
       this.startRace();
     };
 
@@ -639,6 +677,14 @@ export class Game {
         this.chaseCamera.exitAdStudio();
         this.uiManager.hideAdStudioHud();
       }
+      if (this.parkingLotManagerAttached) {
+        parkingLotManager.sceneGroup.visible = false;
+        this.roadManager.group.visible = true;
+        this.trafficManager.group.visible = true;
+        this.chaseCamera.setParkingCameraActive(false);
+        this.uiManager.setParkingHudVisible(false);
+        this.uiManager.hideParkingVictoryModal();
+      }
     }
 
     if (screen !== 'GARAGE') {
@@ -732,6 +778,12 @@ export class Game {
     this.isCrashed = false;
     gameState.isPaused = false;
     this.uiManager.hidePauseMenu();
+
+    if (gameState.currentMode === 'PARKING') {
+      this.startParkingMode();
+      return;
+    }
+
     gameState.startSession();
     this.garageTurntable.visible = false;
     if (this.garageLightsGroup) this.garageLightsGroup.visible = false;
@@ -851,6 +903,53 @@ export class Game {
     }
 
     this.uiManager.setMultiplayerHudVisible(true);
+  }
+
+  public startParkingMode(): void {
+    requestNativeLandscapeLock().catch(() => {});
+    this.isCrashed = false;
+    gameState.isPaused = false;
+    this.uiManager.hidePauseMenu();
+    gameState.startSession();
+    this.garageTurntable.visible = false;
+    if (this.garageLightsGroup) this.garageLightsGroup.visible = false;
+    this.playerVehicle.mesh.visible = true;
+
+    // 1. Hide highway road and traffic
+    this.roadManager.group.visible = false;
+    this.trafficManager.group.visible = false;
+
+    // 2. Attach parking lot to scene
+    if (!this.parkingLotManagerAttached) {
+      this.scene.add(parkingLotManager.sceneGroup);
+      this.parkingLotManagerAttached = true;
+    }
+    parkingLotManager.sceneGroup.visible = true;
+
+    // 3. Load active level
+    const levelId = gameState.parkingLevel || 1;
+    parkingLotManager.loadLevel(levelId);
+    const lvl = parkingLotManager.currentLevel;
+
+    // 4. Setup vehicle in parking physics
+    this.playerVehicle.reconfigureStats();
+    this.playerVehicle.mesh.position.set(lvl.playerStart.x, 0, lvl.playerStart.z);
+    this.playerVehicle.mesh.rotation.set(0, lvl.playerStart.yaw, 0);
+
+    parkingVehicleController.reset(lvl.playerStart.x, lvl.playerStart.z, lvl.playerStart.yaw);
+    parkingVehicleController.initVehicleHooks(this.playerVehicle);
+    parkingSensor.reset();
+
+    // 5. Setup camera & HUD
+    this.chaseCamera.setParkingCameraActive(true);
+    this.uiManager.setParkingHudVisible(true);
+    this.isIntroActive = false;
+    this.uiManager.finishCinematicIntro();
+
+    audioManager.startEngine();
+    audioManager.startMusic();
+
+    this.setScreen('PLAYING');
   }
 
   public cycleSpectatorTarget(direction: 1 | -1 = 1): void {
@@ -1338,6 +1437,12 @@ export class Game {
 
     if (gameState.isPaused) return;
 
+    // Parking Mode Simulation Loop
+    if (gameState.currentMode === 'PARKING') {
+      this.updateParkingSimulation(delta, inputs);
+      return;
+    }
+
     if (this.scrapeCooldown > 0) {
       this.scrapeCooldown -= delta;
     }
@@ -1752,6 +1857,103 @@ export class Game {
       rank: idx + 1,
       deltaMeters: idx === 0 ? 0 : r.distance - leaderDist,
     }));
+  }
+
+  private updateParkingSimulation(delta: number, inputs: InputState): void {
+    // 1. Camera mode toggle
+    if (inputs.cameraToggleJustPressed) {
+      this.chaseCamera.cycleParkingCamMode();
+      audioManager.playClick();
+    }
+
+    // 2. Ultrasonic Sensor
+    const carPos = this.playerVehicle.mesh.position;
+    const carYaw = parkingVehicleController.yaw;
+    const carDim = this.playerVehicle.dimensions;
+    const carSpeed = parkingVehicleController.speedKmh;
+
+    const radar = parkingSensor.update(delta, carPos, carYaw, carDim, parkingLotManager.obstacleBoxes);
+
+    // 3. Update Parking Lot (check slot containment & collision)
+    const lotStatus = parkingLotManager.update(delta, carPos, carYaw, carDim, carSpeed);
+
+    // 4. Update Vehicle Kinematics Controller
+    parkingVehicleController.update(
+      delta,
+      this.playerVehicle,
+      inputs.steer,
+      inputs.accelerate,
+      inputs.brake,
+      lotStatus.isColliding
+    );
+
+    // 5. Update Camera
+    this.chaseCamera.updateParking(delta, this.playerVehicle.mesh.position, parkingVehicleController.yaw, gameState.parkingGear === 'R');
+
+    // 6. Update UI HUD
+    const curLvl = parkingLotManager.currentLevel;
+    let sensorStatus = 'GÜVENLİ';
+    let sensorColor = '#22c55e';
+    if (radar.closestDist <= 0.35) {
+      sensorStatus = 'DUR!';
+      sensorColor = '#ef4444';
+    } else if (radar.closestDist <= 0.85) {
+      sensorStatus = 'DİKKAT!';
+      sensorColor = '#f97316';
+    } else if (radar.closestDist <= 1.8) {
+      sensorStatus = 'YAKLAŞIYOR';
+      sensorColor = '#eab308';
+    }
+
+    this.uiManager.updateParkingHUD({
+      levelName: `${curLvl.id}. ${curLvl.name}`,
+      timeSec: parkingLotManager.elapsedTime,
+      damageCount: gameState.parkingDamageCount,
+      gear: gameState.parkingGear,
+      camLabel: this.chaseCamera.parkingCamMode.toUpperCase(),
+      sensorDist: radar.closestDist,
+      sensorStatus,
+      sensorColor,
+      accuracyPercent: lotStatus.accuracyPercent,
+      sensorArcs: {
+        FL: radar.frontLeftDist,
+        FC: radar.frontCenterDist,
+        FR: radar.frontRightDist,
+        RL: radar.rearLeftDist,
+        RC: radar.rearCenterDist,
+        RR: radar.rearRightDist,
+      },
+    });
+
+    // Istanbul Radio visuals
+    this.uiManager.updateRadioVisuals(radioManager.getSpectrumLevels(), radioManager.isPlaying);
+
+    // 7. Damage Game Over check (3 crashes max)
+    if (gameState.parkingDamageCount >= 3 && !this.isCrashed) {
+      this.onCrash('PARK HASARI: 3/3 ÇARPIŞMA!');
+      return;
+    }
+
+    // 8. Victory check
+    if (lotStatus.isSuccess) {
+      const times = curLvl.starTimes;
+      let stars = 1;
+      if (parkingLotManager.elapsedTime <= times[0] && gameState.parkingDamageCount === 0) {
+        stars = 3;
+      } else if (parkingLotManager.elapsedTime <= times[1] && gameState.parkingDamageCount <= 1) {
+        stars = 2;
+      }
+      const earnedCash = Math.round(curLvl.cashReward * (stars / 3));
+
+      this.uiManager.showParkingVictoryModal({
+        levelId: curLvl.id,
+        levelTitle: curLvl.name,
+        stars,
+        timeSec: parkingLotManager.elapsedTime,
+        damageCount: gameState.parkingDamageCount,
+        rewardCash: earnedCash,
+      });
+    }
   }
 
   public applyGraphicsQuality(quality: 'low' | 'medium' | 'high'): void {

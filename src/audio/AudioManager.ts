@@ -2660,6 +2660,59 @@ export class AudioManager {
     } catch {}
   }
 
+  // Ultrasonic Parking Sensor Beep (Bip... Bip... Biiiip!)
+  public playParkingSensorBeep(dist: number, isContinuous: boolean = false): void {
+    if (!this.ctx || !this.sfxGain || !gameState.settings.soundEnabled) return;
+    try {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      const freq = Math.min(2400, Math.max(1600, 2400 - dist * 300));
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+      const duration = isContinuous ? 0.20 : 0.065;
+      gain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch {
+      // Ignore audio glitches
+    }
+  }
+
+  // Parking Victory Fanfare Horn
+  public playVictoryHorn(): void {
+    if (!this.ctx || !this.sfxGain || !gameState.settings.soundEnabled) return;
+    try {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      const t = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + i * 0.11);
+        gain.gain.setValueAtTime(0.001, t + i * 0.11);
+        gain.gain.linearRampToValueAtTime(0.32, t + i * 0.11 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.11 + 0.38);
+        osc.connect(gain);
+        gain.connect(this.sfxGain!);
+        osc.start(t + i * 0.11);
+        osc.stop(t + i * 0.11 + 0.40);
+      });
+    } catch {}
+  }
+
   public setSoundEnabled(enabled: boolean): void {
     if (this.sfxGain) {
       this.sfxGain.gain.value = enabled ? 0.75 : 0;

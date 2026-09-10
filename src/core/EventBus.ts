@@ -47,6 +47,12 @@ export interface GameEventPayloads {
   cleanScreenChanged: { active: boolean };
   adStudioCameraSwitched: { index: number; shotName: string };
 
+  // Parking mode events
+  parkingStarsUpdated: { levelId: number; stars: number };
+  parkingGearChanged: { gear: 'D' | 'R' };
+  parkingCollision: { damageCount: number; maxDamage: number };
+  parkingLevelCompleted: { levelId: number; stars: number; timeSec: number; damageCount: number; rewardCash: number };
+
   // Multiplayer events
   'mp:disconnected': {};
   'mp:roomsList': { rooms: any[] };

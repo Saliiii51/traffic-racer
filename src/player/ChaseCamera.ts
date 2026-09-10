@@ -1430,6 +1430,99 @@ export class ChaseCamera {
     this.camera.updateProjectionMatrix();
   }
 
+  public parkingCamMode: 'CHASE' | 'TOP_DOWN' | 'REVERSE' = 'CHASE';
+
+  public cycleParkingCamMode(): 'CHASE' | 'TOP_DOWN' | 'REVERSE' {
+    if (this.parkingCamMode === 'CHASE') {
+      this.parkingCamMode = 'TOP_DOWN';
+    } else if (this.parkingCamMode === 'TOP_DOWN') {
+      this.parkingCamMode = 'REVERSE';
+    } else {
+      this.parkingCamMode = 'CHASE';
+    }
+    this.modeJustChanged = true;
+    return this.parkingCamMode;
+  }
+
+  public isParkingActive: boolean = false;
+
+  public setParkingCameraActive(active: boolean): void {
+    this.isParkingActive = active;
+    this.modeJustChanged = true;
+  }
+
+  public updateParking(
+    delta: number,
+    carPos: THREE.Vector3,
+    carYaw: number,
+    isReverse: boolean
+  ): void {
+    const isTopDown = this.parkingCamMode === 'TOP_DOWN';
+    const isReverseCam = this.parkingCamMode === 'REVERSE' || (this.parkingCamMode === 'CHASE' && isReverse);
+
+    let targetX: number;
+    let targetY: number;
+    let targetZ: number;
+    let lookX: number;
+    let lookY: number;
+    let lookZ: number;
+    let desiredFov = 62;
+
+    if (isTopDown) {
+      targetX = carPos.x;
+      targetY = carPos.y + 14.5;
+      targetZ = carPos.z - 0.5;
+      lookX = carPos.x;
+      lookY = carPos.y;
+      lookZ = carPos.z;
+      desiredFov = 60;
+    } else if (isReverseCam) {
+      const dist = 5.0;
+      targetX = carPos.x + Math.sin(carYaw) * dist;
+      targetY = carPos.y + 2.6;
+      targetZ = carPos.z + Math.cos(carYaw) * dist;
+
+      lookX = carPos.x - Math.sin(carYaw) * 6.0;
+      lookY = carPos.y + 0.8;
+      lookZ = carPos.z - Math.cos(carYaw) * 6.0;
+      desiredFov = 66;
+    } else {
+      const dist = 5.6;
+      targetX = carPos.x - Math.sin(carYaw) * dist;
+      targetY = carPos.y + 2.7;
+      targetZ = carPos.z - Math.cos(carYaw) * dist;
+
+      lookX = carPos.x + Math.sin(carYaw) * 7.5;
+      lookY = carPos.y + 1.1;
+      lookZ = carPos.z + Math.cos(carYaw) * 7.5;
+      desiredFov = 64;
+    }
+
+    if (this.modeJustChanged) {
+      this.modeJustChanged = false;
+      this.currentPosition.set(targetX, targetY, targetZ);
+      this.currentLookAt.set(lookX, lookY, lookZ);
+    } else {
+      const posLerp = Math.min(1.0, delta * 7.5);
+      const lookLerp = Math.min(1.0, delta * 9.0);
+
+      this.currentPosition.x += (targetX - this.currentPosition.x) * posLerp;
+      this.currentPosition.y += (targetY - this.currentPosition.y) * posLerp;
+      this.currentPosition.z += (targetZ - this.currentPosition.z) * posLerp;
+
+      this.currentLookAt.x += (lookX - this.currentLookAt.x) * lookLerp;
+      this.currentLookAt.y += (lookY - this.currentLookAt.y) * lookLerp;
+      this.currentLookAt.z += (lookZ - this.currentLookAt.z) * lookLerp;
+    }
+
+    this.camera.position.copy(this.currentPosition);
+    this.camera.lookAt(this.currentLookAt);
+
+    const fovLerp = Math.min(1.0, delta * 4.0);
+    this.camera.fov += (desiredFov - this.camera.fov) * fovLerp;
+    this.camera.updateProjectionMatrix();
+  }
+
   public setAspect(aspect: number): void {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();

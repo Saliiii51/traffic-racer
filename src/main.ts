@@ -6,6 +6,8 @@ import { gameState } from './core/GameState';
 import { inputManager } from './player/InputManager';
 import { setupOrientationAutoLock } from './utils/orientation';
 import { multiplayerManager } from './network/MultiplayerManager';
+import { parkingLotManager } from './parking/ParkingLotManager';
+import { parkingVehicleController } from './parking/ParkingVehicleController';
 
 function initGame() {
   try {
@@ -17,6 +19,8 @@ function initGame() {
     (window as any).playerVehicle = (game as any).playerVehicle;
     (window as any).inputManager = inputManager;
     (window as any).multiplayerManager = multiplayerManager;
+    (window as any).parkingLotManager = parkingLotManager;
+    (window as any).parkingVehicleController = parkingVehicleController;
     console.log('🏎️ TRAFFIC RUSH initialized successfully!');
   } catch (err) {
     console.error('Failed to initialize TRAFFIC RUSH game:', err);

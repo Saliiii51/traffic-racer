@@ -19,6 +19,7 @@ export interface GameSaveData {
   vehicleColors: Record<string, string>;
   completedMissionIds: string[];
   licensePlate?: string;
+  parkingStars: Record<number, number>;
   settings: {
     soundEnabled: boolean;
     musicEnabled: boolean;
@@ -75,6 +76,7 @@ export class SaveManager {
       vehicleColors: defaultColors,
       completedMissionIds: [],
       licensePlate: '34 TR 1998',
+      parkingStars: {},
       settings: {
         soundEnabled: true,
         musicEnabled: true,

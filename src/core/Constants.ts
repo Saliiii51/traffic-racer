@@ -96,7 +96,7 @@ export const GAME_CONSTANTS = {
 
 export type GameStateEnum = 'BOOT' | 'MAIN_MENU' | 'PLAYING' | 'PAUSED' | 'GAME_OVER' | 'GARAGE' | 'SHOP' | 'MISSIONS';
 
-export type GameMode = 'ONE_WAY' | 'TWO_WAY' | 'TIME_ATTACK' | 'CUSTOM_TRAFFIC';
+export type GameMode = 'ONE_WAY' | 'TWO_WAY' | 'TIME_ATTACK' | 'CUSTOM_TRAFFIC' | 'PARKING';
 
 export type TrafficDensityPreset = 'empty' | 'low' | 'normal' | 'dense' | 'chaos';
 export type TrafficSpeedPreset = 'slow' | 'normal' | 'fast' | 'chaotic';
