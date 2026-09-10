@@ -799,23 +799,8 @@ export class Vehicle {
     model.position.y -= rawBox.min.y;
     model.updateMatrixWorld(true);
 
-    // 0. Pre-center wheel meshes with baked vertex offsets (Volkswagen Scirocco R CSR2)
+    // 0. Hide model's static plate mesh for sport_racer so dynamic Turkish plate fits
     model.traverse((child) => {
-      const name = (child.name || '').toLowerCase();
-      if (/phong13wheels1|wheels1/i.test(name) && (child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.geometry) {
-          mesh.geometry.computeBoundingBox();
-          const bbox = mesh.geometry.boundingBox;
-          if (bbox) {
-            const c = new THREE.Vector3();
-            bbox.getCenter(c);
-            mesh.geometry.center();
-            mesh.position.copy(c);
-            mesh.updateMatrixWorld(true);
-          }
-        }
-      }
       if (child.name.toLowerCase().includes('numberplate') && this.id === 'sport_racer') {
         child.visible = false;
       }
