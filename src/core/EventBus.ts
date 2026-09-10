@@ -49,13 +49,18 @@ export interface GameEventPayloads {
 
   // Multiplayer events
   'mp:disconnected': {};
-  'mp:roomCreated': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players?: any[] };
-  'mp:roomJoined': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players: any[] };
-  'mp:playerJoined': { players: any[]; opponent?: any; opponents?: any[]; newPlayer?: any };
+  'mp:roomsList': { rooms: any[] };
+  'mp:spectatorJoined': { roomCode: string; mode: string; targetDistance: number; status: string; seed: number; entryFee: number; totalPot: number; players: any[]; targetId: string | null };
+  'mp:spectatorCountChanged': { count: number };
+  'mp:betConfirmed': { targetPlayerId: string; amount: number };
+  'mp:spectateTargetChanged': { targetId: string | null; target: any };
+  'mp:roomCreated': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players?: any[]; entryFee?: number; totalPot?: number };
+  'mp:roomJoined': { roomCode: string; isHost: boolean; mode: string; targetDistance: number; lane?: number; maxPlayers?: number; players: any[]; entryFee?: number; totalPot?: number };
+  'mp:playerJoined': { players: any[]; opponent?: any; opponents?: any[]; newPlayer?: any; totalPot?: number };
   'mp:opponentUpdate': any;
   'mp:opponentCrashed': { playerId: string; playerName?: string; distance: number };
-  'mp:raceStarting': { seed: number; mode: string; targetDistance: number; countdownSec: number; opponent?: any; opponents?: any[]; players?: any[] };
-  'mp:raceFinished': { winnerId: string; winnerName: string; isMeWinner: boolean; reason: string; finishTime?: number; standings?: any[] };
+  'mp:raceStarting': { seed: number; mode: string; targetDistance: number; countdownSec: number; opponent?: any; opponents?: any[]; players?: any[]; entryFee?: number; totalPot?: number };
+  'mp:raceFinished': { winnerId: string; winnerName: string; isMeWinner: boolean; reason: string; finishTime?: number; standings?: any[]; totalPot?: number; spectatorPayout?: number };
   'mp:opponentLeft': { playerId: string; playerName?: string; players?: any[] };
   'mp:hostChanged': { newHostId: string; players?: any[] };
   'mp:promotedHost': {};

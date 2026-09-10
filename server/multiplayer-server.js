@@ -88,6 +88,36 @@ function broadcastRoom(room, data, exceptId) {
       p.ws.send(payload);
     }
   }
+  if (room.spectators) {
+    for (const [id, s] of room.spectators) {
+      if (id !== exceptId && s.ws.readyState === WebSocket.OPEN) {
+        s.ws.send(payload);
+      }
+    }
+  }
+}
+
+function getPublicRooms() {
+  const list = [];
+  for (const [code, r] of rooms) {
+    if (r.status !== 'FINISHED' && (r.players.size > 0 || (r.spectators && r.spectators.size > 0))) {
+      const host = Array.from(r.players.values()).find(p => p.isHost) || r.players.values().next().value;
+      list.push({
+        code: r.code,
+        hostName: host ? host.name : 'Bilinmeyen',
+        mode: r.mode,
+        targetDistance: r.targetDistance,
+        playerCount: r.players.size,
+        maxPlayers: MAX_PLAYERS_PER_ROOM,
+        spectatorCount: r.spectators ? r.spectators.size : 0,
+        status: r.status, // 'LOBBY' | 'STARTING' | 'RACING'
+        entryFee: r.entryFee || 0,
+        totalPot: (r.entryFee || 0) * r.players.size,
+        createdAt: r.createdAt || Date.now(),
+      });
+    }
+  }
+  return list;
 }
 
 const MAX_PLAYERS_PER_ROOM = 4;
@@ -127,13 +157,121 @@ wss.on('connection', (ws) => {
   const playerId = 'p_' + Math.random().toString(36).substring(2, 9);
   let currentRoomCode = null;
 
+  function sendRaceFinished(room, winnerId, winnerName, reason, finishTime) {
+    room.status = 'FINISHED';
+    const totalPot = (room.entryFee || 0) * room.players.size;
+    const spectatorPayouts = {};
+    if (room.bets) {
+      for (const [specId, b] of room.bets) {
+        if (b.targetPlayerId === winnerId) {
+          spectatorPayouts[specId] = Math.round(b.amount * 1.8);
+        }
+      }
+    }
+
+    broadcastRoom(room, {
+      type: 'RACE_FINISHED',
+      winnerId,
+      winnerName,
+      reason,
+      finishTime,
+      standings: buildStandings(room),
+      totalPot,
+      spectatorPayouts,
+    });
+  }
+
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message.toString());
 
       switch (data.type) {
+        case 'GET_ROOMS': {
+          send(ws, {
+            type: 'ROOMS_LIST',
+            rooms: getPublicRooms(),
+          });
+          break;
+        }
+
+        case 'JOIN_SPECTATOR': {
+          const code = (data.roomCode || '').toUpperCase().trim();
+          const room = rooms.get(code);
+
+          if (!room) {
+            send(ws, { type: 'ERROR', message: 'Oda bulunamadı!' });
+            return;
+          }
+
+          if (!room.spectators) room.spectators = new Map();
+          const spectator = {
+            ws,
+            id: playerId,
+            name: (data.playerName || 'Seyirci').substring(0, 16),
+          };
+
+          room.spectators.set(playerId, spectator);
+          currentRoomCode = code;
+
+          const playerList = Array.from(room.players.values()).map(p => ({
+            id: p.id,
+            name: p.name,
+            vehicleId: p.vehicleId,
+            colorHex: p.colorHex,
+            lane: p.lane,
+            isHost: p.isHost,
+            distance: p.distance || 0,
+            isCrashed: !!p.isCrashed,
+            isFinished: !!p.isFinished,
+          }));
+
+          send(ws, {
+            type: 'SPECTATOR_JOINED',
+            roomCode: code,
+            playerId,
+            isSpectator: true,
+            mode: room.mode,
+            targetDistance: room.targetDistance,
+            status: room.status,
+            seed: room.seed,
+            entryFee: room.entryFee || 0,
+            totalPot: (room.entryFee || 0) * room.players.size,
+            players: playerList,
+          });
+
+          broadcastRoom(room, {
+            type: 'SPECTATOR_COUNT_CHANGED',
+            spectatorCount: room.spectators.size,
+          });
+
+          console.log(`[Room ${code}] Spectator joined: ${spectator.name} (${playerId}). Total spectators: ${room.spectators.size}`);
+          break;
+        }
+
+        case 'PLACE_BET': {
+          if (!currentRoomCode) return;
+          const room = rooms.get(currentRoomCode);
+          if (!room || room.status === 'FINISHED') return;
+
+          if (!room.bets) room.bets = new Map();
+          const betAmount = Math.max(50, parseInt(data.amount) || 100);
+          room.bets.set(playerId, {
+            spectatorId: playerId,
+            targetPlayerId: data.targetPlayerId,
+            amount: betAmount,
+          });
+
+          send(ws, {
+            type: 'BET_CONFIRMED',
+            targetPlayerId: data.targetPlayerId,
+            amount: betAmount,
+          });
+          break;
+        }
+
         case 'CREATE_ROOM': {
           const roomCode = generateRoomCode();
+          const entryFee = Math.max(0, parseInt(data.entryFee) || 0);
           const room = {
             code: roomCode,
             mode: data.mode === 'SURVIVAL' ? 'SURVIVAL' : 'SPRINT',
@@ -141,6 +279,9 @@ wss.on('connection', (ws) => {
             seed: Math.floor(Math.random() * 1000000),
             status: 'LOBBY',
             players: new Map(),
+            spectators: new Map(),
+            bets: new Map(),
+            entryFee,
             createdAt: Date.now(),
           };
 
@@ -170,6 +311,8 @@ wss.on('connection', (ws) => {
             maxPlayers: MAX_PLAYERS_PER_ROOM,
             mode: room.mode,
             targetDistance: room.targetDistance,
+            entryFee: room.entryFee,
+            totalPot: room.entryFee * room.players.size,
             players: Array.from(room.players.values()).map(p => ({
               id: p.id,
               name: p.name,
@@ -179,7 +322,7 @@ wss.on('connection', (ws) => {
               isHost: p.isHost,
             })),
           });
-          console.log(`[Room ${roomCode}] Created by ${player.name} (${playerId}) in Lane ${player.lane}`);
+          console.log(`[Room ${roomCode}] Created by ${player.name} (${playerId}) in Lane ${player.lane} with Entry Fee ₺${entryFee}`);
           break;
         }
 
@@ -193,12 +336,12 @@ wss.on('connection', (ws) => {
           }
 
           if (room.status !== 'LOBBY') {
-            send(ws, { type: 'ERROR', message: 'Bu yarış zaten başladı veya bitti!' });
+            send(ws, { type: 'ERROR', message: 'Bu yarış zaten başladı! Seyirci olarak katılabilirsiniz.' });
             return;
           }
 
           if (room.players.size >= MAX_PLAYERS_PER_ROOM) {
-            send(ws, { type: 'ERROR', message: `Oda dolu! (Maksimum ${MAX_PLAYERS_PER_ROOM} oyuncu)` });
+            send(ws, { type: 'ERROR', message: `Oda dolu! (Maksimum ${MAX_PLAYERS_PER_ROOM} yarışçı)` });
             return;
           }
 
@@ -239,12 +382,15 @@ wss.on('connection', (ws) => {
             maxPlayers: MAX_PLAYERS_PER_ROOM,
             mode: room.mode,
             targetDistance: room.targetDistance,
+            entryFee: room.entryFee || 0,
+            totalPot: (room.entryFee || 0) * room.players.size,
             players: playerList,
           });
 
           broadcastRoom(room, {
             type: 'PLAYER_JOINED',
             players: playerList,
+            totalPot: (room.entryFee || 0) * room.players.size,
             newPlayer: {
               id: player.id,
               name: player.name,
@@ -274,7 +420,7 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          room.status = 'STARTING';
+          room.status = 'RACING';
           room.seed = Math.floor(Math.random() * 10000000);
 
           const startPayload = {
@@ -283,6 +429,8 @@ wss.on('connection', (ws) => {
             mode: room.mode,
             targetDistance: room.targetDistance,
             countdownSec: 3,
+            entryFee: room.entryFee || 0,
+            totalPot: (room.entryFee || 0) * room.players.size,
             players: Array.from(room.players.values()).map(p => ({
               id: p.id,
               name: p.name,
@@ -294,7 +442,7 @@ wss.on('connection', (ws) => {
           };
 
           broadcastRoom(room, startPayload);
-          console.log(`[Room ${currentRoomCode}] Race started with ${room.players.size} players! Seed: ${room.seed}`);
+          console.log(`[Room ${currentRoomCode}] Race started with ${room.players.size} players! Pot: ₺${(room.entryFee || 0) * room.players.size}`);
           break;
         }
 
@@ -353,24 +501,10 @@ wss.on('connection', (ws) => {
           if (room.mode === 'SURVIVAL') {
             if (alivePlayers.length === 1) {
               const winner = alivePlayers[0];
-              room.status = 'FINISHED';
-              broadcastRoom(room, {
-                type: 'RACE_FINISHED',
-                winnerId: winner.id,
-                winnerName: winner.name,
-                reason: 'LAST_SURVIVOR',
-                standings: buildStandings(room),
-              });
+              sendRaceFinished(room, winner.id, winner.name, 'LAST_SURVIVOR');
               console.log(`[Room ${currentRoomCode}] Survival winner: ${winner.name}`);
             } else if (alivePlayers.length === 0) {
-              room.status = 'FINISHED';
-              broadcastRoom(room, {
-                type: 'RACE_FINISHED',
-                winnerId: p ? p.id : '',
-                winnerName: p ? p.name : 'Herkes Elendi',
-                reason: 'ALL_CRASHED',
-                standings: buildStandings(room),
-              });
+              sendRaceFinished(room, p ? p.id : '', p ? p.name : 'Herkes Elendi', 'ALL_CRASHED');
             }
           }
           break;
@@ -388,15 +522,7 @@ wss.on('connection', (ws) => {
             p.distance = data.distance || room.targetDistance;
           }
 
-          room.status = 'FINISHED';
-          broadcastRoom(room, {
-            type: 'RACE_FINISHED',
-            winnerId: playerId,
-            winnerName: p ? p.name : 'Şampiyon',
-            reason: 'GOAL_REACHED',
-            finishTime: data.finishTime,
-            standings: buildStandings(room),
-          });
+          sendRaceFinished(room, playerId, p ? p.name : 'Şampiyon', 'GOAL_REACHED', data.finishTime);
           console.log(`[Room ${currentRoomCode}] Goal reached by: ${p?.name} in ${data.finishTime}s!`);
           break;
         }
@@ -416,13 +542,28 @@ wss.on('connection', (ws) => {
     const room = rooms.get(currentRoomCode);
     if (!room) return;
 
+    // Check if leaving user is a spectator
+    if (room.spectators && room.spectators.has(playerId)) {
+      room.spectators.delete(playerId);
+      broadcastRoom(room, {
+        type: 'SPECTATOR_COUNT_CHANGED',
+        spectatorCount: room.spectators.size,
+      });
+      if (room.players.size === 0 && room.spectators.size === 0) {
+        rooms.delete(currentRoomCode);
+        console.log(`[Room ${currentRoomCode}] Room closed (empty)`);
+      }
+      currentRoomCode = null;
+      return;
+    }
+
     const leavingPlayer = room.players.get(playerId);
     const leavingName = leavingPlayer ? leavingPlayer.name : 'Bir Sürücü';
 
     room.players.delete(playerId);
     console.log(`[Room ${currentRoomCode}] Player ${playerId} (${leavingName}) left. Remaining: ${room.players.size}`);
 
-    if (room.players.size === 0) {
+    if (room.players.size === 0 && (!room.spectators || room.spectators.size === 0)) {
       rooms.delete(currentRoomCode);
       console.log(`[Room ${currentRoomCode}] Room closed (empty)`);
     } else {
@@ -440,6 +581,7 @@ wss.on('connection', (ws) => {
         playerId,
         playerName: leavingName,
         players: remainingList,
+        totalPot: (room.entryFee || 0) * room.players.size,
       });
 
       const hasHost = Array.from(room.players.values()).some(p => p.isHost);

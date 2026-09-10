@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GAME_CONSTANTS } from './Constants';
 import { eventBus } from './EventBus';
 import { gameState } from './GameState';
-import { inputManager } from '../player/InputManager';
+import { inputManager, type InputState } from '../player/InputManager';
 import { RoadManager } from '../road/RoadManager';
 import { PlayerVehicle } from '../vehicles/PlayerVehicle';
 import { TrafficManager } from '../traffic/TrafficManager';
@@ -115,6 +115,8 @@ export class Game {
   private scrapeCooldown = 0;
   private remoteOpponentVehicles: Map<string, RemotePlayerVehicle> = new Map();
   private raceTime = 0;
+  private isSpectatorActive = false;
+  private spectateTargetId: string | null = null;
 
   // Cinematic Camera Intro System
   private isIntroActive = false;
@@ -257,6 +259,23 @@ export class Game {
       this.resumeRace();
     };
 
+    this.uiManager.onStartMultiplayerRace = () => {
+      this.startMultiplayerRace();
+    };
+
+    this.uiManager.onSpectatorTargetCycle = (dir: 1 | -1) => {
+      this.cycleSpectatorTarget(dir);
+    };
+
+    this.uiManager.onSpectatorCameraCycle = () => {
+      const nextMode = this.chaseCamera.cycleMode();
+      this.uiManager.showScrapeNotification('📷 KAMERA', `Açı: ${nextMode}`);
+    };
+
+    this.uiManager.onSpectatorLeave = () => {
+      this.exitSpectatorMode();
+    };
+
     this.uiManager.onSkipIntro = () => {
       this.skipIntro();
     };
@@ -335,6 +354,20 @@ export class Game {
         this.remoteOpponentVehicles.delete(data.playerId);
       }
       this.uiManager.showScrapeNotification('⚠️ OYUNCU AYRILDI', `${data.playerName || 'Bir rakip'} odadan ayrıldı.`);
+    });
+
+    eventBus.on('mp:spectatorJoined', () => {
+      this.isSpectatorActive = true;
+      this.startMultiplayerRace();
+    });
+
+    eventBus.on('mp:raceFinished', (data: any) => {
+      if (data.isMeWinner && data.totalPot) {
+        gameState.addMoney(data.totalPot);
+      } else if (data.spectatorPayout && data.spectatorPayout > 0) {
+        gameState.addMoney(data.spectatorPayout);
+      }
+      this.uiManager.setSpectatorHudVisible(false);
     });
   }
 
@@ -744,6 +777,7 @@ export class Game {
     prng.setSeed(multiplayerManager.seed);
     gameState.currentMode = 'ONE_WAY';
     this.raceTime = 0;
+    this.isCrashed = false;
 
     this.startRace();
 
@@ -753,9 +787,19 @@ export class Game {
     }
     this.remoteOpponentVehicles.clear();
 
-    const myLane = multiplayerManager.myAssignedLane;
-    if (this.playerVehicle) {
-      this.playerVehicle.mesh.position.set(laneSystem.getLaneX(myLane), 0.12, 0);
+    if (multiplayerManager.isSpectator) {
+      this.isSpectatorActive = true;
+      if (this.playerVehicle) {
+        this.playerVehicle.mesh.visible = false;
+        this.playerVehicle.speedMps = 0;
+      }
+    } else {
+      this.isSpectatorActive = false;
+      if (this.playerVehicle) {
+        this.playerVehicle.mesh.visible = true;
+        const myLane = multiplayerManager.myAssignedLane;
+        this.playerVehicle.mesh.position.set(laneSystem.getLaneX(myLane), 0.12, 0);
+      }
     }
 
     // Spawn 3D vehicle for every opponent in the room
@@ -768,9 +812,25 @@ export class Game {
       );
       const oppLane = opp.lane ?? 2;
       const initialX = laneSystem.getLaneX(oppLane);
-      remoteVehicle.setInitialPosition(initialX, 0, 0);
+      remoteVehicle.setInitialPosition(initialX, 0, opp.distance || 0);
       this.scene.add(remoteVehicle.mesh);
       this.remoteOpponentVehicles.set(opp.id, remoteVehicle);
+    }
+
+    if (this.isSpectatorActive) {
+      const firstTarget = Array.from(multiplayerManager.opponents.values()).find(p => !p.isCrashed) || multiplayerManager.opponents.values().next().value;
+      if (firstTarget) {
+        this.spectateTargetId = firstTarget.id;
+        multiplayerManager.spectateTargetId = firstTarget.id;
+        const targetVehicle = this.remoteOpponentVehicles.get(firstTarget.id);
+        if (targetVehicle) {
+          this.chaseCamera.snapToTarget(targetVehicle);
+        }
+        this.uiManager.updateSpectatorTargetInfo(firstTarget.name, firstTarget.vehicleId);
+      }
+      this.uiManager.setSpectatorHudVisible(true);
+    } else {
+      this.uiManager.setSpectatorHudVisible(false);
     }
 
     // Fast-track countdown in multiplayer so all racers start in sync
@@ -779,6 +839,97 @@ export class Game {
     }, 500);
 
     this.uiManager.setMultiplayerHudVisible(true);
+  }
+
+  public cycleSpectatorTarget(direction: 1 | -1 = 1): void {
+    const nextTarget = multiplayerManager.cycleSpectateTarget(direction);
+    if (nextTarget) {
+      this.spectateTargetId = nextTarget.id;
+      const targetVehicle = this.remoteOpponentVehicles.get(nextTarget.id);
+      if (targetVehicle) {
+        this.chaseCamera.snapToTarget(targetVehicle);
+      }
+      this.uiManager.updateSpectatorTargetInfo(nextTarget.name, nextTarget.vehicleId);
+      this.uiManager.showScrapeNotification('👁️ İZLENEN SÜRÜCÜ', `${nextTarget.name} takip ediliyor.`);
+    }
+  }
+
+  public exitSpectatorMode(): void {
+    this.isSpectatorActive = false;
+    this.spectateTargetId = null;
+    this.uiManager.setSpectatorHudVisible(false);
+    multiplayerManager.leaveRoom();
+    if (this.playerVehicle) {
+      this.playerVehicle.mesh.visible = true;
+    }
+    this.setScreen('MAIN_MENU');
+  }
+
+  private updateSpectatorMode(delta: number, inputs: InputState): void {
+    // 1. Spectator target cycling and camera mode
+    if (inputs.spectatePrevJustPressed) {
+      this.cycleSpectatorTarget(-1);
+    } else if (inputs.spectateNextJustPressed) {
+      this.cycleSpectatorTarget(1);
+    }
+
+    if (inputs.cameraToggleJustPressed) {
+      const nextMode = this.chaseCamera.cycleMode();
+      this.uiManager.showScrapeNotification('📷 KAMERA', `Açı: ${nextMode}`);
+    }
+
+    // 2. Resolve target vehicle
+    let targetVehicle = this.spectateTargetId ? this.remoteOpponentVehicles.get(this.spectateTargetId) : null;
+    let targetOpponent = this.spectateTargetId ? multiplayerManager.opponents.get(this.spectateTargetId) : null;
+
+    if (!targetVehicle || !targetOpponent || targetOpponent.isCrashed) {
+      const active = Array.from(multiplayerManager.opponents.values()).find(o => !o.isCrashed);
+      if (active) {
+        this.spectateTargetId = active.id;
+        multiplayerManager.spectateTargetId = active.id;
+        targetVehicle = this.remoteOpponentVehicles.get(active.id);
+        targetOpponent = active;
+        if (targetVehicle) {
+          this.chaseCamera.snapToTarget(targetVehicle);
+        }
+      }
+    }
+
+    const targetPos = targetVehicle ? targetVehicle.mesh.position : new THREE.Vector3(0, 0, 0);
+    const targetSpeedKmh = targetVehicle ? targetVehicle.speedKmh : 0;
+
+    // 3. Update all remote opponents
+    this.raceTime += delta;
+    for (const remoteVehicle of this.remoteOpponentVehicles.values()) {
+      remoteVehicle.update(delta, targetPos.z);
+    }
+
+    // 4. Endless Road & Environment follow target
+    this.roadManager.update(targetPos.z, delta, performance.now() * 0.001);
+    this.environment.update(targetPos.z, delta);
+
+    // 5. Camera follow
+    if (targetVehicle) {
+      this.chaseCamera.update(delta, targetVehicle, targetVehicle.steerInput, false);
+      audioManager.updateEnginePitch(targetSpeedKmh, true, false);
+    }
+
+    // 6. Live leaderboard & Spectator HUD
+    const liveStandings = this.getLiveStandings();
+    this.uiManager.updateMultiplayerLeaderboard(liveStandings);
+
+    const currentRank = liveStandings.findIndex(s => s.id === this.spectateTargetId) + 1 || 1;
+    this.uiManager.updateSpectatorHud({
+      racerName: targetOpponent?.name || 'Yarışçı',
+      speedKmh: Math.round(targetSpeedKmh),
+      distanceMeters: Math.round(targetPos.z),
+      rank: currentRank,
+      totalRacers: liveStandings.length,
+      totalPot: multiplayerManager.totalPot,
+      spectatorCount: multiplayerManager.spectatorCount,
+      targetId: this.spectateTargetId || '',
+      currentBet: multiplayerManager.currentBet,
+    });
   }
 
   public skipIntro(): void {
@@ -870,33 +1021,56 @@ export class Game {
 
     if (multiplayerManager.isRacing) {
       multiplayerManager.sendCrashed(this.playerVehicle.mesh.position.z);
+      this.isCrashed = true;
+      if (this.playerVehicle) {
+        this.playerVehicle.speedMps = 0;
+      }
+
+      // Transition to spectator mode or end race if all done
+      setTimeout(() => {
+        const activeOpponents = Array.from(multiplayerManager.opponents.values()).filter(o => !o.isCrashed);
+        if (activeOpponents.length > 0) {
+          // Transition to spectator mode to watch the rest of the race
+          this.isSpectatorActive = true;
+          this.playerVehicle.mesh.visible = false;
+          this.spectateTargetId = activeOpponents[0].id;
+          multiplayerManager.spectateTargetId = this.spectateTargetId;
+          const targetVeh = this.remoteOpponentVehicles.get(this.spectateTargetId);
+          if (targetVeh) {
+            this.chaseCamera.snapToTarget(targetVeh);
+          }
+          this.uiManager.updateSpectatorTargetInfo(activeOpponents[0].name, activeOpponents[0].vehicleId);
+          this.uiManager.showScrapeNotification('💥 ELENDİN!', 'Seyirci moduna geçildi. Kalan yarışçıları izliyorsun!');
+          this.uiManager.setSpectatorHudVisible(true);
+        } else {
+          this.setScreen('GAME_OVER');
+          const standings = this.getLiveStandings();
+          const winner = standings[0];
+          this.uiManager.showMultiplayerResult({
+            isWinner: false,
+            winnerName: winner?.name || 'Rakip',
+            reason: 'OPPONENT_CRASHED',
+            myDist: this.playerVehicle.mesh.position.z,
+            oppDist: standings.find((s) => !s.isMe)?.distance || 0,
+            standings,
+            totalPot: multiplayerManager.totalPot,
+          });
+        }
+      }, 700);
+      return;
     }
 
-    // Trigger Game Over screen after a brief dramatic moment
+    // Single Player: Trigger Game Over screen after a brief dramatic moment
     setTimeout(() => {
-      if (multiplayerManager.isRacing) {
-        this.setScreen('GAME_OVER');
-        const standings = this.getLiveStandings();
-        const winner = standings[0];
-        this.uiManager.showMultiplayerResult({
-          isWinner: false,
-          winnerName: winner?.name || 'Rakip',
-          reason: 'OPPONENT_CRASHED',
-          myDist: this.playerVehicle.mesh.position.z,
-          oppDist: standings.find(s => !s.isMe)?.distance || 0,
-          standings,
-        });
-      } else {
-        this.setScreen('GAME_OVER');
-        this.uiManager.showGameOver(
-          gameState.currentDistanceMeters,
-          gameState.currentScore,
-          result.earnings,
-          gameState.currentNearMisses,
-          result.isNewHighScore,
-          title
-        );
-      }
+      this.setScreen('GAME_OVER');
+      this.uiManager.showGameOver(
+        gameState.currentDistanceMeters,
+        gameState.currentScore,
+        result.earnings,
+        gameState.currentNearMisses,
+        result.isNewHighScore,
+        title
+      );
     }, 700);
   }
 
@@ -1116,7 +1290,7 @@ export class Game {
       ? cinematicAutopilot.update(delta, this.playerVehicle, this.trafficManager)
       : null;
 
-    const inputs = aiOutput
+    const inputs: InputState = aiOutput
       ? {
           steer: aiOutput.steer,
           accelerate: aiOutput.accelerate,
@@ -1131,6 +1305,8 @@ export class Game {
           pauseJustPressed: rawInputs.pauseJustPressed,
           radioNextJustPressed: rawInputs.radioNextJustPressed,
           radioToggleJustPressed: rawInputs.radioToggleJustPressed,
+          spectatePrevJustPressed: false,
+          spectateNextJustPressed: false,
         }
       : rawInputs;
 
@@ -1214,7 +1390,7 @@ export class Game {
       inputs.radioNextJustPressed ||
       inputs.radioToggleJustPressed;
 
-    if (hasActiveInput) {
+    if (hasActiveInput || this.isSpectatorActive) {
       this.idleTimer = 0;
       if (this.chaseCamera.isIdleActive) {
         this.chaseCamera.exitIdleCinematic();
@@ -1268,6 +1444,12 @@ export class Game {
         this.uiManager.updateRadioVisuals(radioManager.getSpectrumLevels(), radioManager.isPlaying);
         return;
       }
+    }
+
+    // Spectator mode handling (watch active racers, no local physics or collision updates)
+    if (this.isSpectatorActive) {
+      this.updateSpectatorMode(delta, inputs);
+      return;
     }
 
     // Check nitro
@@ -1495,17 +1677,26 @@ export class Game {
     isCrashed: boolean;
     lane: number;
   }> {
-    const myDist = this.playerVehicle?.mesh?.position?.z || 0;
-    const racers = [
-      {
+    const racers: Array<{
+      id: string;
+      name: string;
+      distance: number;
+      isMe: boolean;
+      isCrashed: boolean;
+      lane: number;
+    }> = [];
+
+    if (!multiplayerManager.isSpectator) {
+      const myDist = this.playerVehicle?.mesh?.position?.z || 0;
+      racers.push({
         id: multiplayerManager.myPlayerId || 'local_me',
         name: multiplayerManager.myPlayerName || 'Sen',
         distance: Math.round(myDist),
         isMe: true,
         isCrashed: this.isCrashed,
         lane: multiplayerManager.myAssignedLane,
-      }
-    ];
+      });
+    }
 
     for (const opp of multiplayerManager.opponents.values()) {
       racers.push({

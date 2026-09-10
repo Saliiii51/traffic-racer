@@ -22,6 +22,22 @@ export class RemotePlayerVehicle extends Vehicle {
   private targetSteerAngle: number = 0;
   private targetYaw: number = 0;
 
+  public get speedKmh(): number {
+    return this.currentSpeedMps * 3.6;
+  }
+
+  public get currentSteerTilt(): number {
+    return this.currentSteerAngle * 0.15;
+  }
+
+  public get currentPitch(): number {
+    return 0;
+  }
+
+  public get steerInput(): number {
+    return this.targetSteerAngle;
+  }
+
   // Floating 3D Name & Distance Sprite Tag
   private nameplateCanvas: HTMLCanvasElement | null = null;
   private nameplateCtx: CanvasRenderingContext2D | null = null;

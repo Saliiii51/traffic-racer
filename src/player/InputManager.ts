@@ -16,6 +16,8 @@ export interface InputState {
   signalRightJustPressed: boolean;
   radioNextJustPressed: boolean;
   radioToggleJustPressed: boolean;
+  spectatePrevJustPressed: boolean;
+  spectateNextJustPressed: boolean;
 }
 
 export class InputManager {
@@ -38,6 +40,8 @@ export class InputManager {
   private virtualSignalRight = false;
   private virtualRadioNext = false;
   private virtualRadioToggle = false;
+  private virtualSpectatePrev = false;
+  private virtualSpectateNext = false;
 
   // Gyroscope tilt
   public controlType: 'buttons' | 'tilt' = 'buttons';
@@ -57,6 +61,8 @@ export class InputManager {
   private signalRightConsumed = false;
   private radioNextConsumed = false;
   private radioToggleConsumed = false;
+  private spectatePrevConsumed = false;
+  private spectateNextConsumed = false;
 
   private constructor() {
     this.controlType = gameState.settings.controlType || 'buttons';
@@ -93,6 +99,10 @@ export class InputManager {
         this.virtualRadioNext = true;
       } else if (e.code === 'KeyM') {
         this.virtualRadioToggle = true;
+      } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        this.virtualSpectatePrev = true;
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        this.virtualSpectateNext = true;
       }
     });
 
@@ -311,6 +321,8 @@ export class InputManager {
     this.virtualSignalRight = false;
     this.virtualRadioNext = false;
     this.virtualRadioToggle = false;
+    this.virtualSpectatePrev = false;
+    this.virtualSpectateNext = false;
     this.gyroSteer = 0;
   }
 
@@ -369,6 +381,14 @@ export class InputManager {
 
   public triggerRadioToggle(): void {
     this.virtualRadioToggle = true;
+  }
+
+  public triggerSpectatePrev(): void {
+    this.virtualSpectatePrev = true;
+  }
+
+  public triggerSpectateNext(): void {
+    this.virtualSpectateNext = true;
   }
 
   // Check state per frame with delta smoothing
@@ -511,6 +531,24 @@ export class InputManager {
       this.radioToggleConsumed = false;
     }
 
+    let spectatePrevJustPressed = false;
+    if (this.virtualSpectatePrev && !this.spectatePrevConsumed) {
+      spectatePrevJustPressed = true;
+      this.spectatePrevConsumed = true;
+      this.virtualSpectatePrev = false;
+    } else if (!this.virtualSpectatePrev) {
+      this.spectatePrevConsumed = false;
+    }
+
+    let spectateNextJustPressed = false;
+    if (this.virtualSpectateNext && !this.spectateNextConsumed) {
+      spectateNextJustPressed = true;
+      this.spectateNextConsumed = true;
+      this.virtualSpectateNext = false;
+    } else if (!this.virtualSpectateNext) {
+      this.spectateNextConsumed = false;
+    }
+
     return {
       steer: this.currentSteer,
       accelerate,
@@ -525,6 +563,8 @@ export class InputManager {
       signalRightJustPressed,
       radioNextJustPressed,
       radioToggleJustPressed,
+      spectatePrevJustPressed,
+      spectateNextJustPressed,
     };
   }
 }

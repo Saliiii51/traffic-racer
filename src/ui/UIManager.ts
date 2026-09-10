@@ -32,6 +32,9 @@ export class UIManager {
   private mpHudOppInfo!: HTMLElement;
   private mpHudDiffBadge!: HTMLElement;
   public onStartMultiplayerRace?: () => void;
+  public onSpectatorTargetCycle?: (direction: 1 | -1) => void;
+  public onSpectatorCameraCycle?: () => void;
+  public onSpectatorLeave?: () => void;
 
   // HUD elements
   private hudScoreVal!: HTMLElement;
@@ -339,6 +342,62 @@ export class UIManager {
           <span id="mp-hud-my-info" style="display: none;"></span>
           <span id="mp-hud-opp-info" style="display: none;"></span>
           <span id="mp-hud-diff-badge" style="display: none;"></span>
+        </div>
+
+        <!-- SPECTATOR FLOATING HUD BAR & CONTROLS -->
+        <div id="hud-spectator-bar" style="display: none; position: absolute; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(12, 18, 32, 0.94); border: 2px solid #00f0ff; border-radius: 16px; padding: 8px 16px; color: #fff; font-family: 'Orbitron', sans-serif; align-items: center; gap: 12px; box-shadow: 0 0 25px rgba(0,240,255,0.40); z-index: 65; max-width: 96vw; flex-wrap: wrap; justify-content: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="live-pulse-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #ff0055; box-shadow: 0 0 8px #ff0055; display: inline-block;"></span>
+            <span style="font-size: 0.82rem; font-weight: 900; color: #ff0055; letter-spacing: 1px;">CANLI</span>
+            <span id="spec-hud-count" style="font-size: 0.75rem; background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 8px; color: #00f0ff;">👁️ 1</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button id="btn-spec-prev" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.80rem; font-weight: 800; border-color: #00f0ff;" title="Önceki Sürücü (A / Sol Ok)">◀ ÖNCEKİ</button>
+            <div id="spec-hud-target-box" style="background: rgba(0,240,255,0.12); border: 1px solid #00f0ff; border-radius: 10px; padding: 4px 12px; text-align: center; min-width: 130px;">
+              <div id="spec-hud-target-name" style="font-size: 0.86rem; font-weight: 900; color: #fff;">Sürücü</div>
+              <div style="font-size: 0.70rem; color: #ffbe0b;"><span id="spec-hud-target-rank">1. Sıra</span> • <span id="spec-hud-target-speed">0 KM/H</span></div>
+            </div>
+            <button id="btn-spec-next" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.80rem; font-weight: 800; border-color: #00f0ff;" title="Sonraki Sürücü (D / Sağ Ok)">SONRAKİ ▶</button>
+          </div>
+
+          <!-- Pot & Bet Pill -->
+          <div id="spec-hud-pot-box" style="display: flex; align-items: center; gap: 8px; background: rgba(255,190,11,0.12); border: 1px solid #ffbe0b; border-radius: 10px; padding: 4px 10px; font-size: 0.76rem;">
+            <span>🏆 Havuz: <b id="spec-hud-pot-val" style="color: #ffbe0b;">₺0</b></span>
+            <button id="btn-spec-open-bet" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.74rem; font-weight: 800; background: linear-gradient(135deg, #ffbe0b, #fb5607); border: none; color: #000;">🎲 BAHİS YAP (1.8x)</button>
+          </div>
+
+          <div id="spec-hud-active-bet-badge" style="display: none; font-size: 0.75rem; background: rgba(0,255,170,0.15); border: 1px solid #00ffaa; border-radius: 8px; padding: 4px 10px; color: #00ffaa; font-weight: 800;">
+            🎯 Bahis: <span id="spec-bet-summary">₺500 (1.8x)</span>
+          </div>
+
+          <button id="btn-spec-camera" class="btn btn-secondary" style="padding: 6px 10px; font-size: 0.80rem;" title="Kamera Açısını Değiştir (C)">📷 KAMERA</button>
+          <button id="btn-spec-leave" class="btn btn-secondary" style="padding: 6px 10px; font-size: 0.80rem; color: #ff5555; border-color: rgba(255,85,85,0.5);" title="Seyirciden Çık">🚪 ÇIK</button>
+        </div>
+
+        <!-- SPECTATOR BET MODAL POPUP -->
+        <div id="modal-spectator-bet" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+          <div class="glass-panel" style="max-width: 420px; width: 90%; text-align: center; border: 2px solid #ffbe0b; padding: 22px; border-radius: 16px;">
+            <div style="font-size: 2.4rem; margin-bottom: 6px;">🎲</div>
+            <h3 style="margin: 0 0 6px 0; font-family: 'Orbitron', sans-serif; color: #ffbe0b;">YARIŞÇIYA BAHİS OYNA</h3>
+            <p style="font-size: 0.82rem; color: rgba(255,255,255,0.75); margin-bottom: 14px;">
+              İzlediğin sürücü birinci gelirse <b style="color: #00ffaa;">1.8 Katı</b> kazanırsın!
+            </p>
+            <div style="background: rgba(0,0,0,0.4); border-radius: 10px; padding: 10px; margin-bottom: 14px; font-size: 0.88rem;">
+              Hedef: <b id="spec-bet-target-name" style="color: #00f0ff;">-</b><br>
+              <span style="font-size: 0.74rem; color: rgba(255,255,255,0.6);">Bakiye: <span id="spec-bet-user-balance">₺0</span></span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;" id="spec-bet-pills-wrap">
+              <button class="choice-pill spec-bet-amount-pill active" data-amount="250" style="flex: 1; padding: 8px;">₺250</button>
+              <button class="choice-pill spec-bet-amount-pill" data-amount="500" style="flex: 1; padding: 8px;">₺500</button>
+              <button class="choice-pill spec-bet-amount-pill" data-amount="1000" style="flex: 1; padding: 8px;">₺1.000</button>
+              <button class="choice-pill spec-bet-amount-pill" data-amount="2500" style="flex: 1; padding: 8px;">₺2.500</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button id="btn-spec-bet-cancel" class="btn btn-secondary" style="flex: 1; padding: 10px;">İPTAL</button>
+              <button id="btn-spec-bet-confirm" class="btn btn-primary" style="flex: 1; padding: 10px; font-weight: 800; background: linear-gradient(135deg, #ffbe0b, #fb5607); border: none; color: #000;">BAHİSİ ONAYLA</button>
+            </div>
+          </div>
         </div>
 
         <!-- Telemetry: Turn signals, Speedometer & Nitro bar -->
@@ -1063,14 +1122,28 @@ export class UIManager {
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5); margin-top: 4px;">Seçili Aracınız: <b id="mp-selected-car-name" style="color: #00f0ff;">-</b></div>
           </div>
 
-          <!-- Lobby Navigation Tabs: ODA KUR vs ODAYA KATIL -->
+          <!-- Lobby Navigation Tabs: AÇIK ODALAR, ODA KUR vs ODAYA KATIL -->
           <div style="display: flex; gap: 8px; margin-bottom: 18px;">
-            <button id="tab-mp-create" class="choice-pill active" style="flex: 1; padding: 10px; font-size: 0.88rem;">🏠 ODA KUR (HOST)</button>
-            <button id="tab-mp-join" class="choice-pill" style="flex: 1; padding: 10px; font-size: 0.88rem;">🔑 ODAYA KATIL</button>
+            <button id="tab-mp-rooms" class="choice-pill active" style="flex: 1; padding: 10px; font-size: 0.86rem;">🌐 AÇIK ODALAR</button>
+            <button id="tab-mp-create" class="choice-pill" style="flex: 1; padding: 10px; font-size: 0.86rem;">🏠 ODA KUR</button>
+            <button id="tab-mp-join" class="choice-pill" style="flex: 1; padding: 10px; font-size: 0.86rem;">🔑 KODLA GİR</button>
+          </div>
+
+          <!-- TAB 0: PUBLIC ROOMS BROWSER -->
+          <div id="panel-mp-rooms">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <span style="font-weight: 700; font-size: 0.86rem; color: #00f0ff;">🔴 CANLI AÇIK ODALAR</span>
+              <button id="btn-mp-refresh-rooms" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.74rem;">🔄 YENİLE</button>
+            </div>
+            <div id="mp-rooms-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 4px;">
+              <div style="text-align: center; padding: 24px 12px; color: rgba(255,255,255,0.5); font-size: 0.84rem;">
+                ⏳ Odalar yükleniyor...
+              </div>
+            </div>
           </div>
 
           <!-- TAB 1: CREATE ROOM CONTENT -->
-          <div id="panel-mp-create">
+          <div id="panel-mp-create" style="display: none;">
             <div style="margin-bottom: 16px;">
               <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: #fff;">🏁 YARIŞ FORMATI</div>
               <div style="display: flex; gap: 8px;" id="mp-mode-selector">
@@ -1079,6 +1152,24 @@ export class UIManager {
               </div>
               <div id="mp-mode-desc" style="font-size: 0.74rem; color: #ffbe0b; margin-top: 6px;">
                 Trafikte 3000 metreye ilk varan düelloyu kazanır!
+              </div>
+            </div>
+
+            <!-- BAHİS & GİRİŞ ÜCRETİ -->
+            <div style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.85rem; color: #fff;">💰 GİRİŞ ÜCRETİ / BAHİS</span>
+                <span id="mp-create-user-balance" style="font-size: 0.78rem; color: #ffbe0b; font-weight: 700;">Bakiye: ₺0</span>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="mp-wager-selector">
+                <button class="choice-pill active mp-wager-pill" data-fee="0" style="flex: 1; min-width: 78px; padding: 8px 4px; font-size: 0.78rem;">₺0 (Ücretsiz)</button>
+                <button class="choice-pill mp-wager-pill" data-fee="500" style="flex: 1; min-width: 78px; padding: 8px 4px; font-size: 0.78rem;">₺500</button>
+                <button class="choice-pill mp-wager-pill" data-fee="1000" style="flex: 1; min-width: 78px; padding: 8px 4px; font-size: 0.78rem;">₺1.000</button>
+                <button class="choice-pill mp-wager-pill" data-fee="2500" style="flex: 1; min-width: 78px; padding: 8px 4px; font-size: 0.78rem;">₺2.500</button>
+                <button class="choice-pill mp-wager-pill" data-fee="5000" style="flex: 1; min-width: 78px; padding: 8px 4px; font-size: 0.78rem;">₺5.000</button>
+              </div>
+              <div id="mp-wager-desc" style="font-size: 0.74rem; color: #00ffaa; margin-top: 6px;">
+                🏆 Kazanan tüm ödül havuzunu (Giriş Ücreti × Yarışçı Sayısı) alır!
               </div>
             </div>
 
@@ -1093,7 +1184,11 @@ export class UIManager {
             <div id="mp-host-room-info" style="display: none; background: rgba(255, 0, 127, 0.08); border: 1.5px dashed #ff007f; border-radius: 12px; padding: 16px; text-align: center; margin-top: 12px;">
               <div style="font-size: 0.82rem; color: rgba(255,255,255,0.7);">ODA PIN KODU (Arkadaşlarına Gönder):</div>
               <div id="mp-room-code-display" style="font-size: 2.2rem; font-family: 'Orbitron', monospace; font-weight: 900; color: #00f0ff; letter-spacing: 8px; margin: 8px 0;">----</div>
-              <div id="mp-host-status-msg" style="font-size: 0.85rem; color: #ffbe0b; margin-bottom: 12px;">⏳ Arkadaşlarının odaya girmesi bekleniyor... (En az 2 yarışçı)</div>
+              <div id="mp-host-status-msg" style="font-size: 0.85rem; color: #ffbe0b; margin-bottom: 10px;">⏳ Arkadaşlarının odaya girmesi bekleniyor... (En az 2 yarışçı)</div>
+
+              <div id="mp-host-pot-badge" style="background: rgba(255,190,11,0.12); border: 1px solid #ffbe0b; border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; font-size: 0.82rem; color: #ffbe0b; font-weight: 700;">
+                💰 Giriş: ₺0 • 🏆 Toplam Ödül Havuzu: ₺0
+              </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; text-align: left;">
                 <span style="font-weight: 700; font-size: 0.82rem; color: #fff;">🏎️ OTOYOL GRID (4 ŞERİT):</span>
@@ -1129,6 +1224,9 @@ export class UIManager {
               <div style="text-align: center; margin-bottom: 10px; font-size: 0.88rem; color: #00f0ff; line-height: 1.4;">
                 ✅ <b>Odaya Bağlandın!</b><br><span style="color: rgba(255,255,255,0.7); font-size: 0.78rem;">Oda kurucusu başlattığında yarış otomatik başlayacak...</span>
               </div>
+              <div id="mp-join-pot-badge" style="background: rgba(255,190,11,0.12); border: 1px solid #ffbe0b; border-radius: 8px; padding: 6px 12px; margin-bottom: 10px; font-size: 0.82rem; color: #ffbe0b; font-weight: 700; text-align: center;">
+                💰 Giriş: ₺0 • 🏆 Toplam Ödül Havuzu: ₺0
+              </div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-weight: 700; font-size: 0.82rem; color: #fff;">🏎️ OTOYOL GRID:</span>
                 <span id="mp-join-count-badge" style="background: #00f0ff; color: #000; font-size: 0.76rem; font-weight: 800; padding: 2px 8px; border-radius: 10px;">1/4 Oyuncu</span>
@@ -1146,7 +1244,10 @@ export class UIManager {
         <div class="glass-panel settings-card" style="max-width: 520px; text-align: center; border: 2px solid #ff007f;">
           <div id="mp-result-badge-icon" style="font-size: 3.8rem; margin-bottom: 4px;">🏆</div>
           <h2 id="mp-result-title" style="font-size: 1.8rem; margin: 0 0 4px 0; color: #00f0ff; font-family: 'Orbitron', sans-serif;">KAZANDIN!</h2>
-          <p id="mp-result-subtitle" style="font-size: 0.90rem; color: rgba(255,255,255,0.8); margin-bottom: 16px;">Otoyolun şampiyonu sensin!</p>
+          <p id="mp-result-subtitle" style="font-size: 0.90rem; color: rgba(255,255,255,0.8); margin-bottom: 14px;">Otoyolun şampiyonu sensin!</p>
+
+          <!-- Pot / Bet Payout Award Box -->
+          <div id="mp-result-payout-box" style="margin-bottom: 14px; background: rgba(0, 255, 170, 0.12); border: 1.5px solid #00ffaa; border-radius: 12px; padding: 10px 16px; font-size: 0.95rem; font-weight: 800; color: #00ffaa; display: none;"></div>
 
           <!-- 4-Player Leaderboard / Podium Table -->
           <div id="mp-podium-table" style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 8px; font-family: 'Rajdhani', sans-serif; text-align: left;">
@@ -2602,6 +2703,13 @@ export class UIManager {
       }
       const err = document.getElementById('mp-error-msg');
       if (err) err.style.display = 'none';
+
+      const userBal = document.getElementById('mp-create-user-balance');
+      if (userBal) userBal.innerText = `Bakiye: ₺${gameState.money.toLocaleString('tr-TR')}`;
+
+      // Open public rooms tab by default and fetch live rooms
+      const tabRooms = document.getElementById('tab-mp-rooms') as HTMLButtonElement | null;
+      tabRooms?.click();
     }
   }
 
@@ -2748,6 +2856,8 @@ export class UIManager {
     myDist: number;
     oppDist: number;
     standings?: any[];
+    totalPot?: number;
+    spectatorPayout?: number;
   }): void {
     if (!this.screenMultiplayerResult) return;
 
@@ -2757,8 +2867,28 @@ export class UIManager {
     const myDistEl = document.getElementById('mp-stat-my-dist');
     const oppDistEl = document.getElementById('mp-stat-opp-dist');
     const podiumTable = document.getElementById('mp-podium-table');
+    const payoutBox = document.getElementById('mp-result-payout-box');
 
-    if (params.isWinner) {
+    const isSpectator = multiplayerManager.isSpectator;
+
+    if (isSpectator) {
+      if (icon) icon.innerText = '🏁';
+      if (title) {
+        title.innerText = 'YARIŞ TAMAMLANDI!';
+        title.style.color = '#00f0ff';
+      }
+      if (sub) {
+        sub.innerText = `Bitiş çizgisine ilk ${params.winnerName} ulaştı.`;
+      }
+      if (payoutBox) {
+        if (params.spectatorPayout && params.spectatorPayout > 0) {
+          payoutBox.innerText = `🎉 TEBRİKLER! Oynadığın bahis kazandı: +₺${params.spectatorPayout.toLocaleString('tr-TR')} (1.8x)`;
+          payoutBox.style.display = 'block';
+        } else {
+          payoutBox.style.display = 'none';
+        }
+      }
+    } else if (params.isWinner) {
       if (icon) icon.innerText = '🏆';
       if (title) {
         title.innerText = 'KAZANDIN!';
@@ -2768,6 +2898,14 @@ export class UIManager {
         sub.innerText = params.reason === 'LAST_SURVIVOR' || params.reason === 'OPPONENT_CRASHED'
           ? '💥 Rakipler elendi! Otoyolun şampiyonu sensin.'
           : '🏁 Bitiş çizgisine ilk sen ulaştın!';
+      }
+      if (payoutBox) {
+        if (params.totalPot && params.totalPot > 0) {
+          payoutBox.innerText = `🏆 BÜYÜK ÖDÜL: ₺${params.totalPot.toLocaleString('tr-TR')} Havuz Bakiyene Eklendi!`;
+          payoutBox.style.display = 'block';
+        } else {
+          payoutBox.style.display = 'none';
+        }
       }
     } else {
       if (icon) icon.innerText = '💀';
@@ -2780,6 +2918,7 @@ export class UIManager {
           ? '💥 Kaza yaptın! Rakipler yarışı tamamladı.'
           : `🏁 ${params.winnerName} bitişe ilk ulaştı.`;
       }
+      if (payoutBox) payoutBox.style.display = 'none';
     }
 
     if (myDistEl) myDistEl.innerText = `${Math.round(params.myDist)}m`;
@@ -2838,6 +2977,215 @@ export class UIManager {
     if (this.screenMultiplayerResult) {
       this.screenMultiplayerResult.classList.remove('active');
     }
+  }
+
+  public setSpectatorHudVisible(visible: boolean): void {
+    const bar = document.getElementById('hud-spectator-bar');
+    if (bar) {
+      bar.style.display = visible ? 'flex' : 'none';
+    }
+    // Also toggle regular multiplayer bar
+    if (this.hudMultiplayerBar && visible) {
+      this.hudMultiplayerBar.style.display = 'flex';
+    }
+
+    // Hide mobile touch controls and driving telemetry for spectators
+    const mobileWrap = document.getElementById('mobile-controls-wrap');
+    if (mobileWrap) {
+      mobileWrap.style.display = visible ? 'none' : '';
+    }
+    const telemetry = document.querySelector('.hud-telemetry') as HTMLElement | null;
+    if (telemetry) {
+      telemetry.style.display = visible ? 'none' : '';
+    }
+    const hudTop = document.querySelector('.hud-top') as HTMLElement | null;
+    if (hudTop) {
+      const leftCard = hudTop.querySelector('.hud-card:first-child') as HTMLElement | null;
+      if (leftCard) leftCard.style.visibility = visible ? 'hidden' : 'visible';
+    }
+  }
+
+  public updateSpectatorTargetInfo(name: string, vehicleId?: string): void {
+    const targetNameEl = document.getElementById('spec-hud-target-name');
+    if (targetNameEl) {
+      const carDef = vehicleId ? VEHICLE_CATALOG.find((c) => c.id === vehicleId) : null;
+      targetNameEl.innerText = carDef ? `${name} (${carDef.name})` : name;
+    }
+    const betTargetName = document.getElementById('spec-bet-target-name');
+    if (betTargetName) {
+      betTargetName.innerText = name;
+    }
+  }
+
+  public updateSpectatorHud(info: {
+    racerName: string;
+    speedKmh: number;
+    distanceMeters: number;
+    rank: number;
+    totalRacers: number;
+    totalPot: number;
+    spectatorCount: number;
+    targetId: string;
+    currentBet: { targetPlayerId: string; amount: number } | null;
+  }): void {
+    const targetNameEl = document.getElementById('spec-hud-target-name');
+    const targetRankEl = document.getElementById('spec-hud-target-rank');
+    const targetSpeedEl = document.getElementById('spec-hud-target-speed');
+    const specCountEl = document.getElementById('spec-hud-count');
+    const potValEl = document.getElementById('spec-hud-pot-val');
+    const betBtn = document.getElementById('btn-spec-open-bet');
+    const betBadge = document.getElementById('spec-hud-active-bet-badge');
+    const betSummary = document.getElementById('spec-bet-summary');
+
+    if (targetNameEl) targetNameEl.innerText = info.racerName;
+    if (targetRankEl) targetRankEl.innerText = `${info.rank}. Sıra / ${info.totalRacers}`;
+    if (targetSpeedEl) targetSpeedEl.innerText = `${info.speedKmh} KM/H`;
+    if (specCountEl) specCountEl.innerText = `👁️ ${info.spectatorCount || 1}`;
+    if (potValEl) potValEl.innerText = `₺${info.totalPot.toLocaleString('tr-TR')}`;
+
+    if (info.currentBet) {
+      if (betBtn) betBtn.style.display = 'none';
+      if (betBadge) betBadge.style.display = 'block';
+      if (betSummary) {
+        betSummary.innerText = `₺${info.currentBet.amount} • Kazanç: ₺${Math.round(info.currentBet.amount * 1.8)}`;
+      }
+    } else {
+      if (betBadge) betBadge.style.display = 'none';
+      // Bet is only placeable during the first 500 meters of the race
+      if (betBtn) {
+        betBtn.style.display = info.distanceMeters < 500 ? 'block' : 'none';
+      }
+    }
+  }
+
+  public showSpectatorBetModal(): void {
+    const modal = document.getElementById('modal-spectator-bet');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    const balEl = document.getElementById('spec-bet-user-balance');
+    if (balEl) balEl.innerText = `₺${gameState.money.toLocaleString('tr-TR')}`;
+    const target = multiplayerManager.getCurrentSpectateTarget();
+    const targetNameEl = document.getElementById('spec-bet-target-name');
+    if (targetNameEl) targetNameEl.innerText = target ? target.name : 'Seçili Yarışçı';
+  }
+
+  public hideSpectatorBetModal(): void {
+    const modal = document.getElementById('modal-spectator-bet');
+    if (modal) modal.style.display = 'none';
+  }
+
+  public renderPublicRooms(rooms: any[]): void {
+    const container = document.getElementById('mp-rooms-list');
+    if (!container) return;
+
+    if (!rooms || rooms.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 32px 14px; color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed rgba(255,255,255,0.15);">
+          <div style="font-size: 2.0rem; margin-bottom: 6px;">🏎️</div>
+          <div style="font-weight: 700; font-size: 0.92rem; color: #fff; margin-bottom: 4px;">Şu anda açık oda bulunmuyor</div>
+          <div style="font-size: 0.76rem; color: rgba(255,255,255,0.5);">Yeni bir oda kurarak ilk yarışı sen başlatabilirsin!</div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = rooms.map((room) => {
+      const isFull = room.playerCount >= (room.maxPlayers || 4);
+      const isRacing = room.status === 'RACING';
+      const statusBadge = isRacing
+        ? '<span style="background: rgba(255,0,85,0.2); color: #ff0055; border: 1px solid #ff0055; padding: 2px 6px; border-radius: 6px; font-size: 0.68rem; font-weight: 800;">🔴 YARIŞTA</span>'
+        : '<span style="background: rgba(0,255,170,0.2); color: #00ffaa; border: 1px solid #00ffaa; padding: 2px 6px; border-radius: 6px; font-size: 0.68rem; font-weight: 800;">🟢 LOBİDE</span>';
+
+      const feeText = room.entryFee > 0
+        ? `<b style="color: #ffbe0b;">₺${room.entryFee.toLocaleString('tr-TR')}</b> (Havuz: ₺${(room.totalPot || room.entryFee * room.playerCount).toLocaleString('tr-TR')})`
+        : '<span style="color: #00ffaa;">Ücretsiz</span>';
+
+      const modeText = room.mode === 'SPRINT' ? '3000m Sprint' : 'Hayatta Kalma';
+      const canJoinRace = !isFull && !isRacing;
+
+      return `
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span style="font-family: 'Orbitron', monospace; font-weight: 900; color: #00f0ff; font-size: 1.05rem; letter-spacing: 2px;">${room.code}</span>
+              ${statusBadge}
+              <span style="font-size: 0.74rem; color: rgba(255,255,255,0.6);">Host: <b>${room.hostName}</b></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 0.74rem; color: rgba(255,255,255,0.75);">
+              <span>🏁 ${modeText}</span>
+              <span>👥 ${room.playerCount}/${room.maxPlayers || 4} Oyuncu</span>
+              <span>👁️ ${room.spectatorCount || 0} Seyirci</span>
+            </div>
+            <div style="font-size: 0.74rem; margin-top: 3px; color: rgba(255,255,255,0.7);">
+              💰 Giriş: ${feeText}
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 5px; min-width: 100px;">
+            ${canJoinRace ? `
+              <button class="btn btn-primary btn-join-room-action" data-code="${room.code}" data-fee="${room.entryFee || 0}" style="padding: 6px 10px; font-size: 0.76rem; font-weight: 800;">
+                ⚔️ KATIL
+              </button>
+            ` : ''}
+            <button class="btn btn-secondary btn-spectate-room-action" data-code="${room.code}" style="padding: 6px 10px; font-size: 0.76rem; font-weight: 800; border-color: #00f0ff; color: #00f0ff;">
+              👁️ CANLI İZLE
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Bind action buttons
+    container.querySelectorAll('.btn-join-room-action').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        audioManager.playClick();
+        const code = (e.currentTarget as HTMLElement).dataset.code;
+        const fee = parseInt((e.currentTarget as HTMLElement).dataset.fee || '0', 10);
+        if (!code) return;
+
+        if (fee > 0 && gameState.money < fee) {
+          alert(`Yetersiz bakiye! Bu odaya girmek için ₺${fee.toLocaleString('tr-TR')} gerekiyor. (Mevcut Bakiye: ₺${gameState.money.toLocaleString('tr-TR')})`);
+          return;
+        }
+
+        const nameInput = document.getElementById('input-mp-player-name') as HTMLInputElement | null;
+        const playerName = (nameInput?.value || 'Sürücü').trim() || 'Sürücü';
+        localStorage.setItem('traffic_rush_player_name', playerName);
+
+        if (fee > 0) {
+          gameState.deductMoney(fee);
+        }
+
+        const success = await multiplayerManager.joinRoom({
+          roomCode: code,
+          playerName,
+          vehicleId: gameState.selectedVehicleId,
+          colorHex: gameState.getVehicleColor(gameState.selectedVehicleId) || '#ffffff',
+        });
+
+        if (success) {
+          const tabJoin = document.getElementById('tab-mp-join') as HTMLButtonElement | null;
+          tabJoin?.click();
+        } else if (fee > 0) {
+          gameState.addMoney(fee);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-spectate-room-action').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        audioManager.playClick();
+        const code = (e.currentTarget as HTMLElement).dataset.code;
+        if (!code) return;
+
+        const nameInput = document.getElementById('input-mp-player-name') as HTMLInputElement | null;
+        const playerName = (nameInput?.value || 'Seyirci').trim() || 'Seyirci';
+
+        await multiplayerManager.joinAsSpectator({
+          roomCode: code,
+          spectatorName: playerName,
+        });
+      });
+    });
   }
 
   public showAdStudioModal(): void {
@@ -2998,29 +3346,71 @@ export class UIManager {
       }
     });
 
-    // Tab switching: ODA KUR vs ODAYA KATIL
+    // Tab switching: AÇIK ODALAR, ODA KUR vs ODAYA KATIL
+    const tabRooms = document.getElementById('tab-mp-rooms');
     const tabCreate = document.getElementById('tab-mp-create');
     const tabJoin = document.getElementById('tab-mp-join');
+    const panelRooms = document.getElementById('panel-mp-rooms');
     const panelCreate = document.getElementById('panel-mp-create');
     const panelJoin = document.getElementById('panel-mp-join');
     const errEl = document.getElementById('mp-error-msg');
 
-    const showTab = (isCreate: boolean) => {
-      tabCreate?.classList.toggle('active', isCreate);
-      tabJoin?.classList.toggle('active', !isCreate);
-      if (panelCreate) panelCreate.style.display = isCreate ? 'block' : 'none';
-      if (panelJoin) panelJoin.style.display = isCreate ? 'none' : 'block';
+    const showTab = (tab: 'rooms' | 'create' | 'join') => {
+      tabRooms?.classList.toggle('active', tab === 'rooms');
+      tabCreate?.classList.toggle('active', tab === 'create');
+      tabJoin?.classList.toggle('active', tab === 'join');
+      if (panelRooms) panelRooms.style.display = tab === 'rooms' ? 'block' : 'none';
+      if (panelCreate) panelCreate.style.display = tab === 'create' ? 'block' : 'none';
+      if (panelJoin) panelJoin.style.display = tab === 'join' ? 'block' : 'none';
       if (errEl) errEl.style.display = 'none';
+
+      if (tab === 'rooms') {
+        multiplayerManager.fetchPublicRooms();
+      } else if (tab === 'create') {
+        const balEl = document.getElementById('mp-create-user-balance');
+        if (balEl) balEl.innerText = `Bakiye: ₺${gameState.money.toLocaleString('tr-TR')}`;
+      }
     };
+
+    tabRooms?.addEventListener('click', () => {
+      audioManager.playClick();
+      showTab('rooms');
+    });
 
     tabCreate?.addEventListener('click', () => {
       audioManager.playClick();
-      showTab(true);
+      showTab('create');
     });
 
     tabJoin?.addEventListener('click', () => {
       audioManager.playClick();
-      showTab(false);
+      showTab('join');
+    });
+
+    document.getElementById('btn-mp-refresh-rooms')?.addEventListener('click', () => {
+      audioManager.playClick();
+      multiplayerManager.fetchPublicRooms();
+    });
+
+    // Wager / Entry Fee Selector
+    let selectedWager = 0;
+    document.querySelectorAll('#mp-wager-selector .mp-wager-pill').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        audioManager.playClick();
+        const fee = parseInt((e.currentTarget as HTMLElement).dataset.fee || '0', 10);
+        if (fee > 0 && gameState.money < fee) {
+          if (errEl) {
+            errEl.innerText = `Yetersiz bakiye! Bahis için ₺${fee.toLocaleString('tr-TR')} gerekiyor. (Mevcut: ₺${gameState.money.toLocaleString('tr-TR')})`;
+            errEl.style.display = 'block';
+          }
+          return;
+        }
+        if (errEl) errEl.style.display = 'none';
+        selectedWager = fee;
+        document.querySelectorAll('#mp-wager-selector .mp-wager-pill').forEach((b) => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.fee === fee.toString());
+        });
+      });
     });
 
     // Mode Selector (SPRINT vs SURVIVAL)
@@ -3049,6 +3439,14 @@ export class UIManager {
       const playerName = (nameInput?.value || 'Sürücü').trim() || 'Sürücü';
       localStorage.setItem('traffic_rush_player_name', playerName);
 
+      if (selectedWager > 0 && !gameState.deductMoney(selectedWager)) {
+        if (errEl) {
+          errEl.innerText = `Yetersiz bakiye! ₺${selectedWager.toLocaleString('tr-TR')} gerekiyor.`;
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
       if (createRoomBtn) {
         createRoomBtn.disabled = true;
         createRoomBtn.innerText = '⏳ Sunucuya bağlanıyor...';
@@ -3060,9 +3458,13 @@ export class UIManager {
         colorHex: gameState.getVehicleColor(gameState.selectedVehicleId) || '#dc2626',
         mode: selectedMode,
         targetDistance: 3000,
+        entryFee: selectedWager,
       });
 
       if (!success) {
+        if (selectedWager > 0) {
+          gameState.addMoney(selectedWager);
+        }
         if (errEl) {
           errEl.innerText = 'Multiplayer sunucusuna bağlanılamadı! Lütfen sunucunun açık olduğundan emin olun.';
           errEl.style.display = 'block';
@@ -3134,7 +3536,99 @@ export class UIManager {
       this.navigateTo('MAIN_MENU');
     });
 
+    // Spectator HUD Bindings
+    document.getElementById('btn-spec-prev')?.addEventListener('click', () => {
+      audioManager.playClick();
+      if (this.onSpectatorTargetCycle) this.onSpectatorTargetCycle(-1);
+    });
+
+    document.getElementById('btn-spec-next')?.addEventListener('click', () => {
+      audioManager.playClick();
+      if (this.onSpectatorTargetCycle) this.onSpectatorTargetCycle(1);
+    });
+
+    document.getElementById('btn-spec-camera')?.addEventListener('click', () => {
+      audioManager.playClick();
+      if (this.onSpectatorCameraCycle) this.onSpectatorCameraCycle();
+    });
+
+    document.getElementById('btn-spec-leave')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.setSpectatorHudVisible(false);
+      multiplayerManager.leaveRoom();
+      if (this.onSpectatorLeave) {
+        this.onSpectatorLeave();
+      } else {
+        this.navigateTo('MAIN_MENU');
+      }
+    });
+
+    // Spectator Bet controls
+    let selectedBetAmount = 250;
+    document.getElementById('btn-spec-open-bet')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.showSpectatorBetModal();
+    });
+
+    document.querySelectorAll('.spec-bet-amount-pill').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        audioManager.playClick();
+        const amt = parseInt((e.currentTarget as HTMLElement).dataset.amount || '250', 10);
+        selectedBetAmount = amt;
+        document.querySelectorAll('.spec-bet-amount-pill').forEach((b) => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.amount === amt.toString());
+        });
+      });
+    });
+
+    document.getElementById('btn-spec-bet-cancel')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this.hideSpectatorBetModal();
+    });
+
+    document.getElementById('btn-spec-bet-confirm')?.addEventListener('click', () => {
+      audioManager.playClick();
+      const target = multiplayerManager.getCurrentSpectateTarget();
+      if (!target) return;
+      if (gameState.money < selectedBetAmount) {
+        alert('Yetersiz bakiye!');
+        return;
+      }
+      gameState.deductMoney(selectedBetAmount);
+      multiplayerManager.placeSpectatorBet(target.id, selectedBetAmount);
+      this.hideSpectatorBetModal();
+      this.showScrapeNotification('🎲 BAHİS OYNANDI!', `₺${selectedBetAmount} tutarında bahis oynadın. Kazanırsan 1.8x alacaksın!`);
+    });
+
     // EventBus bindings for Networking Events
+    eventBus.on('mp:roomsList', (data: any) => {
+      this.renderPublicRooms(data.rooms || []);
+    });
+
+    eventBus.on('mp:spectatorJoined', () => {
+      this.hideMultiplayerModal();
+      this.hideMultiplayerResult();
+      this.setSpectatorHudVisible(true);
+      if (this.onStartMultiplayerRace) {
+        this.onStartMultiplayerRace();
+      }
+    });
+
+    eventBus.on('mp:spectatorCountChanged', (data: any) => {
+      const countEl = document.getElementById('spec-hud-count');
+      if (countEl) countEl.innerText = `👁️ ${data.count || 1}`;
+    });
+
+    eventBus.on('mp:betConfirmed', (data: any) => {
+      const badge = document.getElementById('spec-hud-active-bet-badge');
+      const summary = document.getElementById('spec-bet-summary');
+      const targetOpp = multiplayerManager.opponents.get(data.targetPlayerId);
+      if (badge && summary) {
+        summary.innerText = `₺${data.amount} (${targetOpp?.name || 'Sürücü'} • 1.8x)`;
+        badge.style.display = 'block';
+      }
+    });
+
     eventBus.on('mp:roomCreated', (data: any) => {
       const display = document.getElementById('mp-room-code-display');
       if (display) display.innerText = data.roomCode;
@@ -3143,6 +3637,11 @@ export class UIManager {
       const infoBox = document.getElementById('mp-host-room-info');
       if (infoBox) infoBox.style.display = 'block';
       if (errEl) errEl.style.display = 'none';
+
+      const potBadge = document.getElementById('mp-host-pot-badge');
+      if (potBadge) {
+        potBadge.innerText = `💰 Giriş: ₺${(data.entryFee || 0).toLocaleString('tr-TR')} • 🏆 Toplam Ödül Havuzu: ₺${(data.totalPot || data.entryFee || 0).toLocaleString('tr-TR')}`;
+      }
 
       const players = data.players || [
         {
@@ -3165,6 +3664,15 @@ export class UIManager {
       const hostMsg = document.getElementById('mp-host-status-msg');
       const hostCountBadge = document.getElementById('mp-host-count-badge');
       const joinCountBadge = document.getElementById('mp-join-count-badge');
+
+      const hostPotBadge = document.getElementById('mp-host-pot-badge');
+      const joinPotBadge = document.getElementById('mp-join-pot-badge');
+      if (hostPotBadge && data.totalPot) {
+        hostPotBadge.innerText = `💰 Giriş: ₺${(multiplayerManager.entryFee || 0).toLocaleString('tr-TR')} • 🏆 Toplam Ödül Havuzu: ₺${data.totalPot.toLocaleString('tr-TR')}`;
+      }
+      if (joinPotBadge && data.totalPot) {
+        joinPotBadge.innerText = `💰 Giriş: ₺${(multiplayerManager.entryFee || 0).toLocaleString('tr-TR')} • 🏆 Toplam Ödül Havuzu: ₺${data.totalPot.toLocaleString('tr-TR')}`;
+      }
 
       const players = data.players || [];
       this.renderMultiplayerLobby('mp-host-players-grid', players);
@@ -3189,6 +3697,11 @@ export class UIManager {
         statusBox.style.display = 'block';
       }
       if (errEl) errEl.style.display = 'none';
+
+      const potBadge = document.getElementById('mp-join-pot-badge');
+      if (potBadge) {
+        potBadge.innerText = `💰 Giriş: ₺${(data.entryFee || 0).toLocaleString('tr-TR')} • 🏆 Toplam Ödül Havuzu: ₺${(data.totalPot || 0).toLocaleString('tr-TR')}`;
+      }
 
       const players = data.players || [];
       this.renderMultiplayerLobby('mp-join-players-grid', players);
@@ -3251,6 +3764,7 @@ export class UIManager {
     });
 
     eventBus.on('mp:raceFinished', (data: any) => {
+      this.setSpectatorHudVisible(false);
       this.showMultiplayerResult({
         isWinner: data.isMeWinner,
         winnerName: data.winnerName,
@@ -3258,6 +3772,8 @@ export class UIManager {
         myDist: (window as any).__TRAFFIC_RUSH_GAME__?.playerVehicle?.mesh?.position?.z || 0,
         oppDist: multiplayerManager.opponent?.distance || 0,
         standings: data.standings,
+        totalPot: data.totalPot,
+        spectatorPayout: data.spectatorPayout,
       });
     });
   }

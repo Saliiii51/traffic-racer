@@ -208,6 +208,15 @@ export class GameState {
     eventBus.emit('moneyChanged', { totalMoney: this.data.money, delta: amount });
   }
 
+  public deductMoney(amount: number): boolean {
+    if (amount <= 0) return true;
+    if (this.data.money < amount) return false;
+    this.data.money -= amount;
+    this.save();
+    eventBus.emit('moneyChanged', { totalMoney: this.data.money, delta: -amount });
+    return true;
+  }
+
   public addXp(amount: number): void {
     if (amount <= 0) return;
     this.data.xp += amount;

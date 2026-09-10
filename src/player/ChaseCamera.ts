@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 import { GAME_CONSTANTS, type CameraViewMode } from '../core/Constants';
 import type { PlayerVehicle } from '../vehicles/PlayerVehicle';
+import type { RemotePlayerVehicle } from '../vehicles/RemotePlayerVehicle';
+
+export type CameraFollowTarget = PlayerVehicle | RemotePlayerVehicle | any;
 import { isMobileDevice } from '../utils/orientation';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../audio/AudioManager';
@@ -825,12 +828,12 @@ export class ChaseCamera {
     return introPreset;
   }
 
-  public getEffectivePreset(player?: PlayerVehicle): CameraPreset {
+  public getEffectivePreset(player?: CameraFollowTarget): CameraPreset {
     const preset = CAMERA_PRESETS[this.mode];
     if (this.mode !== 'INTERIOR' || !player) {
       return preset;
     }
-    const vehicleId = player.id || (player as any).currentVehicleId;
+    const vehicleId = (player as any).vehicleId || player.id || (player as any).currentVehicleId;
     const cfg = VEHICLE_COCKPIT_CONFIGS[vehicleId];
     if (cfg) {
       return {
@@ -846,7 +849,7 @@ export class ChaseCamera {
     return preset;
   }
 
-  public updateIntro(delta: number, player: PlayerVehicle): boolean {
+  public updateIntro(delta: number, player: CameraFollowTarget): boolean {
     if (!this.isIntroActive) return true;
 
     this.introProgress += delta / this.introDuration;
@@ -1215,11 +1218,32 @@ export class ChaseCamera {
     this.shakeTimer = duration;
   }
 
+  public snapToTarget(player: CameraFollowTarget): void {
+    this.modeJustChanged = true;
+    const preset = this.getEffectivePreset(player);
+    const playerPos = player.mesh.position;
+    this.currentPosition.set(
+      playerPos.x + preset.offsetX,
+      playerPos.y + preset.offsetY,
+      playerPos.z + preset.offsetZ
+    );
+    this.lookAtTarget.set(
+      playerPos.x + preset.lookAtX,
+      playerPos.y + preset.lookAtY,
+      playerPos.z + preset.lookAtZ
+    );
+    this.currentLookAt.copy(this.lookAtTarget);
+    this.camera.position.copy(this.currentPosition);
+    this.camera.lookAt(this.currentLookAt);
+    this.camera.fov = preset.fov;
+    this.camera.updateProjectionMatrix();
+  }
+
   public update(
     delta: number,
-    player: PlayerVehicle,
-    steerInput: number,
-    isNitroActive: boolean
+    player: CameraFollowTarget,
+    steerInput: number = 0,
+    isNitroActive: boolean = false
   ): void {
     if (this.isAdStudioActive) {
       this.updateAdStudio(delta, player, steerInput, isNitroActive);
@@ -1369,8 +1393,8 @@ export class ChaseCamera {
     } else if (this.mode === 'INTERIOR') {
       // Cockpit body lean and suspension pitch matching the car body
       if (player.speedKmh > 15) {
-        this.camera.rotation.z += player.currentSteerTilt * 0.65;
-        this.camera.rotation.x += player.currentPitch * 0.45;
+        this.camera.rotation.z += (player.currentSteerTilt || 0) * 0.65;
+        this.camera.rotation.x += (player.currentPitch || 0) * 0.45;
       }
     }
 
