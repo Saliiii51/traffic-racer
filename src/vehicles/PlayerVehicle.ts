@@ -754,6 +754,13 @@ export class PlayerVehicle extends Vehicle {
 
       this.rearPlateGroup.position.set(0, 0.54, -2.40);
       this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
+    } else if (id === 'sport_racer') {
+      // Precise Volkswagen Scirocco R bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.36, 2.14);
+      this.frontPlateGroup.rotation.set(0, 0, 0);
+
+      this.rearPlateGroup.position.set(0, 0.50, -2.12);
+      this.rearPlateGroup.rotation.set(0, Math.PI, 0);
     } else {
       // Procedural & generic vehicles
       const halfL = (this.dimensions.length || 4.2) * 0.50 + 0.018;
@@ -811,6 +818,13 @@ export class PlayerVehicle extends Vehicle {
         rearZ = -1.36;
         wheelRadius = 0.34;
         wheelScale = 1.0;
+        break;
+      case 'sport_racer':
+        halfTrack = 0.78;
+        frontZ = 1.25;
+        rearZ = -1.35;
+        wheelRadius = 0.32;
+        wheelScale = 0.98;
         break;
       default:
         halfTrack = this.dimensions.width * 0.44;

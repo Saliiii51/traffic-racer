@@ -70,7 +70,7 @@ export class SaveManager {
       bestDistanceMeters: 0,
       totalDistanceMeters: 0,
       selectedVehicleId: 'opel_corsa_b',
-      ownedVehicleIds: ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super'],
+      ownedVehicleIds: ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super', 'sport_racer'],
       vehicleUpgrades: defaultUpgrades,
       vehicleColors: defaultColors,
       completedMissionIds: [],
@@ -137,7 +137,7 @@ export class SaveManager {
       }
     });
 
-    const freeGarageCars = ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super'];
+    const freeGarageCars = ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super', 'sport_racer'];
     freeGarageCars.forEach((cid) => {
       if (!current.ownedVehicleIds.includes(cid)) {
         current.ownedVehicleIds.push(cid);

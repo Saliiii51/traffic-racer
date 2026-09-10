@@ -783,6 +783,8 @@ export class Vehicle {
     let targetLength = this.dimensions.length || 4.2;
     if (this.id === 'luxury_sedan') {
       targetLength = 4.65;
+    } else if (this.id === 'sport_racer') {
+      targetLength = 4.25;
     }
     const scale = targetLength / Math.max(rawSize.z, 0.01);
     model.scale.set(scale, scale, scale);
@@ -796,6 +798,28 @@ export class Vehicle {
     model.position.z -= center.z;
     model.position.y -= rawBox.min.y;
     model.updateMatrixWorld(true);
+
+    // 0. Pre-center wheel meshes with baked vertex offsets (Volkswagen Scirocco R CSR2)
+    model.traverse((child) => {
+      const name = (child.name || '').toLowerCase();
+      if (/phong13wheels1|wheels1/i.test(name) && (child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.geometry) {
+          mesh.geometry.computeBoundingBox();
+          const bbox = mesh.geometry.boundingBox;
+          if (bbox) {
+            const c = new THREE.Vector3();
+            bbox.getCenter(c);
+            mesh.geometry.center();
+            mesh.position.copy(c);
+            mesh.updateMatrixWorld(true);
+          }
+        }
+      }
+      if (child.name.toLowerCase().includes('numberplate') && this.id === 'sport_racer') {
+        child.visible = false;
+      }
+    });
 
     // 0. Merge separated wheel, tyre, and rotor nodes (common in FBX models like Dodge Charger)
     const wheelRoots: THREE.Object3D[] = [];
@@ -870,7 +894,10 @@ export class Vehicle {
       if (
         !isSteeringWheel &&
         !/wheel|tyre|tire|rotor/i.test(parentName) &&
-        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || /lod_a_wheel/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name)))
+        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) ||
+          /lod_a_wheel/i.test(name) ||
+          /phong13wheels1|wheels1/i.test(name) ||
+          (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name)))
       ) {
         wheelNodes.push(child);
       }
@@ -880,8 +907,8 @@ export class Vehicle {
       const name = child.name.toLowerCase();
       const worldPos = new THREE.Vector3();
       child.getWorldPosition(worldPos);
-      const isLeft = /_lf|_lr|_fl|_rl|sol/i.test(name) || child.position.x < 0;
-      const isFront = /_lf|_rf|_fl|_fr|front|on/i.test(name) || worldPos.z > 0;
+      const isLeft = /_lf|_lr|_fl|_rl|\bsol\b|_sol_/i.test(name) || child.position.x < 0;
+      const isFront = /_lf|_rf|_fl|_fr|front|\bon\b|_on_/i.test(name) || worldPos.z > 0;
       return {
         obj: child,
         isLeft,
@@ -894,12 +921,12 @@ export class Vehicle {
       console.log(`[Vehicle] Detected ${this.customWheels.length} custom wheels for physics animation.`);
     }
 
-    // Stop/brake light material names (including Golf GTI Index_0_2 and FBX CH_LD_7)
-    const stopPattern = /redglass|stop|taillight|stopcam|stopfar|ae_stop|ayarli\.4|ch_ld_7|index_0_2/i;
+    // Stop/brake light material names (including Golf GTI Index_0_2, FBX CH_LD_7, Scirocco red_glass)
+    const stopPattern = /red_?glass|stop|taillight|stopcam|stopfar|ae_stop|ayarli\.4|ch_ld_7|index_0_2/i;
     // Turn signal light material names
     const signalPattern = /orangeglass|sinyal|turn_signal/i;
     // Headlights
-    const headPattern = /clearglass|far|headlight|farcamlar|ae_far|lights_lod|projector/i;
+    const headPattern = /clearglass|far|headlight|farcamlar|ae_far|lights_lod|projector|\blight\b/i;
     // Window glass material names or mesh names (including Ferrari glass_gray, Golf Index_0_3, Mini Cooper MCar_Glass, Charger d_glass)
     const glassPattern = /windowglass|window|cam|windscreen|windshield|öncam|mcar_glass|index_0_3|\bglass\b|glass_gray|frontglass|rearglass|d_glass|glass_surr/i;
     const knownGlassNodes = new Set(['_gltfNode_60','_gltfNode_61','_gltfNode_62','_gltfNode_236','farcam002','Object_11','MCarGlass_MCar_Glass_0','glass','Glass_Gray','d_glass','glass_surr','untitledVehicle_Exterior_mm_windows1']);
@@ -945,14 +972,16 @@ export class Vehicle {
 
         // 1. Stop / Tail Lights (Ruby red glass + dynamic brake illumination)
         if (stopPattern.test(combined)) {
-          mat.transparent = false;
-          mat.depthWrite = true;
-          mat.color = new THREE.Color(0x7a1212);
-          mat.emissive = new THREE.Color(0x380505);
-          mat.emissiveIntensity = 0.28;
-          mat.roughness = 0.18;
-          mat.metalness = 0.35;
-          this.customBrakeLightMaterials.push(mat);
+          const stopMat = mat.clone();
+          mesh.material = stopMat;
+          stopMat.transparent = false;
+          stopMat.depthWrite = true;
+          stopMat.color = new THREE.Color(0x7a1212);
+          stopMat.emissive = new THREE.Color(0x380505);
+          stopMat.emissiveIntensity = 0.28;
+          stopMat.roughness = 0.18;
+          stopMat.metalness = 0.35;
+          this.customBrakeLightMaterials.push(stopMat);
         }
         // 2. Turn Signals (Amber / Orange)
         else if (signalPattern.test(combined)) {

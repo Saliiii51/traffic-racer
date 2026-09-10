@@ -139,6 +139,13 @@ export const VEHICLE_COCKPIT_CONFIGS: Record<string, VehicleCockpitConfig> = {
     lookAtY: 1.05,
     fov: 72,
   },
+  sport_racer: {
+    offsetX: 0.35,
+    offsetY: 1.10,
+    offsetZ: -0.12,
+    lookAtY: 1.05,
+    fov: 73,
+  },
 };
 
 export interface CinematicIntroPreset {
