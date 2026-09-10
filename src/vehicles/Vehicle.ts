@@ -54,6 +54,7 @@ export class Vehicle {
   // Wheel rotation accumulator
   protected wheelAngle: number = 0;
   protected customWheels: Array<{ obj: THREE.Object3D; isLeft: boolean; isFront: boolean; initialRotY: number; initialRotX: number }> = [];
+  protected customSteeringWheel: { obj: THREE.Object3D; initialRotZ: number } | null = null;
 
   // Model groups
   public proceduralGroup: THREE.Group = new THREE.Group();
@@ -669,6 +670,11 @@ export class Vehicle {
         }
       });
     }
+
+    // 3. Custom Steering Wheel (rotates realistically with steering input, strictly NEVER rolls like a tire!)
+    if (this.isUsingCustomModel && this.customSteeringWheel) {
+      this.customSteeringWheel.obj.rotation.z = this.customSteeringWheel.initialRotZ - steerAngle * 2.4;
+    }
   }
 
   public applyCustomGLTF(model: THREE.Group): void {
@@ -794,15 +800,30 @@ export class Vehicle {
 
     // Detect and bind 3D wheels for physics rolling and steering animation
     this.customWheels = [];
+    this.customSteeringWheel = null;
     const wheelNodes: THREE.Object3D[] = [];
     model.traverse((child) => {
       const name = (child.name || '').toLowerCase();
+      const parentName = (child.parent?.name || '').toLowerCase();
+      const isSteeringWheel = /steering|direksiyon|\bsw\b/i.test(name + ' ' + parentName);
+
+      // Separate detection for interior steering wheel
+      if (isSteeringWheel && !this.customSteeringWheel && /steering_wheel|direksiyon/i.test(name)) {
+        this.customSteeringWheel = {
+          obj: child,
+          initialRotZ: child.rotation.z,
+        };
+      }
+
       // Hide low-detail duplicate LOD meshes and blur disc rims (never hide WHEEL_LR!)
       if (/(lod_lr|_lod_|rim_blur|jant_blur)/i.test(name) && !/wheel/i.test(name)) {
         child.visible = false;
       }
-      // Top-level wheel root nodes in FBX (WHEEL_LF, WHEEL_RF, WHEEL_LR, WHEEL_RR) or GLTF
-      if (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name))) {
+      // Top-level road wheel root nodes in FBX (WHEEL_LF, WHEEL_RF, WHEEL_LR, WHEEL_RR) or GLTF
+      if (
+        !isSteeringWheel &&
+        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name)))
+      ) {
         wheelNodes.push(child);
       }
     });
@@ -1104,6 +1125,7 @@ export class Vehicle {
     this.proceduralGroup.visible = true;
     this.wheelsGroup.visible = true;
     this.isUsingCustomModel = false;
+    this.customSteeringWheel = null;
 
     const halfBase = this.dimensions.wheelBase / 2;
     const halfTrack = this.dimensions.wheelTrack / 2;
