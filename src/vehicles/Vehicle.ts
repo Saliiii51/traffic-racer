@@ -656,12 +656,11 @@ export class Vehicle {
       w.rotation.y = steerAngle;
     });
 
-    // 2. Custom 3D Model wheels (Tofaş / GLTF / FBX)
+    // 2. Custom 3D Model wheels (Tofaş / GLTF / FBX / Dodge Charger)
     if (this.isUsingCustomModel && this.customWheels.length > 0) {
       this.customWheels.forEach((w) => {
-        // Roll around local X axis forward matching car motion
-        const isFlipped = Math.abs(Math.abs(w.initialRotY) - Math.PI) < 0.5;
-        const spinSign = isFlipped ? -1 : 1;
+        // Roll forward around local X axis matching forward car motion (+Z)
+        const spinSign = this.id === 'luxury_sedan' ? -1 : (Math.abs(Math.abs(w.initialRotY) - Math.PI) < 0.5 ? -1 : 1);
         w.obj.rotation.x = w.initialRotX + this.wheelAngle * spinSign;
 
         // Steer front wheels around Y
@@ -798,6 +797,53 @@ export class Vehicle {
     model.position.y -= rawBox.min.y;
     model.updateMatrixWorld(true);
 
+    // 0. Merge separated wheel, tyre, and rotor nodes (common in FBX models like Dodge Charger)
+    const wheelRoots: THREE.Object3D[] = [];
+    const tyreRoots: THREE.Object3D[] = [];
+    const rotorRoots: THREE.Object3D[] = [];
+
+    model.traverse((child) => {
+      const name = (child.name || '').toLowerCase();
+      const parentName = (child.parent?.name || '').toLowerCase();
+      if (/steering|direksiyon|\bsw\b|interior/i.test(name + ' ' + parentName)) return;
+
+      if (
+        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || /lod_a_wheel/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name))) &&
+        !/wheel/i.test(parentName)
+      ) {
+        wheelRoots.push(child);
+      }
+      if ((/lod_a_tyre/i.test(name) || /tyre[\._\d]|tire[\._\d]/i.test(name)) && !/tyre|tire/i.test(parentName)) {
+        tyreRoots.push(child);
+      }
+      if ((/lod_a_rotor/i.test(name) || /rotor[\._\d]/i.test(name)) && !/rotor/i.test(parentName)) {
+        rotorRoots.push(child);
+      }
+    });
+
+    if (wheelRoots.length >= 4 && tyreRoots.length >= 4) {
+      wheelRoots.forEach((wheel) => {
+        const wPos = wheel.position;
+        const matchingTyre = tyreRoots.find(
+          (t) => Math.abs(t.position.x - wPos.x) < 0.15 && Math.abs(t.position.z - wPos.z) < 0.15
+        );
+        if (matchingTyre && matchingTyre.parent && matchingTyre.parent !== wheel) {
+          matchingTyre.position.set(0, 0, 0);
+          matchingTyre.rotation.set(0, 0, 0);
+          wheel.add(matchingTyre);
+        }
+
+        const matchingRotor = rotorRoots.find(
+          (r) => Math.abs(r.position.x - wPos.x) < 0.15 && Math.abs(r.position.z - wPos.z) < 0.15
+        );
+        if (matchingRotor && matchingRotor.parent && matchingRotor.parent !== wheel) {
+          matchingRotor.position.set(0, 0, 0);
+          matchingRotor.rotation.set(0, 0, 0);
+          wheel.add(matchingRotor);
+        }
+      });
+    }
+
     // Detect and bind 3D wheels for physics rolling and steering animation
     this.customWheels = [];
     this.customSteeringWheel = null;
@@ -819,10 +865,12 @@ export class Vehicle {
       if (/(lod_lr|_lod_|rim_blur|jant_blur)/i.test(name) && !/wheel/i.test(name)) {
         child.visible = false;
       }
-      // Top-level road wheel root nodes in FBX (WHEEL_LF, WHEEL_RF, WHEEL_LR, WHEEL_RR) or GLTF
+
+      // Top-level road wheel root nodes in FBX or GLTF (exclude child meshes inside wheel)
       if (
         !isSteeringWheel &&
-        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name)))
+        !/wheel|tyre|tire|rotor/i.test(parentName) &&
+        (/^wheel_(lf|rf|lr|rr|fl|fr|rl|rr)$/i.test(name) || /lod_a_wheel/i.test(name) || (/wheel[\._\d]/i.test(name) && !/dummy|caliper|blur/i.test(name)))
       ) {
         wheelNodes.push(child);
       }
@@ -832,7 +880,7 @@ export class Vehicle {
       const name = child.name.toLowerCase();
       const worldPos = new THREE.Vector3();
       child.getWorldPosition(worldPos);
-      const isLeft = /_lf|_lr|_fl|_rl|sol/i.test(name) || worldPos.x > 0;
+      const isLeft = /_lf|_lr|_fl|_rl|sol/i.test(name) || child.position.x < 0;
       const isFront = /_lf|_rf|_fl|_fr|front|on/i.test(name) || worldPos.z > 0;
       return {
         obj: child,

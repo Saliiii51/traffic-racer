@@ -3,6 +3,7 @@
 import './style.css';
 import { Game } from './core/Game';
 import { gameState } from './core/GameState';
+import { inputManager } from './player/InputManager';
 import { setupOrientationAutoLock } from './utils/orientation';
 
 function initGame() {
@@ -13,6 +14,7 @@ function initGame() {
     (window as any).game = game;
     (window as any).gameState = gameState;
     (window as any).playerVehicle = (game as any).playerVehicle;
+    (window as any).inputManager = inputManager;
     console.log('🏎️ TRAFFIC RUSH initialized successfully!');
   } catch (err) {
     console.error('Failed to initialize TRAFFIC RUSH game:', err);
