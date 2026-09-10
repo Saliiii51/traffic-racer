@@ -29,6 +29,7 @@ import { multiplayerManager } from '../network/MultiplayerManager';
 import { RemotePlayerVehicle } from '../vehicles/RemotePlayerVehicle';
 import { prng } from '../utils/PRNG';
 import { cinematicAutopilot } from '../player/CinematicAutopilot';
+import { RaceStarterSystem } from '../systems/RaceStarterSystem';
 
 // Garage Idle Cinematic Showcase Angles (Centered around vehicle presentation area x=0)
 const GARAGE_IDLE_SHOTS = [
@@ -118,11 +119,12 @@ export class Game {
   private isSpectatorActive = false;
   private spectateTargetId: string | null = null;
 
-  // Cinematic Camera Intro System
+  // Cinematic Camera Intro & Race Starter System
   private isIntroActive = false;
   private introTimer = 0;
   private introDuration = 5.8;
   private introCountdownStage = -1;
+  private raceStarterSystem!: RaceStarterSystem;
 
   // Inactive / Idle Camera Showcase System
   private idleTimer = 0;
@@ -215,9 +217,20 @@ export class Game {
     this.initGarageShowroom();
     this.setupGaragePointerListeners();
 
-    // 6. UI Manager
+    // 6. UI Manager & Race Starter System
     this.uiManager = new UIManager();
     this.setupUICallbacks();
+
+    this.raceStarterSystem = new RaceStarterSystem(
+      this.scene,
+      this.chaseCamera,
+      this.uiManager,
+      audioManager,
+      this.particleSystem
+    );
+    this.raceStarterSystem.onRaceStart = () => {
+      this.isIntroActive = false;
+    };
 
     // 7. Window resize & automatic landscape orientation handling
     setupOrientationAutoLock(() => this.handleResize());
@@ -755,21 +768,12 @@ export class Game {
       this.uiManager.finishCinematicIntro();
       this.uiManager.showAdStudioHud();
     } else {
-      // Start Cinematic Drone Intro (5 Variations, slower & cinematic)
       this.isIntroActive = true;
-      this.introTimer = 0;
-      this.introDuration = 5.8;
-      this.introCountdownStage = -1;
-      const cinematicPreset = this.chaseCamera.startIntro(this.playerVehicle.mesh.position, this.introDuration);
-
-      const modeLabels: Record<string, string> = {
-        ONE_WAY: 'Tek Yön • Otoyol Sürüşü',
-        TWO_WAY: 'Çift Yön • Karşı Trafik Dikkat!',
-        TIME_ATTACK: 'Zamana Karşı • Hızlı Checkpoint',
-        CUSTOM_TRAFFIC: 'Özel Trafik Modu',
-      };
-      this.uiManager.startCinematicIntro(modeLabels[gameState.currentMode] || 'İstanbul Otoyolu', cinematicPreset.name);
-      audioManager.playCinematicWhoosh();
+      this.raceStarterSystem.startStaging(
+        this.playerVehicle,
+        this.remoteOpponentVehicles,
+        false
+      );
     }
 
     this.setScreen('PLAYING');
@@ -831,14 +835,18 @@ export class Game {
         this.uiManager.updateSpectatorTargetInfo(firstTarget.name, firstTarget.vehicleId);
       }
       this.uiManager.setSpectatorHudVisible(true);
+      this.skipIntro();
     } else {
       this.uiManager.setSpectatorHudVisible(false);
+      // Launch multiplayer staging sequence with 3D starter character
+      this.isIntroActive = true;
+      this.raceStarterSystem.startStaging(
+        this.playerVehicle,
+        this.remoteOpponentVehicles,
+        true,
+        multiplayerManager.roomPlayers
+      );
     }
-
-    // Fast-track countdown in multiplayer so all racers start in sync
-    setTimeout(() => {
-      this.skipIntro();
-    }, 500);
 
     this.uiManager.setMultiplayerHudVisible(true);
   }
@@ -935,6 +943,9 @@ export class Game {
   }
 
   public skipIntro(): void {
+    if (this.raceStarterSystem && this.raceStarterSystem.isActive) {
+      this.raceStarterSystem.skip();
+    }
     if (!this.isIntroActive) return;
     this.chaseCamera.skipIntro(this.playerVehicle);
     this.finishIntro();
@@ -944,7 +955,8 @@ export class Game {
     if (!this.isIntroActive) return;
     this.isIntroActive = false;
     audioManager.playCountdownBeep(true);
-    this.uiManager.updateCinematicCountdown('GAZLA!', true);
+    this.uiManager.updateCinematicCountdown('BAŞLA! 🏁', true);
+    this.uiManager.hideRacerBroadcastCard();
     this.uiManager.finishCinematicIntro();
   }
 
@@ -1408,8 +1420,21 @@ export class Game {
       }
     }
 
-    // Handle Cinematic Intro State (Drone Fly-in from distance towards car)
-    if (this.isIntroActive) {
+    // Handle Race Starter System (Staging roll-up, broadcast showcase & 3D character countdown)
+    if (this.raceStarterSystem.isActive) {
+      if (inputs.accelerate || inputs.nitro || inputs.brake) {
+        this.skipIntro();
+      } else {
+        this.raceStarterSystem.update(delta);
+        this.playerVehicle.updateBoundingBox();
+        this.particleSystem.update(delta, this.playerVehicle.mesh.position);
+        this.trafficManager.update(delta, this.playerVehicle, 0, inputs.hornJustPressed, inputs.flash);
+        this.environment.update(delta);
+        this.uiManager.updateHUD(0, 0, 0, 0, 100);
+        this.uiManager.updateRadioVisuals(radioManager.getSpectrumLevels(), radioManager.isPlaying);
+        return;
+      }
+    } else if (this.isIntroActive) {
       if (inputs.accelerate || inputs.nitro || inputs.brake) {
         this.skipIntro();
       } else {
@@ -1462,6 +1487,7 @@ export class Game {
 
     // Update player driving physics
     this.playerVehicle.updatePhysics(delta, inputs.steer, inputs.accelerate, inputs.brake, isNitroActive);
+    this.raceStarterSystem.update(delta);
 
     const playerPos = this.playerVehicle.mesh.position;
     const speedKmh = this.playerVehicle.speedKmh;

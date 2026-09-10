@@ -95,6 +95,14 @@ export class UIManager {
   private cinematicCountdownText!: HTMLElement;
   private cinematicModeTag!: HTMLElement;
   private btnSkipIntro!: HTMLElement;
+  private cinematicRacerCard: HTMLElement | null = null;
+  private racerCardLane: HTMLElement | null = null;
+  private racerCardRole: HTMLElement | null = null;
+  private racerCardPlate: HTMLElement | null = null;
+  private racerCardDriver: HTMLElement | null = null;
+  private racerCardCar: HTMLElement | null = null;
+  private racerCardStatusText: HTMLElement | null = null;
+  private cinematicFinishTimeout: any = null;
 
   // Idle Inactive Cinematic Showcase
   private hudIdleCamBanner!: HTMLElement;
@@ -558,6 +566,23 @@ export class UIManager {
 
           <div class="cinematic-countdown-wrap">
             <div id="cinematic-countdown-text" class="cinematic-countdown-val">HAZIR</div>
+          </div>
+
+          <!-- Broadcast Racer Showcase Card -->
+          <div id="cinematic-racer-card" class="cinematic-racer-card" style="display: none;">
+            <div class="racer-card-lane-badge" id="racer-card-lane">ŞERİT 1</div>
+            <div class="racer-card-details">
+              <div class="racer-card-type-row">
+                <span class="racer-card-role" id="racer-card-role">🏁 SEN</span>
+                <span class="racer-card-plate" id="racer-card-plate">34 TR 1923</span>
+              </div>
+              <div class="racer-card-driver" id="racer-card-driver">OYUNCU</div>
+              <div class="racer-card-car" id="racer-card-car">BMW M5 F90 Competition</div>
+              <div class="racer-card-status">
+                <span class="racer-status-dot"></span>
+                <span id="racer-card-status-text">KAREYE YANAŞTI • MOTOR HAZIR</span>
+              </div>
+            </div>
           </div>
 
           <button id="btn-skip-intro" class="cinematic-skip-btn">
@@ -1474,6 +1499,13 @@ export class UIManager {
     this.cinematicCountdownText = document.getElementById('cinematic-countdown-text')!;
     this.cinematicModeTag = document.getElementById('cinematic-mode-tag')!;
     this.btnSkipIntro = document.getElementById('btn-skip-intro')!;
+    this.cinematicRacerCard = document.getElementById('cinematic-racer-card');
+    this.racerCardLane = document.getElementById('racer-card-lane');
+    this.racerCardRole = document.getElementById('racer-card-role');
+    this.racerCardPlate = document.getElementById('racer-card-plate');
+    this.racerCardDriver = document.getElementById('racer-card-driver');
+    this.racerCardCar = document.getElementById('racer-card-car');
+    this.racerCardStatusText = document.getElementById('racer-card-status-text');
 
     // Cache idle camera banner elements
     this.hudIdleCamBanner = document.getElementById('hud-idle-cam-banner')!;
@@ -4265,6 +4297,12 @@ export class UIManager {
 
   public startCinematicIntro(modeName: string, cinematicName = ''): void {
     if (!this.cinematicIntroWrap) return;
+
+    if (this.cinematicFinishTimeout) {
+      clearTimeout(this.cinematicFinishTimeout);
+      this.cinematicFinishTimeout = null;
+    }
+
     if (this.cinematicModeTag) {
       this.cinematicModeTag.innerText = cinematicName
         ? `${modeName.toUpperCase()} • ${cinematicName.toUpperCase()}`
@@ -4310,11 +4348,46 @@ export class UIManager {
     if (topBar) topBar.style.opacity = '1';
     if (touchCluster) touchCluster.style.opacity = '1';
 
-    setTimeout(() => {
+    if (this.cinematicFinishTimeout) {
+      clearTimeout(this.cinematicFinishTimeout);
+    }
+    this.cinematicFinishTimeout = setTimeout(() => {
       if (this.cinematicIntroWrap) {
         this.cinematicIntroWrap.style.display = 'none';
       }
+      this.cinematicFinishTimeout = null;
     }, 450);
+  }
+
+  public showRacerBroadcastCard(info: {
+    driverName: string;
+    carName: string;
+    laneNumber: number;
+    plate: string;
+    isLocal: boolean;
+    statusText?: string;
+  }): void {
+    if (!this.cinematicRacerCard) return;
+    if (this.racerCardLane) this.racerCardLane.textContent = `ŞERİT ${info.laneNumber}`;
+    if (this.racerCardRole) this.racerCardRole.textContent = info.isLocal ? '🏁 SEN' : '🏎️ RAKİP';
+    if (this.racerCardPlate) this.racerCardPlate.textContent = info.plate;
+    if (this.racerCardDriver) this.racerCardDriver.textContent = info.driverName;
+    if (this.racerCardCar) this.racerCardCar.textContent = info.carName;
+    if (this.racerCardStatusText) this.racerCardStatusText.textContent = info.statusText || 'KAREYE YANAŞTI • MOTOR HAZIR';
+
+    this.cinematicRacerCard.style.display = 'flex';
+    void this.cinematicRacerCard.offsetWidth;
+    this.cinematicRacerCard.classList.add('visible');
+  }
+
+  public hideRacerBroadcastCard(): void {
+    if (!this.cinematicRacerCard) return;
+    this.cinematicRacerCard.classList.remove('visible');
+    setTimeout(() => {
+      if (this.cinematicRacerCard && !this.cinematicRacerCard.classList.contains('visible')) {
+        this.cinematicRacerCard.style.display = 'none';
+      }
+    }, 300);
   }
 
   public setIdleCinematicBadge(active: boolean, shotName?: string): void {
