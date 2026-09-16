@@ -1,7 +1,5 @@
-// Reusable Road Segment for infinite highway generation
-
 import * as THREE from 'three';
-import { GAME_CONSTANTS } from '../core/Constants';
+import { GAME_CONSTANTS, type EnvironmentPreset } from '../core/Constants';
 import { laneSystem } from './LaneSystem';
 import { shipManager } from '../world/ShipManager';
 import { cityPackManager } from '../world/CityPackManager';
@@ -16,11 +14,15 @@ export class RoadSegment {
   public isBridge: boolean;
   public isTunnel: boolean = false;
 
-  // 3D City, Bridge, Ship and Tunnel Groups
+  // 3D Road Base, Terrain, Scenery, Bridge, Ship, Tunnel, Gantry and Streetlight Groups
+  public roadBaseGroup: THREE.Group = new THREE.Group();
+  public terrainGroup: THREE.Group = new THREE.Group();
   public sceneryGroup: THREE.Group = new THREE.Group();
   public bridgeMeshGroup: THREE.Group = new THREE.Group();
   public shipGroup: THREE.Group = new THREE.Group();
   public tunnelGroup: THREE.Group = new THREE.Group();
+  public gantryGroup: THREE.Group = new THREE.Group();
+  public streetLightsGroup: THREE.Group = new THREE.Group();
 
   // Two-Way / One-Way Dynamic Divider Groups
   private oneWayCenterLineGroup: THREE.Group = new THREE.Group();
@@ -128,6 +130,25 @@ export class RoadSegment {
   private static exitSignMaterials: THREE.MeshBasicMaterial[] = [];
   private static sosBoxOrangeMaterial: THREE.MeshStandardMaterial;
 
+  // Turkish Highway materials & maps
+  private static signMaterialsMap: Map<EnvironmentPreset, THREE.MeshBasicMaterial[]> = new Map();
+  private static exitSignMaterialsMap: Map<EnvironmentPreset, THREE.MeshBasicMaterial[]> = new Map();
+  private static kmStoneMaterialsMap: Map<EnvironmentPreset, THREE.MeshStandardMaterial> = new Map();
+  private static billboardMaterialsMap: Map<EnvironmentPreset, THREE.MeshStandardMaterial[]> = new Map();
+  private static bridgeGantrySignMaterialsMap: Map<EnvironmentPreset, THREE.MeshBasicMaterial> = new Map();
+  private static tunnelPortalMaterialsMap: Map<EnvironmentPreset, THREE.MeshBasicMaterial> = new Map();
+
+  // Bolu Dağı Alpine materials
+  private static spruceFoliageMaterials: THREE.MeshStandardMaterial[] = [];
+  private static rockWallMaterial: THREE.MeshStandardMaterial;
+  private static boluValleyFloorMaterial: THREE.MeshStandardMaterial;
+
+  // Bozkır Steppe materials
+  private static bozkirGrassMaterial: THREE.MeshStandardMaterial;
+  private static bozkirDirtMaterial: THREE.MeshStandardMaterial;
+  private static bozkirBushMaterial: THREE.MeshStandardMaterial;
+  private static osmangaziBridgeTowerMaterial: THREE.MeshStandardMaterial;
+
   public static setRainWetness(isRain: boolean): void {
     if (!RoadSegment.asphaltMaterial) return;
     if (isRain) {
@@ -145,16 +166,21 @@ export class RoadSegment {
     this.length = GAME_CONSTANTS.ROAD.SEGMENT_LENGTH;
     this.mesh = new THREE.Group();
     this.mesh.name = `RoadSegment_${segmentIndex}`;
+
+    this.mesh.add(this.roadBaseGroup);
+    this.mesh.add(this.terrainGroup);
     this.mesh.add(this.sceneryGroup);
     this.mesh.add(this.bridgeMeshGroup);
     this.mesh.add(this.shipGroup);
     this.mesh.add(this.tunnelGroup);
+    this.mesh.add(this.gantryGroup);
+    this.mesh.add(this.streetLightsGroup);
 
     // Segment rhythm:
     // 0: Highway corridor with Pedestrian Overpass & SOS bay
-    // 1: Bosphorus Bridge with LED Cables & Maiden's Tower
-    // 2: Highway corridor with Green Gantry Signs & Rolling Hills
-    // 3: Avrasya / TEM Highway Tunnel with LED Strips & Exhaust Echo
+    // 1: Bridge / Viaduct (Bosphorus / Bolu Viaduct / Bozkır Viaduct / Osmangazi)
+    // 2: Highway corridor with Gantries & Rolling Hills
+    // 3: Highway Tunnel (Avrasya / Bolu Dağı / O-21 / Samanlı)
     const cycle = segmentIndex % 4;
     this.isBridge = cycle === 1;
     this.isTunnel = cycle === 3;
@@ -180,8 +206,12 @@ export class RoadSegment {
         }
       });
     };
+    freezeGroup(this.roadBaseGroup);
+    freezeGroup(this.terrainGroup);
     freezeGroup(this.sceneryGroup);
     freezeGroup(this.tunnelGroup);
+    freezeGroup(this.gantryGroup);
+    freezeGroup(this.streetLightsGroup);
     freezeGroup(this.twoWayDividerGroup);
   }
 
@@ -1301,93 +1331,204 @@ export class RoadSegment {
       roughness: 0.40,
     });
 
+    // Regional Turkish Highway Materials
+    this.spruceFoliageMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0x0e2b1d, roughness: 0.88 }),
+      new THREE.MeshStandardMaterial({ color: 0x143b27, roughness: 0.85 }),
+      new THREE.MeshStandardMaterial({ color: 0x081f14, roughness: 0.90 }),
+    ];
+    this.rockWallMaterial = new THREE.MeshStandardMaterial({
+      color: 0x544f48,
+      roughness: 0.95,
+      metalness: 0.05,
+    });
+    this.boluValleyFloorMaterial = new THREE.MeshStandardMaterial({
+      color: 0x183018,
+      roughness: 0.90,
+    });
+    this.bozkirGrassMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb59e5f,
+      roughness: 0.95,
+    });
+    this.bozkirDirtMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8a724a,
+      roughness: 0.95,
+    });
+    this.bozkirBushMaterial = new THREE.MeshStandardMaterial({
+      color: 0x9c8e59,
+      roughness: 0.90,
+    });
+    this.osmangaziBridgeTowerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.35,
+      metalness: 0.65,
+    });
+
     // Generate authentic Turkish green highway sign textures & billboards & km stones
     this.initHighwaySignMaterials();
     this.initExitSignMaterials();
+    this.initBridgeGantrySignMaterials();
+    this.initTunnelPortalMaterials();
     this.initBillboardMaterials();
     this.initKmStoneMaterial();
+  }
+
+  private static initHighwaySignMaterials(): void {
+    if (typeof document === 'undefined') return;
+
+    const envSignConfigs: Record<EnvironmentPreset, Array<{ line1: string; line2: string; sub: string }>> = {
+      DAY: [ // 🛣️ E-5 Otobanı
+        { line1: '15 TEMMUZ ŞEHİTLER KÖPRÜSÜ', line2: 'KADIKÖY - BEŞİKTAŞ | BOĞAZİÇİ', sub: 'HGS / OGS GİRİŞİ' },
+        { line1: 'E-5 KARAYOLU (D100)', line2: 'MECİDİYEKÖY - LEVENT - MASLAK', sub: '70 KM/S - ELEKTRONİK DENETLEME (EDS)' },
+        { line1: 'FATİH SULTAN MEHMET KÖPRÜSÜ', line2: 'TEM OTOYOLU | EDİRNE - ANKARA', sub: 'OTOYOL BAĞLANTISI' },
+        { line1: 'İSTANBUL ÇEVRE YOLU (O-1)', line2: 'ÜSKÜDAR - ÇAMLICA - ALTUNİZADE', sub: 'HIZ KORİDORU KONTROL NOKTASI' },
+      ],
+      SUNSET: [ // 🌲 Anadolu Otoyolu (Bolu Dağı)
+        { line1: 'BOLU DAĞI GEÇİŞİ', line2: 'RAKIM: 1577m • ZİNCİR TAKMA ALANI', sub: 'DİKKAT: SİS VE BUZLANMA TEHLİKESİ' },
+        { line1: 'ANADOLU OTOYOLU (O-4)', line2: 'DÜZCE - BOLU - GEREDE - ANKARA', sub: 'OTOYOL HIZ SINIRI 130 KM/S' },
+        { line1: 'ABANT MİLLİ PARKI', line2: 'YEDİGÖLLER MİLLİ PARKI AYRIMI', sub: 'DOĞA GÜZERGAHI ÇIKIŞI' },
+        { line1: 'BOLU DAĞI VİYADÜKLERİ', line2: 'UZUNLUK 2272m • VİYADÜK GEÇİŞİ', sub: 'DİKKAT: ŞİDDETLİ YAN RÜZGAR' },
+      ],
+      NIGHT: [ // 🌾 Ankara - Niğde Otoyolu (Bozkır)
+        { line1: 'ANKARA - NİĞDE OTOYOLU (O-21)', line2: "TÜRKİYE'NİN İLK AKILLI OTOYOLU", sub: 'AKILLI ULAŞIM SİSTEMİ (AUS) DEVREDE' },
+        { line1: 'KAPADOKYA - GÖREME ÇIKIŞI', line2: 'AKSARAY - DERİNKUYU - NEVŞEHİR', sub: 'IHLARA VADİSİ BAĞLANTISI' },
+        { line1: 'O-21 AKILLI SİSTEM MERKEZİ', line2: 'HIZ SINIRI: 140 KM/S • IOT RADAR', sub: 'ANLIK BUZLANMA & SİS SENSÖRLERİ' },
+        { line1: 'KONYA - ADANA OTOYOL AYRIMI', line2: 'GÜNEY KORİDORU BAĞLANTISI', sub: 'AKILLI OTOYOL GİRİŞİ' },
+      ],
+      RAIN: [ // 🌧️ İstanbul - İzmir Otoyolu (Osmangazi)
+        { line1: 'İSTANBUL - İZMİR OTOYOLU (O-5)', line2: 'BURSA - BALIKESİR - MANİSA - İZMİR', sub: 'OTOYOL A.Ş. İŞLETMESİ' },
+        { line1: 'OSMANGAZİ KÖPRÜSÜ GEÇİŞİ', line2: 'İZMİT KÖRFEZİ • 4. EN UZUN ASMA KÖPRÜ', sub: 'OTOMATİK GEÇİŞ HGS / OGS' },
+        { line1: 'GEBZE - ORHANGAZİ BAĞLANTISI', line2: 'SAMANLI DAĞLARI • YALOVA ÇIKIŞI', sub: 'YAĞIŞTA TAKİP MESAFESİNİ KORUYUN' },
+        { line1: 'OKSİJEN DİNLENME TESİSLERİ', line2: 'O-3 OKSİJEN ALIŞVERİŞ VE YAŞAM', sub: '2 KM İLERİDE SAĞDA' },
+      ],
+    };
+
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const list: THREE.MeshBasicMaterial[] = [];
+      const configs = envSignConfigs[p];
+      for (const cfg of configs) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 160;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#007f3d';
+          ctx.fillRect(0, 0, 512, 160);
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 10;
+          ctx.strokeRect(8, 8, 496, 144);
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(16, 16, 480, 128);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(cfg.line1, 256, 52);
+
+          ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+          ctx.fillText(cfg.line2, 256, 92);
+
+          ctx.fillStyle = '#ffcc00';
+          ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+          ctx.fillText(`⚡ ${cfg.sub} ⚡`, 256, 130);
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        list.push(new THREE.MeshBasicMaterial({ map: texture }));
+      }
+      this.signMaterialsMap.set(p, list);
+    }
+    this.signMaterials = this.signMaterialsMap.get('DAY') || [];
   }
 
   private static initExitSignMaterials(): void {
     if (typeof document === 'undefined') return;
 
-    const exitConfigs = [
-      {
-        badge: 'K12 ÇIKIŞ / EXIT 500m',
-        line1: 'Kadıköy • Üsküdar',
-        line2: 'Havalimanı ✈',
-      },
-      {
-        badge: 'K8 ÇIKIŞ / EXIT 1000m',
-        line1: 'Beşiktaş • Levent',
-        line2: 'Maslak • Sarıyer',
-      },
-      {
-        badge: 'TEM OTOYOL AYRIMI',
-        line1: 'Edirne • Ankara',
-        line2: 'Çamlıca Bağlantısı',
-      },
-      {
-        badge: 'O-7 KUZEY MARMARA',
-        line1: 'İstanbul Havalimanı ✈',
-        line2: 'YSS Köprüsü',
-      },
-    ];
+    const envExitConfigs: Record<EnvironmentPreset, Array<{ badge: string; line1: string; line2: string; sub?: string }>> = {
+      DAY: [ // E-5
+        { badge: 'K12 ÇIKIŞ / EXIT 500m', line1: 'Kadıköy • Üsküdar', line2: 'Havalimanı ✈' },
+        { badge: 'K8 ÇIKIŞ / EXIT 1000m', line1: 'Beşiktaş • Levent', line2: 'Maslak • Sarıyer' },
+        { badge: 'TEM OTOYOL AYRIMI', line1: 'Edirne • Ankara', line2: 'Çamlıca Bağlantısı' },
+        { badge: 'O-7 KUZEY MARMARA', line1: 'İstanbul Havalimanı ✈', line2: 'YSS Köprüsü' },
+      ],
+      SUNSET: [ // Bolu Dağı
+        { badge: 'K19 ÇIKIŞ / 1000m', line1: 'Abant Tabiat Parkı', line2: 'Mudurnu • Taşkesti' },
+        { badge: 'K21 ÇIKIŞ / 500m', line1: 'Bolu (Batı) • Yedigöller', line2: 'Gerede Ayrımı' },
+        { badge: 'BOLU DAĞI HİZMET ALANI', line1: 'Et Mangal & Dinlenme', line2: 'Akaryakıt ⛽ • 500m' },
+        { badge: 'K17 ÇIKIŞ / DÜZCE', line1: 'Kaynaşlı • Akçakoca', line2: 'Karadeniz Sahil Yolu' },
+      ],
+      NIGHT: [ // Ankara - Niğde
+        { badge: 'K5 ÇIKIŞ / 1500m', line1: 'Şereflikoçhisar • Tuz Gölü', line2: 'Aksaray Çıkışı' },
+        { badge: 'K9 ÇIKIŞ / KAPADOKYA', line1: 'Nevşehir • Göreme', line2: 'Ihlara Vadisi 🎈' },
+        { badge: 'K14 ÇIKIŞ / NİĞDE', line1: 'Niğde Organize Sanayi', line2: 'Ulukışla • Adana' },
+        { badge: 'AKILLI DİNLENME ALANI', line1: 'Trugo 180kW Şarj ⚡', line2: '7/24 Kesintisiz Hizmet' },
+      ],
+      RAIN: [ // İstanbul - İzmir
+        { badge: 'K3 ÇIKIŞ / 500m', line1: 'Osmangazi Köprüsü', line2: 'Yalova • Bursa ↗' },
+        { badge: 'K7 ÇIKIŞ / ORHANGAZİ', line1: 'İznik Gölü • Gemlik', line2: 'Serbest Bölge Liman' },
+        { badge: 'K12 ÇIKIŞ / BALIKESİR', line1: 'Balıkesir (Kuzey)', line2: 'Edremit • Ayvalık ⚓' },
+        { badge: 'OKSİJEN O-3 ÇIKIŞI', line1: 'Dinlenme & Yaşam Merkezi', line2: 'Alışveriş • Mola Yeri' },
+      ],
+    };
 
-    for (const cfg of exitConfigs) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 256;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Turkish Motorway Blue (RAL 5017 Traffic Blue)
-        ctx.fillStyle = '#00539c';
-        ctx.fillRect(0, 0, 512, 256);
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const list: THREE.MeshBasicMaterial[] = [];
+      const configs = envExitConfigs[p];
+      for (const cfg of configs) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#00539c';
+          ctx.fillRect(0, 0, 512, 256);
 
-        // White outer border
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 10;
-        ctx.strokeRect(8, 8, 496, 240);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 10;
+          ctx.strokeRect(8, 8, 496, 240);
 
-        // Yellow exit header bar
-        ctx.fillStyle = '#ffbe0b';
-        ctx.fillRect(14, 14, 484, 52);
+          ctx.fillStyle = '#ffbe0b';
+          ctx.fillRect(14, 14, 484, 52);
 
-        // Black text on yellow bar
-        ctx.fillStyle = '#111827';
-        ctx.font = '900 24px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(cfg.badge, 256, 40);
+          ctx.fillStyle = '#111827';
+          ctx.font = '900 24px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(cfg.badge, 256, 40);
 
-        // White destinations text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(cfg.line1, 36, 115);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(cfg.line1, 36, 115);
 
-        ctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(cfg.line2, 36, 165);
+          ctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
+          ctx.fillText(cfg.line2, 36, 165);
 
-        // Slanted Exit Arrow ↗
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 64px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText('↗', 476, 150);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 64px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText('↗', 476, 150);
 
-        // Distance / OGS strip at bottom
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.fillRect(24, 204, 464, 32);
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('OTOYOL SERVİS ALANI • OGS / HGS', 256, 225);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.fillRect(24, 204, 464, 32);
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(cfg.sub || 'OTOYOL SERVİS ALANI • OGS / HGS', 256, 225);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 4;
+        list.push(new THREE.MeshBasicMaterial({ map: texture }));
       }
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.anisotropy = 4;
-      this.exitSignMaterials.push(new THREE.MeshBasicMaterial({ map: texture }));
+      this.exitSignMaterialsMap.set(p, list);
     }
+    this.exitSignMaterials = this.exitSignMaterialsMap.get('DAY') || [];
   }
 
   private static createBridgeSignTexture(): THREE.CanvasTexture {
@@ -1396,11 +1537,9 @@ export class RoadSegment {
     canvas.height = 96;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Dark navy/charcoal matrix panel
       ctx.fillStyle = '#080d1a';
       ctx.fillRect(0, 0, 512, 96);
 
-      // Red border frame
       ctx.strokeStyle = '#e63946';
       ctx.lineWidth = 4;
       ctx.strokeRect(6, 6, 500, 84);
@@ -1408,7 +1547,6 @@ export class RoadSegment {
       // Turkish Flag on the left
       ctx.fillStyle = '#e63946';
       ctx.fillRect(18, 16, 75, 54);
-      // Crescent
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(48, 43, 16, 0, Math.PI * 2);
@@ -1417,13 +1555,11 @@ export class RoadSegment {
       ctx.beginPath();
       ctx.arc(53, 43, 12.5, 0, Math.PI * 2);
       ctx.fill();
-      // Star
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(64, 43, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Glowing Header: 15 TEMMUZ ŞEHİTLER KÖPRÜSÜ
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 25px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'left';
@@ -1445,22 +1581,18 @@ export class RoadSegment {
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // LED Matrix background
       ctx.fillStyle = '#080c16';
       ctx.fillRect(0, 0, 512, 128);
 
-      // Matrix golden border
       ctx.strokeStyle = '#ffbe0b';
       ctx.lineWidth = 4;
       ctx.strokeRect(4, 4, 504, 120);
 
-      // Header: 15 TEMMUZ ŞEHİTLER KÖPRÜSÜ GİRİŞİ
       ctx.fillStyle = '#ffbe0b';
       ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('15 TEMMUZ ŞEHİTLER KÖPRÜSÜ GİRİŞİ', 256, 36);
 
-      // Lane Arrows: Green illuminated LED arrows for 4 lanes
       ctx.fillStyle = '#00ff88';
       ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
       ctx.fillText('↓          ↓          ↓          ↓', 256, 82);
@@ -1473,196 +1605,255 @@ export class RoadSegment {
     return tex;
   }
 
-  private static initHighwaySignMaterials(): void {
+  private static initBridgeGantrySignMaterials(): void {
     if (typeof document === 'undefined') return;
 
-    const signConfigs = [
-      {
-        line1: '15 TEMMUZ ŞEHİTLER KÖPRÜSÜ',
-        line2: 'KADIKÖY - BEŞİKTAŞ | BOĞAZİÇİ',
-        sub: 'HGS / OGS GİRİŞİ',
+    const gantryConfigs: Record<EnvironmentPreset, { title: string; sub: string; border: string }> = {
+      DAY: {
+        title: '15 TEMMUZ ŞEHİTLER KÖPRÜSÜ GİRİŞİ',
+        sub: 'OGS / HGS OTOMATİK GEÇİŞ - İYİ YOLCULUKLAR',
+        border: '#ffbe0b',
       },
-      {
-        line1: 'E-5 KARAYOLU (D100)',
-        line2: 'MECİDİYEKÖY - LEVENT - MASLAK',
-        sub: '70 KM/S - ELEKTRONİK DENETLEME (EDS)',
+      SUNSET: {
+        title: 'BOLU DAĞI 1. VİYADÜĞÜ GİRİŞİ',
+        sub: 'UZUNLUK: 2272m • DİKKAT: ŞİDDETLİ YAN RÜZGAR',
+        border: '#ff9f1c',
       },
-      {
-        line1: 'FATİH SULTAN MEHMET KÖPRÜSÜ',
-        line2: 'TEM OTOYOLU | EDİRNE - ANKARA',
-        sub: 'OTOYOL BAĞLANTISI',
+      NIGHT: {
+        title: 'O-21 BOZKIR VİYADÜĞÜ GİRİŞİ',
+        sub: 'AKILLI OTOYOL KONTROL NOKTASI • HIZ SINIRI 140 KM/S',
+        border: '#00f0ff',
       },
-      {
-        line1: 'İSTANBUL ÇEVRE YOLU (O-1)',
-        line2: 'ÜSKÜDAR - ÇAMLICA - ALTUNİZADE',
-        sub: 'HIZ KORİDORU KONTROL NOKTASI',
+      RAIN: {
+        title: 'OSMANGAZİ KÖPRÜSÜ GİRİŞİ',
+        sub: 'İZMİT KÖRFEZ GEÇİŞİ • YAĞIŞTA TAKİP MESAFESİNİ KORUYUN',
+        border: '#38bdf8',
       },
-    ];
+    };
 
-    for (const cfg of signConfigs) {
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const cfg = gantryConfigs[p];
       const canvas = document.createElement('canvas');
       canvas.width = 512;
-      canvas.height = 160;
+      canvas.height = 128;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Turkish Highway Green (RAL 6024)
-        ctx.fillStyle = '#007f3d';
-        ctx.fillRect(0, 0, 512, 160);
+        ctx.fillStyle = '#080c16';
+        ctx.fillRect(0, 0, 512, 128);
 
-        // White border
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 10;
-        ctx.strokeRect(8, 8, 496, 144);
+        ctx.strokeStyle = cfg.border;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(4, 4, 504, 120);
 
-        // Inner frame
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(16, 16, 480, 128);
-
-        // Text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 28px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = cfg.border;
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(cfg.line1, 256, 52);
+        ctx.fillText(cfg.title, 256, 36);
 
-        ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(cfg.line2, 256, 92);
+        ctx.fillStyle = '#00ff88';
+        ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('↓          ↓          ↓          ↓', 256, 82);
 
-        ctx.fillStyle = '#ffcc00';
-        ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(`⚡ ${cfg.sub} ⚡`, 256, 130);
+        ctx.fillStyle = '#8ecae6';
+        ctx.font = '13px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(cfg.sub, 256, 112);
       }
+      const tex = new THREE.CanvasTexture(canvas);
+      this.bridgeGantrySignMaterialsMap.set(p, new THREE.MeshBasicMaterial({ map: tex }));
+    }
+  }
 
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.anisotropy = 4;
-      this.signMaterials.push(new THREE.MeshBasicMaterial({ map: texture }));
+  private static initTunnelPortalMaterials(): void {
+    if (typeof document === 'undefined') return;
+
+    const portalConfigs: Record<EnvironmentPreset, { title: string; sub: string; border: string; accent: string }> = {
+      DAY: {
+        title: 'AVRASYA TÜNELİ',
+        sub: 'HIZ SINIRI: 70 KM/S • RADAR EDS',
+        border: '#38bdf8',
+        accent: '#38bdf8',
+      },
+      SUNSET: {
+        title: 'BOLU DAĞI TÜNELİ',
+        sub: 'UZUNLUK: 3125m • ASGARİ TAKİP MESAFESİ 50m',
+        border: '#ff9f1c',
+        accent: '#ffd166',
+      },
+      NIGHT: {
+        title: 'O-21 AKILLI OTOYOL TÜNELİ',
+        sub: 'HIZ SINIRI: 110 KM/S • AKILLI GÜVENLİK SİSTEMİ',
+        border: '#00f0ff',
+        accent: '#00ff88',
+      },
+      RAIN: {
+        title: 'ORHANGAZİ (SAMANLI) TÜNELİ',
+        sub: 'UZUNLUK: 3591m • İSTANBUL-İZMİR OTOYOLU (O-5)',
+        border: '#818cf8',
+        accent: '#a5b4fc',
+      },
+    };
+
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const cfg = portalConfigs[p];
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 512, 96);
+        ctx.strokeStyle = cfg.border;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(6, 6, 500, 84);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '900 30px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(cfg.title, 256, 42);
+        ctx.fillStyle = cfg.accent;
+        ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(cfg.sub, 256, 74);
+      }
+      const portalTex = new THREE.CanvasTexture(canvas);
+      this.tunnelPortalMaterialsMap.set(p, new THREE.MeshBasicMaterial({ map: portalTex }));
     }
   }
 
   private static initBillboardMaterials(): void {
     if (typeof document === 'undefined') return;
 
-    const billboardConfigs = [
-      {
-        header: 'TÜRK HAVA YOLLARI',
-        sub: 'WIDEN YOUR WORLD',
-        badge: '✈ TURKISH AIRLINES',
-        bg: '#c9182b',
-        textColor: '#ffffff',
-        accent: '#ffffff',
-      },
-      {
-        header: 'İSTANBUL BOĞAZI',
-        sub: 'İKİ KITAYI BİRLEŞTİREN ŞEHİR',
-        badge: '⚓ HOŞ GELDİNİZ',
-        bg: '#0077b6',
-        textColor: '#ffffff',
-        accent: '#90e0ef',
-      },
-      {
-        header: 'TRAFİKTE DİKKAT HAYAT KURTARIR',
-        sub: 'EMNİYET KEMERİNİZİ TAKINIZ',
-        badge: '⚠ 112 ACİL ÇAĞRI',
-        bg: '#14213d',
-        textColor: '#fca311',
-        accent: '#ffffff',
-      },
-      {
-        header: "TÜRKİYE'NİN OTOMOBİLİ - TOGG",
-        sub: 'DOĞUŞTAN ELEKTRİKLİ T10X',
-        badge: '⚡ YOLCULUK BAŞLASIN',
-        bg: '#03045e',
-        textColor: '#00f5d4',
-        accent: '#caf0f8',
-      },
-      {
-        header: 'EDS ORTALAMA HIZ KORİDORU',
-        sub: '70 KM/S - GÜVENLİ SÜRÜŞ',
-        badge: '📷 RADAR DENETİMİ',
-        bg: '#2b2d42',
-        textColor: '#edf2f4',
-        accent: '#d90429',
-      },
-    ];
+    const envBillboardConfigs: Record<EnvironmentPreset, Array<{
+      header: string;
+      sub: string;
+      badge: string;
+      bg: string;
+      textColor: string;
+      accent: string;
+    }>> = {
+      DAY: [ // E-5
+        { header: 'TÜRK HAVA YOLLARI', sub: 'WIDEN YOUR WORLD', badge: '✈ TURKISH AIRLINES', bg: '#c9182b', textColor: '#ffffff', accent: '#ffffff' },
+        { header: 'İSTANBUL BOĞAZI', sub: 'İKİ KITAYI BİRLEŞTİREN ŞEHİR', badge: '⚓ HOŞ GELDİNİZ', bg: '#0077b6', textColor: '#ffffff', accent: '#90e0ef' },
+        { header: 'TRAFİKTE DİKKAT HAYAT KURTARIR', sub: 'EMNİYET KEMERİNİZİ TAKINIZ', badge: '⚠ 112 ACİL ÇAĞRI', bg: '#14213d', textColor: '#fca311', accent: '#ffffff' },
+        { header: "TÜRKİYE'NİN OTOMOBİLİ - TOGG", sub: 'DOĞUŞTAN ELEKTRİKLİ T10X', badge: '⚡ YOLCULUK BAŞLASIN', bg: '#03045e', textColor: '#00f5d4', accent: '#caf0f8' },
+        { header: 'EDS ORTALAMA HIZ KORİDORU', sub: '70 KM/S - GÜVENLİ SÜRÜŞ', badge: '📷 RADAR DENETİMİ', bg: '#2b2d42', textColor: '#edf2f4', accent: '#d90429' },
+      ],
+      SUNSET: [ // Bolu Dağı
+        { header: 'BOLU DAĞI MEŞHUR ET MANGAL', sub: 'KÖFTE • SUCUK • YAYIK AYRANI', badge: '🥩 500m İLERİDE SAĞDA', bg: '#4a1515', textColor: '#ffffff', accent: '#ffd166' },
+        { header: 'ABANT DOĞA VE TERMAL OTEL', sub: 'MİLLİ PARK GİRİŞİNDE HUZUR', badge: '🌲 ABANT ÇIKIŞI', bg: '#133926', textColor: '#ffffff', accent: '#95d5b2' },
+        { header: 'ORMANLARIMIZI KORUYALIM', sub: 'GELECEĞE NEFES OL - OGM', badge: '🍃 YEŞİL TÜRKİYE', bg: '#1b4332', textColor: '#d8f3dc', accent: '#52b788' },
+        { header: 'BOLU ÇİKOLATASI & FINDIĞI', sub: 'DOĞAL YÖRESEL LEZZETLER', badge: '🍫 YOL ÜSTÜ DURAĞI', bg: '#3d2614', textColor: '#fefae0', accent: '#dda15e' },
+        { header: 'KIŞ LASTİĞİ VE ZİNCİR', sub: 'ZORUNLU KIŞ EKİPMANI TAŞIYIN', badge: '❄ BOLU GEÇİDİ', bg: '#1d2d44', textColor: '#e0e1dd', accent: '#748cab' },
+      ],
+      NIGHT: [ // Ankara - Niğde
+        { header: "O-21 AKILLI OTOYOL", sub: "TÜRKİYE'NİN DİJİTAL OTOYOLU", badge: '🚀 AUS TEKNOLOJİSİ', bg: '#0b132b', textColor: '#48cae4', accent: '#00b4d8' },
+        { header: 'KAPADOKYA GÖREME BALON TURLARI', sub: 'GÜN DOĞUMUNDA PERİ BACALARI', badge: '🎈 KAPADOKYA ÇIKIŞI', bg: '#2a1a4e', textColor: '#ffffff', accent: '#f72585' },
+        { header: 'ASELSAN AKILLI ULAŞIM', sub: 'GÜVENLİ VE HIZLI OTOYOL SİSTEMLERİ', badge: '🛡️ MİLLİ TEKNOLOJİ', bg: '#0d1b2a', textColor: '#e0e1dd', accent: '#415a77' },
+        { header: 'TRUGO ULTRA HIZLI ŞARJ', sub: '180 kW YÜKSEK HIZLI ŞARJ İSTASYONU', badge: '⚡ TRUGO AĞI', bg: '#003049', textColor: '#669bbc', accent: '#fdf0d5' },
+        { header: 'UYKUSUZ YOLA ÇIKMAYINIZ', sub: '2 SAATTE BİR 15 DAKİKA MOLA', badge: '☕ DİNLENME ALANI', bg: '#1b1b1b', textColor: '#fca311', accent: '#ffffff' },
+      ],
+      RAIN: [ // İstanbul - İzmir
+        { header: 'OKSİJEN O-3 DİNLENME MERKEZİ', sub: 'ALIŞVERİŞ • LEZZET • AKARYAKIT', badge: '🛒 OKSİJEN OTOYOL', bg: '#003566', textColor: '#ffc300', accent: '#ffd60a' },
+        { header: 'İSTANBUL - İZMİR 3.5 SAAT', sub: 'OTOYOL A.Ş. İLE KESİNTİSİZ YOLCULUK', badge: '🛣️ O-5 KORİDORU', bg: '#001d3d', textColor: '#ffffff', accent: '#00b4d8' },
+        { header: 'BURSA MEŞHUR İSKENDER', sub: 'BURSA VE BALIKESİR ÇIKIŞLARINDA', badge: '🍽️ DAMAK TADI', bg: '#780000', textColor: '#fdf0d5', accent: '#c1121f' },
+        { header: 'SHELL V-POWER DURAĞI', sub: 'KALİTELİ YAKIT VE GENİŞ MARKET', badge: '⛽ SHELL OKSİJEN', bg: '#ffb703', textColor: '#d90429', accent: '#023047' },
+        { header: 'YAĞIŞTA TAKİP MESAFESİ', sub: 'ISLAK ZEMİNDE HIZINIZI DÜŞÜRÜNÜZ', badge: '🌧️ GÜVENLİ SÜRÜŞ', bg: '#1f2421', textColor: '#dce1de', accent: '#9cc5a1' },
+      ],
+    };
 
-    for (const cfg of billboardConfigs) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 256;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = cfg.bg;
-        ctx.fillRect(0, 0, 512, 256);
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const list: THREE.MeshStandardMaterial[] = [];
+      const configs = envBillboardConfigs[p];
+      for (const cfg of configs) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = cfg.bg;
+          ctx.fillRect(0, 0, 512, 256);
 
-        // Frame
-        ctx.strokeStyle = cfg.accent;
-        ctx.lineWidth = 8;
-        ctx.strokeRect(10, 10, 492, 236);
+          ctx.strokeStyle = cfg.accent;
+          ctx.lineWidth = 8;
+          ctx.strokeRect(10, 10, 492, 236);
 
-        // Badge pill
-        ctx.fillStyle = cfg.accent;
-        ctx.fillRect(26, 24, 210, 36);
-        ctx.fillStyle = cfg.bg;
-        ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(cfg.badge, 36, 49);
+          ctx.fillStyle = cfg.accent;
+          ctx.fillRect(26, 24, 210, 36);
+          ctx.fillStyle = cfg.bg;
+          ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+          ctx.fillText(cfg.badge, 36, 49);
 
-        // Header
-        ctx.fillStyle = cfg.textColor;
-        ctx.font = '900 28px "Segoe UI", Arial, sans-serif';
-        ctx.fillText(cfg.header, 26, 120);
+          ctx.fillStyle = cfg.textColor;
+          ctx.font = '900 28px "Segoe UI", Arial, sans-serif';
+          ctx.fillText(cfg.header, 26, 120);
 
-        // Sub
-        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-        ctx.fillStyle = cfg.accent;
-        ctx.fillText(cfg.sub, 26, 175);
+          ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+          ctx.fillStyle = cfg.accent;
+          ctx.fillText(cfg.sub, 26, 175);
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.anisotropy = 4;
+        list.push(
+          new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.4,
+            metalness: 0.2,
+          })
+        );
       }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.anisotropy = 4;
-      this.billboardMaterials.push(
-        new THREE.MeshStandardMaterial({
-          map: tex,
-          roughness: 0.4,
-          metalness: 0.2,
-        })
-      );
+      this.billboardMaterialsMap.set(p, list);
     }
+    this.billboardMaterials = this.billboardMaterialsMap.get('DAY') || [];
   }
 
   private static initKmStoneMaterial(): void {
     if (typeof document === 'undefined') return;
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      // White concrete base
-      ctx.fillStyle = '#f8f9fa';
-      ctx.fillRect(0, 0, 128, 256);
 
-      // Red curved top cap
-      ctx.fillStyle = '#d90429';
-      ctx.fillRect(0, 0, 128, 60);
+    const kmConfigs: Record<EnvironmentPreset, { otoyol: string; km: string }> = {
+      DAY: { otoyol: 'O-1', km: '34' },
+      SUNSET: { otoyol: 'O-4', km: '218' },
+      NIGHT: { otoyol: 'O-21', km: '145' },
+      RAIN: { otoyol: 'O-5', km: '56' },
+    };
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 24px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('KGM', 64, 42);
+    const presets: EnvironmentPreset[] = ['DAY', 'SUNSET', 'NIGHT', 'RAIN'];
+    for (const p of presets) {
+      const cfg = kmConfigs[p];
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, 128, 256);
 
-      ctx.fillStyle = '#111111';
-      ctx.font = 'bold 26px Arial, sans-serif';
-      ctx.fillText('O-1', 64, 110);
-      ctx.font = 'bold 22px Arial, sans-serif';
-      ctx.fillText('34', 64, 160);
-      ctx.font = 'bold 26px Arial, sans-serif';
-      ctx.fillStyle = '#d90429';
-      ctx.fillText('KM', 64, 215);
+        ctx.fillStyle = '#d90429';
+        ctx.fillRect(0, 0, 128, 60);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 24px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KGM', 64, 42);
+
+        ctx.fillStyle = '#111111';
+        ctx.font = 'bold 26px Arial, sans-serif';
+        ctx.fillText(cfg.otoyol, 64, 110);
+        ctx.font = 'bold 22px Arial, sans-serif';
+        ctx.fillText(cfg.km, 64, 160);
+        ctx.font = 'bold 26px Arial, sans-serif';
+        ctx.fillStyle = '#d90429';
+        ctx.fillText('KM', 64, 215);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 4;
+      const mat = new THREE.MeshStandardMaterial({
+        map: tex,
+        roughness: 0.8,
+      });
+      this.kmStoneMaterialsMap.set(p, mat);
     }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.anisotropy = 4;
-    this.kmStoneMaterial = new THREE.MeshStandardMaterial({
-      map: tex,
-      roughness: 0.8,
-    });
+    this.kmStoneMaterial = this.kmStoneMaterialsMap.get('DAY')!;
   }
 
   private buildSegment(): void {
@@ -1678,19 +1869,19 @@ export class RoadSegment {
     asphalt.rotation.x = -Math.PI / 2;
     asphalt.position.set(0, 0, segLength / 2);
     asphalt.receiveShadow = true;
-    this.mesh.add(asphalt);
+    this.roadBaseGroup.add(asphalt);
 
     // 2. Yellow Outer Shoulder Lines
     const shoulderLineGeo = new THREE.PlaneGeometry(0.2, segLength);
     const leftShoulder = new THREE.Mesh(shoulderLineGeo, RoadSegment.shoulderLineMaterial);
     leftShoulder.rotation.x = -Math.PI / 2;
     leftShoulder.position.set(-halfRoad + 0.15, 0.01, segLength / 2);
-    this.mesh.add(leftShoulder);
+    this.roadBaseGroup.add(leftShoulder);
 
     const rightShoulder = new THREE.Mesh(shoulderLineGeo, RoadSegment.shoulderLineMaterial);
     rightShoulder.rotation.x = -Math.PI / 2;
     rightShoulder.position.set(halfRoad - 0.15, 0.01, segLength / 2);
-    this.mesh.add(rightShoulder);
+    this.roadBaseGroup.add(rightShoulder);
 
     // 3. Lane Divider Lines & Center Median
     const dashLength = 4.0;
@@ -1702,15 +1893,14 @@ export class RoadSegment {
     this.oneWayCenterLineGroup.name = 'OneWayCenterLineGroup';
     this.twoWayDividerGroup = new THREE.Group();
     this.twoWayDividerGroup.name = 'TwoWayDividerGroup';
-    this.mesh.add(this.oneWayCenterLineGroup);
-    this.mesh.add(this.twoWayDividerGroup);
+    this.roadBaseGroup.add(this.oneWayCenterLineGroup);
+    this.roadBaseGroup.add(this.twoWayDividerGroup);
 
     for (let l = 1; l < laneSystem.laneCount; l++) {
       const lineX = -halfRoad + l * laneSystem.laneWidth;
-      const isCenterDivider = l === 2; // In 4-lane highway, l=2 is the center divider at x = 0
+      const isCenterDivider = l === 2;
 
       if (!isCenterDivider) {
-        // Outer lane dividers: InstancedMesh for 1 draw call per line
         const instDashes = new THREE.InstancedMesh(dashGeo, RoadSegment.laneMarkingMaterial, dashesCount);
         const dummy = new THREE.Object3D();
         dummy.rotation.x = -Math.PI / 2;
@@ -1721,10 +1911,8 @@ export class RoadSegment {
           instDashes.setMatrixAt(d, dummy.matrix);
         }
         instDashes.instanceMatrix.needsUpdate = true;
-        this.mesh.add(instDashes);
+        this.roadBaseGroup.add(instDashes);
       } else {
-        // CENTER DIVIDER (x = 0):
-        // 1) ONE-WAY MODE: InstancedMesh for dashed white line
         const instCenterDashes = new THREE.InstancedMesh(dashGeo, RoadSegment.laneMarkingMaterial, dashesCount);
         const dummy = new THREE.Object3D();
         dummy.rotation.x = -Math.PI / 2;
@@ -1737,8 +1925,6 @@ export class RoadSegment {
         instCenterDashes.instanceMatrix.needsUpdate = true;
         this.oneWayCenterLineGroup.add(instCenterDashes);
 
-        // 2) TWO-WAY MODE:
-        // A. Double Solid Continuous Yellow Lines (Çift Düz Sarı Çizgi)
         const doubleYellowGeo = new THREE.PlaneGeometry(0.14, segLength);
         const leftYellow = new THREE.Mesh(doubleYellowGeo, RoadSegment.twoWayYellowMaterial);
         leftYellow.rotation.x = -Math.PI / 2;
@@ -1750,7 +1936,6 @@ export class RoadSegment {
         rightYellow.position.set(0.13, 0.012, segLength / 2);
         this.twoWayDividerGroup.add(rightYellow);
 
-        // B. Amber Road Studs (Kedi Gözleri / Reflektörler) via single InstancedMesh
         const studCount = Math.floor(segLength / 3.5);
         const instStuds = new THREE.InstancedMesh(RoadSegment.roadStudGeo, RoadSegment.roadStudAmberMaterial, studCount);
         const dummyStud = new THREE.Object3D();
@@ -1762,7 +1947,6 @@ export class RoadSegment {
         instStuds.instanceMatrix.needsUpdate = true;
         this.twoWayDividerGroup.add(instStuds);
 
-        // C. 3D Flexible Traffic Warning Delineators (Reflektörlü Yol Dubaları) at z = 7.5m and z = 22.5m
         const del1 = RoadSegment.createDelineatorPost();
         del1.position.set(0, 0, 7.5);
         this.twoWayDividerGroup.add(del1);
@@ -1771,10 +1955,7 @@ export class RoadSegment {
         del2.position.set(0, 0, 22.5);
         this.twoWayDividerGroup.add(del2);
 
-        // D. Asphalt Directional Warning Arrows (Asfalt Okları)
         const arrowGeo = new THREE.PlaneGeometry(1.9, 4.4);
-
-        // Forward Driving Lanes (Right side of road, Lanes 0 & 1, x < 0): Forward White Arrows pointing ahead (▲)
         const fwdArrow0 = new THREE.Mesh(arrowGeo, RoadSegment.forwardArrowMaterial);
         fwdArrow0.rotation.set(-Math.PI / 2, 0, Math.PI);
         fwdArrow0.position.set(laneSystem.getLaneX(0), 0.015, segLength * 0.5);
@@ -1785,7 +1966,6 @@ export class RoadSegment {
         fwdArrow1.position.set(laneSystem.getLaneX(1), 0.015, segLength * 0.5);
         this.twoWayDividerGroup.add(fwdArrow1);
 
-        // Oncoming Lanes (Left side of road, Lanes 2 & 3, x > 0): Reverse Warning Arrows pointing towards driver (▼)
         const revArrow2 = new THREE.Mesh(arrowGeo, RoadSegment.reverseArrowMaterial);
         revArrow2.rotation.set(-Math.PI / 2, 0, Math.PI);
         revArrow2.position.set(laneSystem.getLaneX(2), 0.015, segLength * 0.5);
@@ -1798,16 +1978,15 @@ export class RoadSegment {
       }
     }
 
-    // Cat-eye highway reflectors (Kedi Gözü Reflektörler):
-    // Authentic Turkish motorways have reflective studs along every lane divider line and outer road edges!
+    // Cat-eye highway reflectors
     const studSpacing = 6;
     const studsPerLine = Math.floor(segLength / studSpacing);
     const lineXPositions = [
-      -halfRoad + 0.25,                                     // Far left edge
-      (laneSystem.getLaneX(0) + laneSystem.getLaneX(1)) / 2, // Lane 0 - 1 divider
-      0,                                                    // Center median / double yellow/white
-      (laneSystem.getLaneX(2) + laneSystem.getLaneX(3)) / 2, // Lane 2 - 3 divider
-      halfRoad - 0.25,                                      // Far right edge
+      -halfRoad + 0.25,
+      (laneSystem.getLaneX(0) + laneSystem.getLaneX(1)) / 2,
+      0,
+      (laneSystem.getLaneX(2) + laneSystem.getLaneX(3)) / 2,
+      halfRoad - 0.25,
     ];
     const totalStuds = studsPerLine * lineXPositions.length;
     const reflectorGeo = new THREE.BoxGeometry(0.14, 0.05, 0.20);
@@ -1824,55 +2003,102 @@ export class RoadSegment {
       }
     }
     instReflectors.instanceMatrix.needsUpdate = true;
-    this.mesh.add(instReflectors);
+    this.roadBaseGroup.add(instReflectors);
 
     // 4. Concrete Shoulders / Curbs
     const curbGeo = new THREE.BoxGeometry(shoulderWidth, 0.2, segLength);
-
     const leftCurb = new THREE.Mesh(curbGeo, RoadSegment.curbMaterial);
     leftCurb.position.set(-halfRoad - shoulderWidth / 2, 0.08, segLength / 2);
     leftCurb.receiveShadow = true;
-    this.mesh.add(leftCurb);
+    this.roadBaseGroup.add(leftCurb);
 
     const rightCurb = new THREE.Mesh(curbGeo, RoadSegment.curbMaterial);
     rightCurb.position.set(halfRoad + shoulderWidth / 2, 0.08, segLength / 2);
     rightCurb.receiveShadow = true;
-    this.mesh.add(rightCurb);
+    this.roadBaseGroup.add(rightCurb);
 
     // 5. Modern Corrugated W-Beam Guardrails, I-Beam Posts, Reflectors & Drainage Grates
     this.addModernGuardrail(halfRoad, shoulderWidth, segLength);
 
-    // 6. Theme specific layout: Bosphorus Bridge vs Avrasya Tunnel vs E-5 Highway
+    // 6. Theme specific layout per Turkish Highway preset
+    this.buildThemeElements(roadBoundaryX, segLength);
+  }
+
+  private buildThemeElements(roadBoundaryX: number, segLength: number): void {
+    const env: EnvironmentPreset = gameState.currentEnvironment || 'DAY';
+
     if (this.isBridge) {
-      // BOSPHORUS BRIDGE (15 Temmuz Şehitler Köprüsü / FSM)
-      this.addBosphorusWater(roadBoundaryX, segLength);
-      this.addSuspensionBridgeTower(roadBoundaryX, segLength);
-      this.addMaidensTower(roadBoundaryX, segLength);
-
-      // Add passing Istanbul Marine Vessel (Cruise Ship / Ferry)
-      this.setupBosphorusShip();
+      if (env === 'DAY') {
+        // E-5 OTOBANI (15 Temmuz Şehitler Köprüsü / Boğaziçi)
+        this.addBosphorusWater(roadBoundaryX, segLength);
+        this.addSuspensionBridgeTower(roadBoundaryX, segLength);
+        this.addMaidensTower(roadBoundaryX, segLength);
+        this.setupBosphorusShip();
+      } else if (env === 'SUNSET') {
+        // ANADOLU OTOYOLU (Bolu Dağı 1. Viyadüğü)
+        this.addBoluViaduct(roadBoundaryX, segLength);
+      } else if (env === 'NIGHT') {
+        // ANKARA - NİĞDE OTOYOLU (O-21 Bozkır Viyadüğü)
+        this.addBozkirViaduct(roadBoundaryX, segLength);
+      } else {
+        // İSTANBUL - İZMİR OTOYOLU (Osmangazi Köprüsü Körfez Geçişi)
+        this.addOsmangaziBridge(roadBoundaryX, segLength);
+      }
     } else if (this.isTunnel) {
-      // AVRASYA / TEM HIGHWAY TUNNEL
-      this.buildTunnel(roadBoundaryX, segLength);
+      // Highway Tunnel (Avrasya / Bolu Dağı / O-21 / Samanlı)
+      this.buildTunnel(roadBoundaryX, segLength, env);
     } else {
-      // E-5 / TEM CONTINENTAL HIGHWAY CORRIDOR
-      this.addGrassTerrain(roadBoundaryX, segLength);
-      this.addRoadsideScenery(roadBoundaryX, segLength);
+      // Open Highway Corridor
+      if (env === 'DAY') {
+        // E-5 METROPOLITAN CORRIDOR
+        this.addGrassTerrain(roadBoundaryX, segLength);
+        this.addRoadsideScenery(roadBoundaryX, segLength);
+        const signIndex = this.segmentIndex % (RoadSegment.signMaterialsMap.get('DAY')?.length || 4);
+        this.addHighwayGantry(roadBoundaryX, segLength * 0.65, signIndex, 'DAY');
 
-      // Turkish Green Highway Sign Gantry with EDS Radar
-      const signIndex = this.segmentIndex % (RoadSegment.signMaterials.length || 1);
-      this.addHighwayGantry(roadBoundaryX, segLength * 0.65, signIndex);
+        const cycle = this.segmentIndex % 4;
+        if (cycle === 0) {
+          this.addPedestrianOverpass(roadBoundaryX, segLength * 0.4);
+        } else if (cycle === 2) {
+          this.addEmergencyBay(roadBoundaryX, segLength * 0.5);
+        }
+      } else if (env === 'SUNSET') {
+        // BOLU DAĞI ALPINE CORRIDOR
+        this.addBoluAlpineTerrain(roadBoundaryX, segLength);
+        this.addBoluAlpineScenery(roadBoundaryX, segLength);
+        const signIndex = this.segmentIndex % (RoadSegment.signMaterialsMap.get('SUNSET')?.length || 4);
+        this.addHighwayGantry(roadBoundaryX, segLength * 0.65, signIndex, 'SUNSET');
 
-      // Add modern pedestrian overpasses and emergency breakdown bays
-      const cycle = this.segmentIndex % 4;
-      if (cycle === 0) {
-        this.addPedestrianOverpass(roadBoundaryX, segLength * 0.4);
-      } else if (cycle === 2) {
-        this.addEmergencyBay(roadBoundaryX, segLength * 0.5);
+        if (this.segmentIndex % 4 === 2) {
+          this.addEmergencyBay(roadBoundaryX, segLength * 0.5);
+        }
+      } else if (env === 'NIGHT') {
+        // ANKARA - NİĞDE BOZKIR CORRIDOR
+        this.addBozkirTerrain(roadBoundaryX, segLength);
+        this.addBozkirScenery(roadBoundaryX, segLength);
+        const signIndex = this.segmentIndex % (RoadSegment.signMaterialsMap.get('NIGHT')?.length || 4);
+        this.addHighwayGantry(roadBoundaryX, segLength * 0.65, signIndex, 'NIGHT');
+
+        if (this.segmentIndex % 4 === 2) {
+          this.addEmergencyBay(roadBoundaryX, segLength * 0.5);
+        }
+      } else {
+        // İSTANBUL - İZMİR OTOYOL CORRIDOR
+        this.addIzmirOtoyolTerrain(roadBoundaryX, segLength);
+        this.addIzmirOtoyolScenery(roadBoundaryX, segLength);
+        const signIndex = this.segmentIndex % (RoadSegment.signMaterialsMap.get('RAIN')?.length || 4);
+        this.addHighwayGantry(roadBoundaryX, segLength * 0.65, signIndex, 'RAIN');
+
+        const cycle = this.segmentIndex % 4;
+        if (cycle === 0) {
+          this.addPedestrianOverpass(roadBoundaryX, segLength * 0.4);
+        } else if (cycle === 2) {
+          this.addEmergencyBay(roadBoundaryX, segLength * 0.5);
+        }
       }
     }
 
-    // 7. Streetlights along highway (only outside tunnel!)
+    // Streetlights along highway (only outside tunnel!)
     if (!this.isTunnel) {
       const lightSpacing = 30;
       const lightsCount = Math.floor(segLength / lightSpacing);
@@ -1888,19 +2114,18 @@ export class RoadSegment {
 
   private addBosphorusWater(roadBoundaryX: number, segLength: number): void {
     const waterWidth = 260;
-    // Subdivided shared geometry for GPU Gerstner wave displacement
     if (!RoadSegment.waterGeometry) {
       RoadSegment.waterGeometry = new THREE.PlaneGeometry(waterWidth, segLength, 36, 24);
     }
     const leftWater = new THREE.Mesh(RoadSegment.waterGeometry, RoadSegment.bosphorusWaterMaterial);
     leftWater.rotation.x = -Math.PI / 2;
     leftWater.position.set(-roadBoundaryX - waterWidth / 2, -1.2, segLength / 2);
-    this.mesh.add(leftWater);
+    this.bridgeMeshGroup.add(leftWater);
 
     const rightWater = new THREE.Mesh(RoadSegment.waterGeometry, RoadSegment.bosphorusWaterMaterial);
     rightWater.rotation.x = -Math.PI / 2;
     rightWater.position.set(roadBoundaryX + waterWidth / 2, -1.2, segLength / 2);
-    this.mesh.add(rightWater);
+    this.bridgeMeshGroup.add(rightWater);
   }
 
   private addSuspensionBridgeTower(roadBoundaryX: number, segLength: number): void {
@@ -1912,17 +2137,16 @@ export class RoadSegment {
     const pylonX = roadBoundaryX + 3.2;
     const crossSpan = pylonX * 2;
 
-    // 1. Massive Concrete Caisson / Pier Foundations (Gracefully rising from water up to curb level)
+    // 1. Concrete Caisson Foundations
     const pierGeo = new THREE.BoxGeometry(4.4, 5.5, 6.6);
     const leftPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
-    leftPier.position.set(-pylonX, -1.0, 0); // from y = -3.75 to y = 1.75
+    leftPier.position.set(-pylonX, -1.0, 0);
     towerGroup.add(leftPier);
 
     const rightPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
     rightPier.position.set(pylonX, -1.0, 0);
     towerGroup.add(rightPier);
 
-    // Marine warning beacons on caissons (Red port / Green starboard for passing ships)
     const marineLightGeo = new THREE.SphereGeometry(0.40, 8, 8);
     const leftMarineLight = new THREE.Mesh(marineLightGeo, new THREE.MeshBasicMaterial({ color: 0xff1e00 }));
     leftMarineLight.position.set(-pylonX, 2.0, 3.1);
@@ -1932,16 +2156,7 @@ export class RoadSegment {
     rightMarineLight.position.set(pylonX, 2.0, 3.1);
     towerGroup.add(rightMarineLight);
 
-    // Caisson Uplight Floodlights aiming upward at the crimson steel pylons
-    const uplightGeo = new THREE.CylinderGeometry(0.38, 0.28, 0.45, 8);
-    for (let side = -1; side <= 1; side += 2) {
-      const uplight = new THREE.Mesh(uplightGeo, RoadSegment.lightGlowMaterial);
-      uplight.position.set(side * pylonX, 2.1, 1.8);
-      towerGroup.add(uplight);
-    }
-
-    // 2. Soaring Multi-Stage Tapered Steel Pylons (Red 0xd90429)
-    // Lower Stage: from caisson deck (y=1.75) to mid portal (y=26)
+    // 2. Red Steel Pylons
     const lowerPylonGeo = new THREE.BoxGeometry(2.4, 24.0, 3.0);
     const leftLower = new THREE.Mesh(lowerPylonGeo, RoadSegment.bridgeTowerMaterial);
     leftLower.position.set(-pylonX, 13.8, 0);
@@ -1951,7 +2166,6 @@ export class RoadSegment {
     rightLower.position.set(pylonX, 13.8, 0);
     towerGroup.add(rightLower);
 
-    // Upper Stage: from mid portal (y=26) to crown (y=48), slightly tapered
     const upperPylonGeo = new THREE.BoxGeometry(1.9, 22.0, 2.4);
     const leftUpper = new THREE.Mesh(upperPylonGeo, RoadSegment.bridgeTowerMaterial);
     leftUpper.position.set(-pylonX, 37.0, 0);
@@ -1961,44 +2175,25 @@ export class RoadSegment {
     rightUpper.position.set(pylonX, 37.0, 0);
     towerGroup.add(rightUpper);
 
-    // Vertical structural stiffener flanges along outer edges of the pylons
-    const flangeGeo = new THREE.BoxGeometry(0.25, pylonHeight - 2.0, 0.4);
-    for (let side = -1; side <= 1; side += 2) {
-      const f1 = new THREE.Mesh(flangeGeo, RoadSegment.bridgeTowerMaterial);
-      f1.position.set(side * (pylonX + 1.15), 25.0, 0);
-      towerGroup.add(f1);
-
-      const f2 = new THREE.Mesh(flangeGeo, RoadSegment.bridgeTowerMaterial);
-      f2.position.set(side * (pylonX - 1.15), 25.0, 0);
-      towerGroup.add(f2);
-    }
-
-    // 3. Multi-Tier Horizontal Box Girders
+    // 3. Horizontal Girders
     const beamGeo = new THREE.BoxGeometry(crossSpan, 1.8, 2.2);
-
-    // Deck clearance girder (y = 12.0)
     const deckBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
     deckBeam.position.set(0, 12.0, 0);
     towerGroup.add(deckBeam);
 
-    // Mid portal girder (y = 27.5)
     const midBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
     midBeam.position.set(0, 27.5, 0);
     towerGroup.add(midBeam);
 
-    // Upper crown girder (y = 44.5)
     const crownBeam = new THREE.Mesh(beamGeo, RoadSegment.bridgeWhiteMaterial);
     crownBeam.position.set(0, 44.5, 0);
     towerGroup.add(crownBeam);
 
-    // 4. Authentic Diagonal X-Lattice Cross Bracing Trusses
-    // Lower Tier X (between y=12.0 and y=27.5)
-    this.createXBrace(towerGroup, crossSpan, 12.0, 27.5);
+    // 4. X-Bracing Trusses
+    this.createXBrace(towerGroup, crossSpan, 12.0, 27.5, RoadSegment.bridgeTowerMaterial);
+    this.createXBrace(towerGroup, crossSpan, 27.5, 44.5, RoadSegment.bridgeTowerMaterial);
 
-    // Upper Tier X (between y=27.5 and y=44.5)
-    this.createXBrace(towerGroup, crossSpan, 27.5, 44.5);
-
-    // 5. Crown Portal Header: "15 TEMMUZ ŞEHİTLER KÖPRÜSÜ" & Turkish Flag
+    // 5. Crown Portal Header: 15 Temmuz Şehitler Köprüsü
     const signBoardBox = new THREE.Mesh(new THREE.BoxGeometry(crossSpan * 0.72, 3.6, 0.3), RoadSegment.bridgeTowerMaterial);
     signBoardBox.position.set(0, 46.5, 0);
     towerGroup.add(signBoardBox);
@@ -2006,14 +2201,14 @@ export class RoadSegment {
     const signPlaneGeo = new THREE.PlaneGeometry(crossSpan * 0.70, 3.4);
     const signBoardFront = new THREE.Mesh(signPlaneGeo, RoadSegment.bridgeSignMaterial);
     signBoardFront.position.set(0, 46.5, -0.18);
-    signBoardFront.rotation.y = Math.PI; // Face approaching cars (-Z)
+    signBoardFront.rotation.y = Math.PI;
     towerGroup.add(signBoardFront);
 
     const signBoardBack = new THREE.Mesh(signPlaneGeo, RoadSegment.bridgeSignMaterial);
     signBoardBack.position.set(0, 46.5, 0.18);
     towerGroup.add(signBoardBack);
 
-    // 6. Pinnacle Spires & Aircraft Flashing Obstruction Strobes
+    // 6. Pinnacle Spires & Aircraft Strobes
     const spireGeo = new THREE.CylinderGeometry(0.12, 0.35, 4.5, 8);
     const beaconGeo = new THREE.SphereGeometry(0.55, 8, 8);
     const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff0033 });
@@ -2029,27 +2224,271 @@ export class RoadSegment {
       this.beaconLights.push(beacon);
     }
 
-    // 7. Sweeping Parabolic Suspension Cables & Dynamic LED Ribbon
+    // 7. Suspension Cables & Dynamic LED Ribbon
     this.addBridgeCables(towerGroup, roadBoundaryX, segLength, pylonX);
 
-    // 8. Under-deck Steel Stiffening Truss along the segment & entrance gantry
-    this.addBridgeDeckTruss(roadBoundaryX, segLength);
+    // 8. Under-deck Deck Truss & Entrance Gantry
+    this.addBridgeDeckTruss(roadBoundaryX, segLength, 'DAY');
 
-    this.mesh.add(towerGroup);
+    this.bridgeMeshGroup.add(towerGroup);
   }
 
-  private createXBrace(parent: THREE.Group, width: number, yBottom: number, yTop: number): void {
+  private addOsmangaziBridge(roadBoundaryX: number, segLength: number): void {
+    // 1. Coastal Gulf Waters
+    this.addBosphorusWater(roadBoundaryX, segLength);
+
+    const towerGroup = new THREE.Group();
+    const towerZ = segLength / 2;
+    towerGroup.position.set(0, 0, towerZ);
+
+    const pylonHeight = 52.0;
+    const pylonX = roadBoundaryX + 3.4;
+    const crossSpan = pylonX * 2;
+
+    // Concrete Caissons
+    const pierGeo = new THREE.BoxGeometry(4.8, 6.0, 7.2);
+    const leftPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
+    leftPier.position.set(-pylonX, -1.0, 0);
+    towerGroup.add(leftPier);
+
+    const rightPier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
+    rightPier.position.set(pylonX, -1.0, 0);
+    towerGroup.add(rightPier);
+
+    // Osmangazi Off-White / Silver Steel Pylons
+    const lowerPylonGeo = new THREE.BoxGeometry(2.4, 26.0, 3.0);
+    const leftLower = new THREE.Mesh(lowerPylonGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    leftLower.position.set(-pylonX, 14.5, 0);
+    towerGroup.add(leftLower);
+
+    const rightLower = new THREE.Mesh(lowerPylonGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    rightLower.position.set(pylonX, 14.5, 0);
+    towerGroup.add(rightLower);
+
+    const upperPylonGeo = new THREE.BoxGeometry(1.8, 25.0, 2.4);
+    const leftUpper = new THREE.Mesh(upperPylonGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    leftUpper.position.set(-pylonX, 39.5, 0);
+    towerGroup.add(leftUpper);
+
+    const rightUpper = new THREE.Mesh(upperPylonGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    rightUpper.position.set(pylonX, 39.5, 0);
+    towerGroup.add(rightUpper);
+
+    // Cross Girders
+    const beamGeo = new THREE.BoxGeometry(crossSpan, 1.8, 2.2);
+    const deckBeam = new THREE.Mesh(beamGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    deckBeam.position.set(0, 12.0, 0);
+    towerGroup.add(deckBeam);
+
+    const midBeam = new THREE.Mesh(beamGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    midBeam.position.set(0, 29.0, 0);
+    towerGroup.add(midBeam);
+
+    const crownBeam = new THREE.Mesh(beamGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+    crownBeam.position.set(0, 48.0, 0);
+    towerGroup.add(crownBeam);
+
+    this.createXBrace(towerGroup, crossSpan, 12.0, 29.0, RoadSegment.osmangaziBridgeTowerMaterial);
+    this.createXBrace(towerGroup, crossSpan, 29.0, 48.0, RoadSegment.osmangaziBridgeTowerMaterial);
+
+    // Pinnacle Spire & Strobes
+    const spireGeo = new THREE.CylinderGeometry(0.12, 0.35, 5.0, 8);
+    const beaconGeo = new THREE.SphereGeometry(0.55, 8, 8);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff1e40 });
+
+    for (let side = -1; side <= 1; side += 2) {
+      const spire = new THREE.Mesh(spireGeo, RoadSegment.osmangaziBridgeTowerMaterial);
+      spire.position.set(side * pylonX, pylonHeight + 2.5, 0);
+      towerGroup.add(spire);
+
+      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+      beacon.position.set(side * pylonX, pylonHeight + 5.2, 0);
+      towerGroup.add(beacon);
+      this.beaconLights.push(beacon);
+    }
+
+    this.addBridgeCables(towerGroup, roadBoundaryX, segLength, pylonX);
+    this.addBridgeDeckTruss(roadBoundaryX, segLength, 'RAIN');
+
+    this.bridgeMeshGroup.add(towerGroup);
+
+    // Passing cargo/cruise vessel in the gulf
+    this.setupBosphorusShip();
+  }
+
+  private addBoluViaduct(roadBoundaryX: number, segLength: number): void {
+    const viaductGroup = new THREE.Group();
+
+    // 1. Deep Alpine Forest Valley Floor (Y = -24m)
+    const valleyGeo = new THREE.PlaneGeometry(320, segLength);
+    const valleyMesh = new THREE.Mesh(valleyGeo, RoadSegment.boluValleyFloorMaterial);
+    valleyMesh.rotation.x = -Math.PI / 2;
+    valleyMesh.position.set(0, -24.0, segLength / 2);
+    valleyMesh.receiveShadow = true;
+    viaductGroup.add(valleyMesh);
+
+    // 2. Tall Spruces on the valley floor below
+    const valleyTreePositions = [
+      { x: -35, z: segLength * 0.2 },
+      { x: -55, z: segLength * 0.6 },
+      { x: -25, z: segLength * 0.8 },
+      { x: 38, z: segLength * 0.3 },
+      { x: 50, z: segLength * 0.7 },
+      { x: 28, z: segLength * 0.5 },
+      { x: -70, z: segLength * 0.4 },
+      { x: 72, z: segLength * 0.6 },
+    ];
+    for (const pos of valleyTreePositions) {
+      const spruce = this.createSpruceTreeMesh(1.4);
+      spruce.position.set(pos.x, -24.0, pos.z);
+      viaductGroup.add(spruce);
+    }
+
+    // 3. Massive Reinforced Concrete Viaduct Piers (Rising from y = -24 to y = 0)
+    const pierWidth = 3.2;
+    const pierDepth = 4.0;
+    const pierHeight = 24.0;
+    const pierGeo = new THREE.BoxGeometry(pierWidth, pierHeight, pierDepth);
+
+    const pierPositions = [
+      { x: -roadBoundaryX * 0.75, z: segLength * 0.25 },
+      { x: roadBoundaryX * 0.75, z: segLength * 0.25 },
+      { x: -roadBoundaryX * 0.75, z: segLength * 0.75 },
+      { x: roadBoundaryX * 0.75, z: segLength * 0.75 },
+    ];
+
+    for (const p of pierPositions) {
+      const pier = new THREE.Mesh(pierGeo, RoadSegment.bridgePierMaterial);
+      pier.position.set(p.x, -pierHeight / 2, p.z);
+      pier.castShadow = false;
+      pier.receiveShadow = true;
+      viaductGroup.add(pier);
+
+      // Footing pad
+      const footGeo = new THREE.BoxGeometry(pierWidth + 2.0, 1.6, pierDepth + 2.0);
+      const foot = new THREE.Mesh(footGeo, RoadSegment.bridgePierMaterial);
+      foot.position.set(p.x, -23.2, p.z);
+      viaductGroup.add(foot);
+
+      // Pier capital bracket supporting deck
+      const capGeo = new THREE.BoxGeometry(pierWidth + 1.2, 1.4, pierDepth + 1.0);
+      const cap = new THREE.Mesh(capGeo, RoadSegment.bridgePierMaterial);
+      cap.position.set(p.x, -0.7, p.z);
+      viaductGroup.add(cap);
+    }
+
+    // 4. Under-deck Concrete Box Girder
+    const deckGirderGeo = new THREE.BoxGeometry(roadBoundaryX * 2 + 1.6, 1.8, segLength);
+    const deckGirder = new THREE.Mesh(deckGirderGeo, RoadSegment.bridgePierMaterial);
+    deckGirder.position.set(0, -0.9, segLength / 2);
+    viaductGroup.add(deckGirder);
+
+    // 5. Viaduct Aerodynamic Wind Baffles (Transparent acoustic glass panels)
+    const barrierHeight = 2.8;
+    const barrierGeo = new THREE.BoxGeometry(0.12, barrierHeight, segLength);
+
+    const leftBarrier = new THREE.Mesh(barrierGeo, RoadSegment.soundBarrierGlassMaterial);
+    leftBarrier.position.set(-roadBoundaryX - 0.75, barrierHeight / 2 + 0.1, segLength / 2);
+    viaductGroup.add(leftBarrier);
+
+    const rightBarrier = new THREE.Mesh(barrierGeo, RoadSegment.soundBarrierGlassMaterial);
+    rightBarrier.position.set(roadBoundaryX + 0.75, barrierHeight / 2 + 0.1, segLength / 2);
+    viaductGroup.add(rightBarrier);
+
+    // Wind barrier metal posts
+    const postGeo = new THREE.BoxGeometry(0.20, barrierHeight + 0.2, 0.20);
+    const postCount = Math.floor(segLength / 4.0);
+    const posts = new THREE.InstancedMesh(postGeo, RoadSegment.soundBarrierFrameMaterial, postCount * 2);
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < postCount; i++) {
+      const pz = i * 4.0 + 2.0;
+      dummy.position.set(-roadBoundaryX - 0.75, (barrierHeight + 0.2) / 2, pz);
+      dummy.updateMatrix();
+      posts.setMatrixAt(i * 2, dummy.matrix);
+
+      dummy.position.set(roadBoundaryX + 0.75, (barrierHeight + 0.2) / 2, pz);
+      dummy.updateMatrix();
+      posts.setMatrixAt(i * 2 + 1, dummy.matrix);
+    }
+    posts.instanceMatrix.needsUpdate = true;
+    viaductGroup.add(posts);
+
+    // 6. Viaduct Entrance Gantry
+    this.addBridgeEntranceGantry(roadBoundaryX, 8, 'SUNSET');
+
+    this.bridgeMeshGroup.add(viaductGroup);
+  }
+
+  private addBozkirViaduct(roadBoundaryX: number, segLength: number): void {
+    const viaductGroup = new THREE.Group();
+
+    // 1. Dry Anatolian Steppe Valley Floor (Y = -15m)
+    const valleyGeo = new THREE.PlaneGeometry(300, segLength);
+    const valleyMesh = new THREE.Mesh(valleyGeo, RoadSegment.bozkirGrassMaterial);
+    valleyMesh.rotation.x = -Math.PI / 2;
+    valleyMesh.position.set(0, -15.0, segLength / 2);
+    valleyMesh.receiveShadow = true;
+    viaductGroup.add(valleyMesh);
+
+    // 2. Cylindrical Concrete Columns with Blue/Cyan Uplighting
+    const colRadius = 1.1;
+    const colHeight = 15.0;
+    const colGeo = new THREE.CylinderGeometry(colRadius, colRadius, colHeight, 12);
+
+    const colPositions = [
+      { x: -roadBoundaryX * 0.70, z: segLength * 0.25 },
+      { x: roadBoundaryX * 0.70, z: segLength * 0.25 },
+      { x: -roadBoundaryX * 0.70, z: segLength * 0.75 },
+      { x: roadBoundaryX * 0.70, z: segLength * 0.75 },
+    ];
+
+    const uplightGeo = new THREE.TorusGeometry(colRadius + 0.3, 0.08, 6, 12);
+    uplightGeo.rotateX(Math.PI / 2);
+    const uplightMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+
+    for (const c of colPositions) {
+      const col = new THREE.Mesh(colGeo, RoadSegment.bridgePierMaterial);
+      col.position.set(c.x, -colHeight / 2, c.z);
+      col.castShadow = false;
+      col.receiveShadow = true;
+      viaductGroup.add(col);
+
+      // LED uplight ring at ground level
+      const ring = new THREE.Mesh(uplightGeo, uplightMat);
+      ring.position.set(c.x, -14.9, c.z);
+      viaductGroup.add(ring);
+    }
+
+    // 3. Under-deck Girder
+    const deckGirderGeo = new THREE.BoxGeometry(roadBoundaryX * 2 + 1.2, 1.6, segLength);
+    const deckGirder = new THREE.Mesh(deckGirderGeo, RoadSegment.bridgePierMaterial);
+    deckGirder.position.set(0, -0.8, segLength / 2);
+    viaductGroup.add(deckGirder);
+
+    // 4. Smart Highway VMS Entrance Gantry
+    this.addBridgeEntranceGantry(roadBoundaryX, 8, 'NIGHT');
+
+    this.bridgeMeshGroup.add(viaductGroup);
+  }
+
+  private createXBrace(
+    parent: THREE.Group,
+    width: number,
+    yBottom: number,
+    yTop: number,
+    material: THREE.Material
+  ): void {
     const dy = yTop - yBottom;
     const len = Math.hypot(width, dy);
     const angle = Math.atan2(dy, width);
     const braceGeo = new THREE.BoxGeometry(len, 0.9, 0.9);
 
-    const brace1 = new THREE.Mesh(braceGeo, RoadSegment.bridgeTowerMaterial);
+    const brace1 = new THREE.Mesh(braceGeo, material);
     brace1.position.set(0, (yBottom + yTop) / 2, 0);
     brace1.rotation.z = angle;
     parent.add(brace1);
 
-    const brace2 = new THREE.Mesh(braceGeo, RoadSegment.bridgeTowerMaterial);
+    const brace2 = new THREE.Mesh(braceGeo, material);
     brace2.position.set(0, (yBottom + yTop) / 2, 0);
     brace2.rotation.z = -angle;
     parent.add(brace2);
@@ -2068,7 +2507,6 @@ export class RoadSegment {
     for (let side = -1; side <= 1; side += 2) {
       const posX = side * pylonX;
 
-      // Vertical hanger suspenders spaced along segment
       for (let i = -cableSteps; i <= cableSteps; i++) {
         if (i === 0) continue;
         const normZ = i / cableSteps;
@@ -2082,7 +2520,6 @@ export class RoadSegment {
         hanger.position.set(posX, hangerHeight / 2 + 0.8, z);
         towerGroup.add(hanger);
 
-        // Deck-level dynamic LED puck
         const puckGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
         const puckMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const puck = new THREE.Mesh(puckGeo, puckMat);
@@ -2090,7 +2527,6 @@ export class RoadSegment {
         towerGroup.add(puck);
         this.bridgeLights.push(puck);
 
-        // Cable-level dynamic LED node (continuous glowing ribbon)
         const nodeGeo = new THREE.BoxGeometry(0.36, 0.36, 0.36);
         const nodeMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
         const cableLed = new THREE.Mesh(nodeGeo, nodeMat);
@@ -2099,7 +2535,6 @@ export class RoadSegment {
         this.bridgeLights.push(cableLed);
       }
 
-      // Continuous curved main catenary cable segments
       for (let i = -cableSteps; i < cableSteps; i++) {
         const z1 = (i / cableSteps) * (halfLen * 0.96);
         const z2 = ((i + 1) / cableSteps) * (halfLen * 0.96);
@@ -2123,24 +2558,24 @@ export class RoadSegment {
     }
   }
 
-  private addBridgeDeckTruss(roadBoundaryX: number, segLength: number): void {
+  private addBridgeDeckTruss(roadBoundaryX: number, segLength: number, env?: EnvironmentPreset): void {
     const trussDepth = 1.6;
     const trussWidth = 0.5;
     const trussGeo = new THREE.BoxGeometry(trussWidth, trussDepth, segLength);
 
     const leftTruss = new THREE.Mesh(trussGeo, RoadSegment.bridgeTrussMaterial);
     leftTruss.position.set(-roadBoundaryX - 0.3, -0.6, segLength / 2);
-    this.mesh.add(leftTruss);
+    this.bridgeMeshGroup.add(leftTruss);
 
     const rightTruss = new THREE.Mesh(trussGeo, RoadSegment.bridgeTrussMaterial);
     rightTruss.position.set(roadBoundaryX + 0.3, -0.6, segLength / 2);
-    this.mesh.add(rightTruss);
+    this.bridgeMeshGroup.add(rightTruss);
 
-    // Glowing bridge entrance LED matrix gantry at start of bridge
-    this.addBridgeEntranceGantry(roadBoundaryX, 10);
+    // Bridge entrance LED matrix gantry at start of bridge
+    this.addBridgeEntranceGantry(roadBoundaryX, 10, env);
   }
 
-  private addBridgeEntranceGantry(roadBoundaryX: number, z: number): void {
+  private addBridgeEntranceGantry(roadBoundaryX: number, z: number, env?: EnvironmentPreset): void {
     const gantryGroup = new THREE.Group();
     gantryGroup.position.set(0, 0, z);
 
@@ -2159,13 +2594,15 @@ export class RoadSegment {
     topBeam.position.set(0, 7.2, 0);
     gantryGroup.add(topBeam);
 
-    // Illuminated digital matrix board: "15 TEMMUZ ŞEHİTLER KÖPRÜSÜ" with green lane arrows
+    const currentEnv = env || gameState.currentEnvironment || 'DAY';
+    const signMat = RoadSegment.bridgeGantrySignMaterialsMap.get(currentEnv) || RoadSegment.bridgeGantrySignMaterial;
+
     const signBoardGeo = new THREE.BoxGeometry(span * 0.85, 2.4, 0.18);
-    const signBoard = new THREE.Mesh(signBoardGeo, RoadSegment.bridgeGantrySignMaterial);
+    const signBoard = new THREE.Mesh(signBoardGeo, signMat);
     signBoard.position.set(0, 6.2, 0);
     gantryGroup.add(signBoard);
 
-    this.mesh.add(gantryGroup);
+    this.bridgeMeshGroup.add(gantryGroup);
   }
 
   // --- BOSPHORUS MARINE TRAFFIC (Cruise Ship & Istanbul Ferry) ---
@@ -2282,7 +2719,7 @@ export class RoadSegment {
 
   // --- TURKISH HIGHWAY GREEN GANTRY SIGN (Yeşil Otoyol Tabelası & EDS) ---
 
-  private addHighwayGantry(roadBoundaryX: number, z: number, signIndex: number): void {
+  private addHighwayGantry(roadBoundaryX: number, z: number, signIndex: number, env?: EnvironmentPreset): void {
     const gantryGroup = new THREE.Group();
     gantryGroup.position.set(0, 0, z);
 
@@ -2306,8 +2743,11 @@ export class RoadSegment {
     beam.position.set(0, clearHeight + 0.6, 0);
     gantryGroup.add(beam);
 
-    // Large Green Turkish Highway Signboard
-    const signMat = RoadSegment.signMaterials[signIndex % RoadSegment.signMaterials.length] || RoadSegment.gantryMaterial;
+    // Highway Signboard according to Environment
+    const currentEnv = env || gameState.currentEnvironment || 'DAY';
+    const envSigns = RoadSegment.signMaterialsMap.get(currentEnv) || RoadSegment.signMaterials;
+    const signMat = envSigns[signIndex % (envSigns.length || 1)] || RoadSegment.gantryMaterial;
+
     const signBoardGeo = new THREE.BoxGeometry(13.2, 3.4, 0.15);
     const signBoard = new THREE.Mesh(signBoardGeo, signMat);
     signBoard.position.set(0, clearHeight - 0.4, 0);
@@ -2353,7 +2793,7 @@ export class RoadSegment {
     gantryGroup.add(twoWaySignals);
     this.twoWayGantryGroup.add(twoWaySignals);
 
-    this.mesh.add(gantryGroup);
+    this.gantryGroup.add(gantryGroup);
   }
 
   private getEmbankmentElevation(distFromRoad: number, zNorm: number, segIndex: number): number {
@@ -2427,7 +2867,7 @@ export class RoadSegment {
     }
 
     instTufts.instanceMatrix.needsUpdate = true;
-    this.mesh.add(instTufts);
+    this.terrainGroup.add(instTufts);
 
     // Scatter 36 Vibrant Roadside Wildflowers (Daisies, Poppies, Buttercups)
     if (RoadSegment.wildflowerGeometry) {
@@ -2461,7 +2901,7 @@ export class RoadSegment {
         }
 
         instFlowers.instanceMatrix.needsUpdate = true;
-        this.mesh.add(instFlowers);
+        this.terrainGroup.add(instFlowers);
       }
     }
   }
@@ -2475,13 +2915,13 @@ export class RoadSegment {
     leftSidewalk.rotation.x = -Math.PI / 2;
     leftSidewalk.position.set(-roadBoundaryX - sidewalkWidth / 2, 0.04, segLength / 2);
     leftSidewalk.receiveShadow = true;
-    this.mesh.add(leftSidewalk);
+    this.terrainGroup.add(leftSidewalk);
 
     const rightSidewalk = new THREE.Mesh(sidewalkGeo, RoadSegment.sidewalkMaterial);
     rightSidewalk.rotation.x = -Math.PI / 2;
     rightSidewalk.position.set(roadBoundaryX + sidewalkWidth / 2, 0.04, segLength / 2);
     rightSidewalk.receiveShadow = true;
-    this.mesh.add(rightSidewalk);
+    this.terrainGroup.add(rightSidewalk);
 
     // 2. Earthy Highway Roadside Verge (Banket) Transition Strip (1.6m width)
     const vergeWidth = 1.6;
@@ -2491,13 +2931,13 @@ export class RoadSegment {
     leftVerge.rotation.x = -Math.PI / 2;
     leftVerge.position.set(-roadBoundaryX - sidewalkWidth - vergeWidth / 2, 0.02, segLength / 2);
     leftVerge.receiveShadow = true;
-    this.mesh.add(leftVerge);
+    this.terrainGroup.add(leftVerge);
 
     const rightVerge = new THREE.Mesh(vergeGeo, RoadSegment.dirtVergeMaterial);
     rightVerge.rotation.x = -Math.PI / 2;
     rightVerge.position.set(roadBoundaryX + sidewalkWidth + vergeWidth / 2, 0.02, segLength / 2);
     rightVerge.receiveShadow = true;
-    this.mesh.add(rightVerge);
+    this.terrainGroup.add(rightVerge);
 
     // 3. Sculpted Rolling Highway Embankment Terrain (60m width each side)
     const terrainWidth = 60;
@@ -2508,14 +2948,14 @@ export class RoadSegment {
     leftTerrain.rotation.x = -Math.PI / 2;
     leftTerrain.position.set(-vergeEdgeX - terrainWidth / 2, 0, segLength / 2);
     leftTerrain.receiveShadow = true;
-    this.mesh.add(leftTerrain);
+    this.terrainGroup.add(leftTerrain);
 
     const rightGeo = this.createEmbankmentGeometry(terrainWidth, segLength, true);
     const rightTerrain = new THREE.Mesh(rightGeo, RoadSegment.grassMaterial);
     rightTerrain.rotation.x = -Math.PI / 2;
     rightTerrain.position.set(vergeEdgeX + terrainWidth / 2, 0, segLength / 2);
     rightTerrain.receiveShadow = true;
-    this.mesh.add(rightTerrain);
+    this.terrainGroup.add(rightTerrain);
 
     // 4. Dense 3D Volumetric Grass Blade Tufts & Wildflower Meadows (InstancedMesh)
     this.addGrassTuftsAndFlowers(vergeEdgeX, segLength);
@@ -2594,7 +3034,7 @@ export class RoadSegment {
 
     // 3. Turkish Highway Milestone (KGM) & SOS Emergency Call Boxes
     if (this.segmentIndex % 2 === 0) {
-      this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3);
+      this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3, 'DAY');
     }
     if (this.segmentIndex % 4 === 2) {
       this.addSosBox(roadBoundaryX + 0.45, segLength * 0.75);
@@ -2603,17 +3043,19 @@ export class RoadSegment {
     // 4. Cantilever Overhead Motorway Exit Sign (Mavi Otoyol Çıkış Tabelası)
     if (this.segmentIndex % 4 === 2 && !hasSoundBarrierRight) {
       const exitSignIdx = Math.floor(this.segmentIndex / 4);
-      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx);
+      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx, 'DAY');
     }
 
     // 5. Elevated Highway Advertising Billboard on alternating segments
     if (this.segmentIndex % 3 === 2) {
-      const billboardMat = RoadSegment.billboardMaterials[this.segmentIndex % RoadSegment.billboardMaterials.length];
+      const signs = RoadSegment.billboardMaterialsMap.get('DAY') || RoadSegment.billboardMaterials;
+      const billboardMat = signs[this.segmentIndex % signs.length];
       if (billboardMat) {
         this.addHighwayBillboard(roadBoundaryX + 16.0, segLength * 0.5, billboardMat, true);
       }
     } else if (this.segmentIndex % 3 === 0) {
-      const billboardMat = RoadSegment.billboardMaterials[(this.segmentIndex + 1) % RoadSegment.billboardMaterials.length];
+      const signs = RoadSegment.billboardMaterialsMap.get('DAY') || RoadSegment.billboardMaterials;
+      const billboardMat = signs[(this.segmentIndex + 1) % signs.length];
       if (billboardMat) {
         this.addHighwayBillboard(-(roadBoundaryX + 16.0), segLength * 0.5, billboardMat, false);
       }
@@ -2626,11 +3068,12 @@ export class RoadSegment {
   private addRoadsideBuildings(roadBoundaryX: number, segLength: number): void {
     // Only place on open highway segments (skip bridge and tunnel)
     if (this.isBridge || this.isTunnel) {
-      if (this.isBridge) {
+      if (this.isBridge && (!gameState.currentEnvironment || gameState.currentEnvironment === 'DAY')) {
         this.addBridgeDistantSkyline(segLength);
       }
       return;
     }
+    if (gameState.currentEnvironment && gameState.currentEnvironment !== 'DAY') return;
     if (!cityPackManager.hasBuildings) return;
 
     const seed = Math.abs(this.segmentIndex);
@@ -2753,7 +3196,6 @@ export class RoadSegment {
     const seed = Math.abs(this.segmentIndex);
 
     // Distant coastal skyline across the Bosphorus waters (Europe & Asia coastlines)
-    // Placed far out (X = ±135m to ±150m), grounded at sea level (Y = -15.5m)
     const leftSkylineX = -135.0;
     const leftTower = cityPackManager.createBuildingInstance(undefined, {
       category: 'skyscraper',
@@ -2783,11 +3225,13 @@ export class RoadSegment {
     if (this.isBridge) {
       this.rebuildShip();
       const hasSkyline = this.sceneryGroup.children.some((c) => c.name.startsWith('Building_'));
-      if (!hasSkyline) {
+      if (!hasSkyline && (!gameState.currentEnvironment || gameState.currentEnvironment === 'DAY')) {
         this.addBridgeDistantSkyline(this.length);
       }
       return;
     }
+
+    if (gameState.currentEnvironment && gameState.currentEnvironment !== 'DAY') return;
 
     // If buildings are not placed yet (e.g. loaded asynchronously), add them
     const hasBldg = this.sceneryGroup.children.some((c) => c.name.startsWith('Building_'));
@@ -2856,7 +3300,7 @@ export class RoadSegment {
 
     const scale = 0.85 + Math.random() * 0.35;
     treeGroup.scale.set(scale, scale, scale);
-    this.mesh.add(treeGroup);
+    this.sceneryGroup.add(treeGroup);
   }
 
   private addJudasTree(x: number, z: number): void {
@@ -2902,7 +3346,7 @@ export class RoadSegment {
 
     const scale = 0.85 + Math.random() * 0.3;
     judasGroup.scale.set(scale, scale, scale);
-    this.mesh.add(judasGroup);
+    this.sceneryGroup.add(judasGroup);
   }
 
   private addCypressTree(x: number, z: number): void {
@@ -2933,7 +3377,7 @@ export class RoadSegment {
 
     const scale = 0.85 + Math.random() * 0.3;
     cypressGroup.scale.set(scale, scale, scale);
-    this.mesh.add(cypressGroup);
+    this.sceneryGroup.add(cypressGroup);
   }
 
   private addRoadsideBush(x: number, z: number): void {
@@ -2942,21 +3386,22 @@ export class RoadSegment {
     const bush = new THREE.Mesh(bushGeo, mat);
     bush.position.set(x, 0.3, z);
     bush.scale.set(1.2, 0.8, 1.2);
-    this.mesh.add(bush);
+    this.sceneryGroup.add(bush);
   }
 
-  private addKilometerStone(x: number, z: number): void {
+  private addKilometerStone(x: number, z: number, env: EnvironmentPreset = 'DAY'): void {
     const stoneGroup = new THREE.Group();
     stoneGroup.position.set(x, 0, z);
 
     // Authentic Turkish KGM milestone prism
     const stoneGeo = new THREE.BoxGeometry(0.45, 0.75, 0.32);
-    const stone = new THREE.Mesh(stoneGeo, RoadSegment.kmStoneMaterial);
+    const mat = RoadSegment.kmStoneMaterialsMap.get(env) || RoadSegment.kmStoneMaterial;
+    const stone = new THREE.Mesh(stoneGeo, mat);
     stone.position.y = 0.38;
     stone.castShadow = false;
     stoneGroup.add(stone);
 
-    this.mesh.add(stoneGroup);
+    this.sceneryGroup.add(stoneGroup);
   }
 
   private addHighwayBillboard(x: number, z: number, material: THREE.MeshStandardMaterial, faceLeft: boolean): void {
@@ -3002,7 +3447,7 @@ export class RoadSegment {
       billboardGroup.rotation.y = Math.PI / 2;
     }
 
-    this.mesh.add(billboardGroup);
+    this.sceneryGroup.add(billboardGroup);
   }
 
   private addModernGuardrail(halfRoad: number, shoulderWidth: number, segLength: number): void {
@@ -3031,8 +3476,8 @@ export class RoadSegment {
     }
     leftPosts.instanceMatrix.needsUpdate = true;
     rightPosts.instanceMatrix.needsUpdate = true;
-    this.mesh.add(leftPosts);
-    this.mesh.add(rightPosts);
+    this.roadBaseGroup.add(leftPosts);
+    this.roadBaseGroup.add(rightPosts);
 
     // Continuous horizontal corrugated W-beam rails
     // Upper corrugated ridge (y=0.62)
@@ -3045,27 +3490,27 @@ export class RoadSegment {
 
     const leftUpper = new THREE.Mesh(upperRailGeo, RoadSegment.guardrailSteelMaterial);
     leftUpper.position.set(leftX + 0.04, 0.62, segLength / 2);
-    this.mesh.add(leftUpper);
+    this.roadBaseGroup.add(leftUpper);
 
     const leftLower = new THREE.Mesh(lowerRailGeo, RoadSegment.guardrailSteelMaterial);
     leftLower.position.set(leftX + 0.04, 0.42, segLength / 2);
-    this.mesh.add(leftLower);
+    this.roadBaseGroup.add(leftLower);
 
     const leftTop = new THREE.Mesh(topTubeGeo, RoadSegment.guardrailSteelMaterial);
     leftTop.position.set(leftX, 0.78, segLength / 2);
-    this.mesh.add(leftTop);
+    this.roadBaseGroup.add(leftTop);
 
     const rightUpper = new THREE.Mesh(upperRailGeo, RoadSegment.guardrailSteelMaterial);
     rightUpper.position.set(rightX - 0.04, 0.62, segLength / 2);
-    this.mesh.add(rightUpper);
+    this.roadBaseGroup.add(rightUpper);
 
     const rightLower = new THREE.Mesh(lowerRailGeo, RoadSegment.guardrailSteelMaterial);
     rightLower.position.set(rightX - 0.04, 0.42, segLength / 2);
-    this.mesh.add(rightLower);
+    this.roadBaseGroup.add(rightLower);
 
     const rightTop = new THREE.Mesh(topTubeGeo, RoadSegment.guardrailSteelMaterial);
     rightTop.position.set(rightX, 0.78, segLength / 2);
-    this.mesh.add(rightTop);
+    this.roadBaseGroup.add(rightTop);
 
     // Retro-reflective "Kelebek" studs mounted on the guardrail face every 5m
     const reflSpacing = 5.0;
@@ -3093,8 +3538,8 @@ export class RoadSegment {
     dummy.rotation.set(0, 0, 0);
     leftRefls.instanceMatrix.needsUpdate = true;
     rightRefls.instanceMatrix.needsUpdate = true;
-    this.mesh.add(leftRefls);
-    this.mesh.add(rightRefls);
+    this.roadBaseGroup.add(leftRefls);
+    this.roadBaseGroup.add(rightRefls);
 
     // Concrete curb drainage grates (every 15m along the concrete shoulder edge)
     const grateSpacing = 15.0;
@@ -3116,8 +3561,8 @@ export class RoadSegment {
     }
     leftGrates.instanceMatrix.needsUpdate = true;
     rightGrates.instanceMatrix.needsUpdate = true;
-    this.mesh.add(leftGrates);
-    this.mesh.add(rightGrates);
+    this.roadBaseGroup.add(leftGrates);
+    this.roadBaseGroup.add(rightGrates);
   }
 
   private addStonePine(x: number, z: number): void {
@@ -3186,11 +3631,12 @@ export class RoadSegment {
 
     const scale = 0.85 + Math.random() * 0.35;
     pineGroup.scale.set(scale, scale, scale);
-    this.mesh.add(pineGroup);
+    this.sceneryGroup.add(pineGroup);
   }
 
-  private addCantileverExitSign(roadBoundaryX: number, z: number, signIndex: number): void {
-    const signMat = RoadSegment.exitSignMaterials[signIndex % (RoadSegment.exitSignMaterials.length || 1)];
+  private addCantileverExitSign(roadBoundaryX: number, z: number, signIndex: number, env: EnvironmentPreset = 'DAY'): void {
+    const signs = RoadSegment.exitSignMaterialsMap.get(env) || RoadSegment.exitSignMaterials;
+    const signMat = signs[signIndex % (signs.length || 1)];
     if (!signMat) return;
 
     const gantryGroup = new THREE.Group();
@@ -3259,7 +3705,7 @@ export class RoadSegment {
       gantryGroup.add(lamp);
     }
 
-    this.mesh.add(gantryGroup);
+    this.gantryGroup.add(gantryGroup);
   }
 
   private addSoundBarrier(roadBoundaryX: number, segLength: number, isRightSide: boolean): void {
@@ -3305,7 +3751,7 @@ export class RoadSegment {
     capMesh.position.set(0, wallHeight + 0.06, segLength / 2);
     barrierGroup.add(capMesh);
 
-    this.mesh.add(barrierGroup);
+    this.sceneryGroup.add(barrierGroup);
   }
 
   private addSosBox(x: number, z: number): void {
@@ -3337,7 +3783,7 @@ export class RoadSegment {
     panel.rotation.x = 0.35;
     sosGroup.add(panel);
 
-    this.mesh.add(sosGroup);
+    this.sceneryGroup.add(sosGroup);
   }
 
   private addStreetLight(x: number, z: number, isRightSide: boolean): void {
@@ -3368,7 +3814,7 @@ export class RoadSegment {
     groundDecal.position.set(isRightSide ? -2.0 : 2.0, 0.03, 0);
     poleGroup.add(groundDecal);
 
-    this.mesh.add(poleGroup);
+    this.streetLightsGroup.add(poleGroup);
   }
 
   // --- BOSPHORUS MAIDEN'S TOWER (KIZ KULESI) 3D ARCHITECTURE ---
@@ -3487,7 +3933,7 @@ export class RoadSegment {
 
   // --- AVRASYA / TEM HIGHWAY TUNNEL ARCHITECTURE ---
 
-  private buildTunnel(roadBoundaryX: number, segLength: number): void {
+  private buildTunnel(roadBoundaryX: number, segLength: number, env: EnvironmentPreset = 'DAY'): void {
     const tunnelHeight = 7.6;
     const tunnelSpan = roadBoundaryX * 2 + 1.2;
     const halfSpan = tunnelSpan / 2;
@@ -3607,32 +4053,19 @@ export class RoadSegment {
     portalArch.position.set(0, tunnelHeight + 1.1, 0);
     portalGroup.add(portalArch);
 
-    if (typeof document !== 'undefined') {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 96;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, 512, 96);
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(6, 6, 500, 84);
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = '900 32px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('AVRASYA TÜNELİ', 256, 42);
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('HIZ SINIRI: 70 KM/S • RADAR EDS', 256, 74);
-      }
-      const portalTex = new THREE.CanvasTexture(canvas);
-      const portalMat = new THREE.MeshBasicMaterial({ map: portalTex });
-      const bannerGeo = new THREE.PlaneGeometry(tunnelSpan * 0.65, 1.4);
-      const banner = new THREE.Mesh(bannerGeo, portalMat);
-      banner.position.set(0, tunnelHeight + 1.1, -1.0);
-      banner.rotation.y = Math.PI;
-      portalGroup.add(banner);
+    const portalMat = RoadSegment.tunnelPortalMaterialsMap.get(env) || RoadSegment.tunnelCeilingMaterial;
+    const bannerGeo = new THREE.PlaneGeometry(tunnelSpan * 0.72, 1.4);
+    const banner = new THREE.Mesh(bannerGeo, portalMat);
+    banner.position.set(0, tunnelHeight + 1.1, -1.0);
+    banner.rotation.y = Math.PI;
+    portalGroup.add(banner);
+
+    // Bolu Dağı Alpine mountain rocky cut above tunnel portal
+    if (env === 'SUNSET') {
+      const rockFacadeGeo = new THREE.BoxGeometry(tunnelSpan + 14, 12, 4.0);
+      const rockFacade = new THREE.Mesh(rockFacadeGeo, RoadSegment.rockWallMaterial);
+      rockFacade.position.set(0, tunnelHeight + 6.0, 1.0);
+      portalGroup.add(rockFacade);
     }
 
     this.tunnelGroup.add(portalGroup);
@@ -3891,5 +4324,521 @@ export class RoadSegment {
         this.activeShip.position.z = maxZ;
       }
     }
+  }
+
+  // --- BOLU DAĞI ALPINE FLORA & LANDSCAPE ARCHITECTURE ---
+
+  public createSpruceTreeMesh(scale = 1.0): THREE.Group {
+    const spruceGroup = new THREE.Group();
+
+    // Trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.18, 0.32, 2.4, 6);
+    const trunk = new THREE.Mesh(trunkGeo, RoadSegment.treeTrunkMaterial);
+    trunk.position.y = 1.2;
+    spruceGroup.add(trunk);
+
+    // 4 Conical evergreen spruce tiers with tiered overhangs
+    const tiers = [
+      { r: 2.2, h: 2.6, y: 3.0, mat: RoadSegment.spruceFoliageMaterials[0] || RoadSegment.treeFoliageMaterials[0] },
+      { r: 1.7, h: 2.4, y: 4.8, mat: RoadSegment.spruceFoliageMaterials[1] || RoadSegment.treeFoliageMaterials[1] },
+      { r: 1.2, h: 2.2, y: 6.4, mat: RoadSegment.spruceFoliageMaterials[2] || RoadSegment.treeFoliageMaterials[2] },
+      { r: 0.7, h: 1.8, y: 7.8, mat: RoadSegment.spruceFoliageMaterials[0] || RoadSegment.treeFoliageMaterials[0] },
+    ];
+
+    for (const t of tiers) {
+      const coneGeo = new THREE.ConeGeometry(t.r, t.h, 7);
+      const cone = new THREE.Mesh(coneGeo, t.mat);
+      cone.position.y = t.y;
+      cone.castShadow = false;
+      spruceGroup.add(cone);
+    }
+
+    spruceGroup.scale.set(scale, scale, scale);
+    return spruceGroup;
+  }
+
+  private addSpruceTree(x: number, z: number, scale = 1.0): void {
+    const spruce = this.createSpruceTreeMesh(scale);
+    spruce.position.set(x, 0, z);
+    this.sceneryGroup.add(spruce);
+  }
+
+  private addMountainRockWall(roadBoundaryX: number, segLength: number, isRightSide: boolean): void {
+    const rockGroup = new THREE.Group();
+    const bx = isRightSide ? roadBoundaryX + 4.5 : -(roadBoundaryX + 4.5);
+    rockGroup.position.set(bx, 0, 0);
+
+    const rockCount = Math.floor(segLength / 9);
+    for (let i = 0; i < rockCount; i++) {
+      const rz = i * 9 + 4.5;
+      const rockGeo = new THREE.DodecahedronGeometry(3.5 + Math.random() * 1.5, 1);
+      const rock = new THREE.Mesh(rockGeo, RoadSegment.rockWallMaterial);
+      rock.position.set((Math.random() - 0.5) * 2, 2.5 + Math.random() * 1.2, rz);
+      rock.scale.set(1.4, 2.0, 1.8);
+      rock.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
+      rock.receiveShadow = true;
+      rockGroup.add(rock);
+    }
+    this.terrainGroup.add(rockGroup);
+  }
+
+  private addBoluChalet(x: number, z: number, facingRoad: 'left' | 'right'): void {
+    const chaletGroup = new THREE.Group();
+    chaletGroup.position.set(x, 0, z);
+
+    // 1. Log Cabin Main House
+    const bodyGeo = new THREE.BoxGeometry(10, 4.6, 7.5);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a2e1b, roughness: 0.85 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 2.3;
+    body.receiveShadow = true;
+    chaletGroup.add(body);
+
+    // 2. Steep Alpine A-Frame Roof
+    const roofGeo = new THREE.ConeGeometry(6.4, 3.8, 4);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x2b1d14, roughness: 0.7 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = 4.6 + 1.9;
+    roof.rotation.y = Math.PI / 4;
+    chaletGroup.add(roof);
+
+    // 3. Stone Chimney with rising smoke feel
+    const chimneyGeo = new THREE.BoxGeometry(0.9, 5.0, 0.9);
+    const chimney = new THREE.Mesh(chimneyGeo, RoadSegment.rockWallMaterial);
+    chimney.position.set(2.8, 5.0, 1.2);
+    chaletGroup.add(chimney);
+
+    // 4. Warm Glowing Alpine Windows
+    const winGeo = new THREE.PlaneGeometry(1.6, 1.2);
+    const winMat = new THREE.MeshBasicMaterial({ color: 0xffcc44 });
+    const win1 = new THREE.Mesh(winGeo, winMat);
+    win1.position.set(facingRoad === 'left' ? -5.01 : 5.01, 2.4, 1.4);
+    win1.rotation.y = facingRoad === 'left' ? -Math.PI / 2 : Math.PI / 2;
+    chaletGroup.add(win1);
+
+    const win2 = new THREE.Mesh(winGeo, winMat);
+    win2.position.set(facingRoad === 'left' ? -5.01 : 5.01, 2.4, -1.4);
+    win2.rotation.y = facingRoad === 'left' ? -Math.PI / 2 : Math.PI / 2;
+    chaletGroup.add(win2);
+
+    // 5. Lighted Billboard Roof Sign: "BOLU DAĞI ET MANGAL"
+    if (typeof document !== 'undefined') {
+      const signCanvas = document.createElement('canvas');
+      signCanvas.width = 256;
+      signCanvas.height = 64;
+      const sctx = signCanvas.getContext('2d');
+      if (sctx) {
+        sctx.fillStyle = '#800e13';
+        sctx.fillRect(0, 0, 256, 64);
+        sctx.strokeStyle = '#ffd166';
+        sctx.lineWidth = 4;
+        sctx.strokeRect(4, 4, 248, 56);
+        sctx.fillStyle = '#ffffff';
+        sctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+        sctx.textAlign = 'center';
+        sctx.fillText('BOLU DAĞI ET MANGAL', 128, 28);
+        sctx.fillStyle = '#ffd166';
+        sctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+        sctx.fillText('MEŞHUR KÖFTE & SUCUK', 128, 50);
+      }
+      const sTex = new THREE.CanvasTexture(signCanvas);
+      const signMat = new THREE.MeshBasicMaterial({ map: sTex });
+      const signGeo = new THREE.PlaneGeometry(5.2, 1.4);
+      const signMesh = new THREE.Mesh(signGeo, signMat);
+      signMesh.position.set(facingRoad === 'left' ? -5.05 : 5.05, 5.0, 0);
+      signMesh.rotation.y = facingRoad === 'left' ? -Math.PI / 2 : Math.PI / 2;
+      chaletGroup.add(signMesh);
+    }
+
+    this.sceneryGroup.add(chaletGroup);
+  }
+
+  private addBoluAlpineTerrain(roadBoundaryX: number, segLength: number): void {
+    const terrainWidth = 140;
+    const slopeGeo = new THREE.PlaneGeometry(terrainWidth, segLength);
+
+    // Left steep forested mountain slope
+    const leftSlope = new THREE.Mesh(slopeGeo, RoadSegment.grassMaterial);
+    leftSlope.rotation.x = -Math.PI / 2;
+    leftSlope.rotation.y = 0.08;
+    leftSlope.position.set(-roadBoundaryX - terrainWidth / 2, 3.5, segLength / 2);
+    leftSlope.receiveShadow = true;
+    this.terrainGroup.add(leftSlope);
+
+    // Right steep forested mountain slope
+    const rightSlope = new THREE.Mesh(slopeGeo, RoadSegment.grassMaterial);
+    rightSlope.rotation.x = -Math.PI / 2;
+    rightSlope.rotation.y = -0.08;
+    rightSlope.position.set(roadBoundaryX + terrainWidth / 2, 3.5, segLength / 2);
+    rightSlope.receiveShadow = true;
+    this.terrainGroup.add(rightSlope);
+
+    // Dark dirt verge on outer shoulder
+    const vergeGeo = new THREE.PlaneGeometry(2.4, segLength);
+    const leftVerge = new THREE.Mesh(vergeGeo, RoadSegment.dirtVergeMaterial);
+    leftVerge.rotation.x = -Math.PI / 2;
+    leftVerge.position.set(-roadBoundaryX - 1.2, 0.04, segLength / 2);
+    this.terrainGroup.add(leftVerge);
+
+    const rightVerge = new THREE.Mesh(vergeGeo, RoadSegment.dirtVergeMaterial);
+    rightVerge.rotation.x = -Math.PI / 2;
+    rightVerge.position.set(roadBoundaryX + 1.2, 0.04, segLength / 2);
+    this.terrainGroup.add(rightVerge);
+  }
+
+  private addBoluAlpineScenery(roadBoundaryX: number, segLength: number): void {
+    // 1. Rocky mountain cut along roadside
+    const rockSideRight = this.segmentIndex % 2 === 0;
+    this.addMountainRockWall(roadBoundaryX, segLength, rockSideRight);
+
+    // 2. Dense alpine spruces on both embankments
+    const treeSpacing = 9.0;
+    const count = Math.floor(segLength / treeSpacing);
+
+    for (let i = 0; i < count; i++) {
+      const z = i * treeSpacing + 4.5;
+      const s1 = 0.9 + (i % 3) * 0.25;
+      const s2 = 0.85 + ((i + 1) % 3) * 0.3;
+
+      // Left spruce forest
+      const lx = -(roadBoundaryX + 6.0 + (i % 4) * 4.5);
+      this.addSpruceTree(lx, z, s1);
+
+      // Right spruce forest
+      const rx = roadBoundaryX + 6.0 + ((i + 2) % 4) * 4.5;
+      this.addSpruceTree(rx, z, s2);
+
+      // Deep background forest row
+      if (i % 2 === 0) {
+        this.addSpruceTree(-(roadBoundaryX + 24.0 + (i % 3) * 6), z + 3, 1.4);
+        this.addSpruceTree(roadBoundaryX + 24.0 + ((i + 1) % 3) * 6, z + 3, 1.4);
+      }
+    }
+
+    // 3. Iconic Bolu Dağı Chalet Mangal
+    if (this.segmentIndex % 5 === 2) {
+      this.addBoluChalet(roadBoundaryX + 16.0, segLength * 0.5, 'left');
+    }
+
+    // 4. Milestone
+    if (this.segmentIndex % 2 === 0) {
+      this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3, 'SUNSET');
+    }
+    if (this.segmentIndex % 4 === 2) {
+      this.addSosBox(roadBoundaryX + 0.45, segLength * 0.75);
+    }
+
+    // 5. Cantilever exit sign (Abant / Yedigöller)
+    if (this.segmentIndex % 4 === 2) {
+      const exitSignIdx = Math.floor(this.segmentIndex / 4);
+      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx, 'SUNSET');
+    }
+
+    // 6. Billboard
+    if (this.segmentIndex % 3 === 2) {
+      const signs = RoadSegment.billboardMaterialsMap.get('SUNSET') || RoadSegment.billboardMaterials;
+      const billboardMat = signs[this.segmentIndex % signs.length];
+      if (billboardMat) {
+        this.addHighwayBillboard(roadBoundaryX + 16.0, segLength * 0.5, billboardMat, true);
+      }
+    }
+  }
+
+  // --- ANKARA - NİĞDE OTOYOLU BOZKIR STEPPE SCENERY ---
+
+  private addBozkirScrub(x: number, z: number): void {
+    const scrubGeo = new THREE.DodecahedronGeometry(0.55 + Math.random() * 0.3, 0);
+    const scrub = new THREE.Mesh(scrubGeo, RoadSegment.bozkirBushMaterial);
+    scrub.position.set(x, 0.35, z);
+    scrub.scale.set(1.5, 0.7, 1.5);
+    this.sceneryGroup.add(scrub);
+  }
+
+  private addSolarSosTower(x: number, z: number): void {
+    const towerGroup = new THREE.Group();
+    towerGroup.position.set(x, 0, z);
+
+    // Slim white Smart Highway sensor mast
+    const mastGeo = new THREE.CylinderGeometry(0.08, 0.12, 5.2, 8);
+    const mastMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.6, roughness: 0.3 });
+    const mast = new THREE.Mesh(mastGeo, mastMat);
+    mast.position.y = 2.6;
+    towerGroup.add(mast);
+
+    // Solar PV panel
+    const solarGeo = new THREE.BoxGeometry(0.9, 0.05, 0.65);
+    const solarMat = new THREE.MeshStandardMaterial({ color: 0x03045e, metalness: 0.9, roughness: 0.2 });
+    const solar = new THREE.Mesh(solarGeo, solarMat);
+    solar.position.set(0, 4.2, 0);
+    solar.rotation.x = 0.45;
+    towerGroup.add(solar);
+
+    // IoT Sensor Dome & Pulsing LED
+    const domeGeo = new THREE.SphereGeometry(0.18, 8, 8);
+    const domeMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const dome = new THREE.Mesh(domeGeo, domeMat);
+    dome.position.set(0, 5.2, 0);
+    towerGroup.add(dome);
+
+    this.sceneryGroup.add(towerGroup);
+  }
+
+  private addBozkirTerrain(roadBoundaryX: number, segLength: number): void {
+    const terrainWidth = 240;
+    const steppeGeo = new THREE.PlaneGeometry(terrainWidth, segLength);
+
+    // Left flat steppe
+    const leftSteppe = new THREE.Mesh(steppeGeo, RoadSegment.bozkirGrassMaterial);
+    leftSteppe.rotation.x = -Math.PI / 2;
+    leftSteppe.position.set(-roadBoundaryX - terrainWidth / 2, 0, segLength / 2);
+    leftSteppe.receiveShadow = true;
+    this.terrainGroup.add(leftSteppe);
+
+    // Right flat steppe
+    const rightSteppe = new THREE.Mesh(steppeGeo, RoadSegment.bozkirGrassMaterial);
+    rightSteppe.rotation.x = -Math.PI / 2;
+    rightSteppe.position.set(roadBoundaryX + terrainWidth / 2, 0, segLength / 2);
+    rightSteppe.receiveShadow = true;
+    this.terrainGroup.add(rightSteppe);
+
+    // Dusty gravel shoulder verge
+    const vergeGeo = new THREE.PlaneGeometry(3.0, segLength);
+    const leftVerge = new THREE.Mesh(vergeGeo, RoadSegment.bozkirDirtMaterial);
+    leftVerge.rotation.x = -Math.PI / 2;
+    leftVerge.position.set(-roadBoundaryX - 1.5, 0.04, segLength / 2);
+    this.terrainGroup.add(leftVerge);
+
+    const rightVerge = new THREE.Mesh(vergeGeo, RoadSegment.bozkirDirtMaterial);
+    rightVerge.rotation.x = -Math.PI / 2;
+    rightVerge.position.set(roadBoundaryX + 1.5, 0.04, segLength / 2);
+    this.terrainGroup.add(rightVerge);
+  }
+
+  private addBozkirScenery(roadBoundaryX: number, segLength: number): void {
+    // 1. Low dry steppe scrubs (Geven / Step otları) scattered across horizon
+    const scrubSpacing = 10.0;
+    const count = Math.floor(segLength / scrubSpacing);
+
+    for (let i = 0; i < count; i++) {
+      const z = i * scrubSpacing + 5.0;
+      this.addBozkirScrub(-(roadBoundaryX + 3.2 + (i % 3) * 2.5), z);
+      this.addBozkirScrub(roadBoundaryX + 3.2 + ((i + 1) % 3) * 2.5, z);
+
+      if (i % 2 === 0) {
+        this.addBozkirScrub(-(roadBoundaryX + 12.0 + (i % 4) * 5), z + 3);
+        this.addBozkirScrub(roadBoundaryX + 12.0 + ((i + 2) % 4) * 5, z + 3);
+      }
+    }
+
+    // 2. Smart Highway Solar IoT Sensor Towers
+    if (this.segmentIndex % 4 === 1) {
+      this.addSolarSosTower(roadBoundaryX + 2.8, segLength * 0.4);
+    }
+
+    // 3. Milestone
+    if (this.segmentIndex % 2 === 0) {
+      this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3, 'NIGHT');
+    }
+    if (this.segmentIndex % 4 === 2) {
+      this.addSosBox(roadBoundaryX + 0.45, segLength * 0.75);
+    }
+
+    // 4. Cantilever exit sign (Kapadokya)
+    if (this.segmentIndex % 4 === 2) {
+      const exitSignIdx = Math.floor(this.segmentIndex / 4);
+      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx, 'NIGHT');
+    }
+
+    // 5. Billboard
+    if (this.segmentIndex % 3 === 2) {
+      const signs = RoadSegment.billboardMaterialsMap.get('NIGHT') || RoadSegment.billboardMaterials;
+      const billboardMat = signs[this.segmentIndex % signs.length];
+      if (billboardMat) {
+        this.addHighwayBillboard(roadBoundaryX + 16.0, segLength * 0.5, billboardMat, true);
+      }
+    }
+  }
+
+  // --- İSTANBUL - İZMİR OTOYOLU (O-5) MEDITERRANEAN SCENERY ---
+
+  private addOksijenRestFacility(x: number, z: number, isRightSide: boolean): void {
+    const restGroup = new THREE.Group();
+    restGroup.position.set(x, 0, z);
+
+    // 1. Service Station Pavilion Building
+    const bldgGeo = new THREE.BoxGeometry(18, 5.2, 10);
+    const bldgMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.5 });
+    const bldg = new THREE.Mesh(bldgGeo, bldgMat);
+    bldg.position.y = 2.6;
+    restGroup.add(bldg);
+
+    // Glass facade
+    const glassGeo = new THREE.PlaneGeometry(16, 3.8);
+    const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const glass = new THREE.Mesh(glassGeo, glassMat);
+    glass.position.set(0, 2.5, isRightSide ? -5.02 : 5.02);
+    if (isRightSide) glass.rotation.y = Math.PI;
+    restGroup.add(glass);
+
+    // 2. Fuel Station Canopy
+    const canopyGeo = new THREE.BoxGeometry(14, 0.6, 8);
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+    const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+    canopy.position.set(0, 5.2, isRightSide ? -9.5 : 9.5);
+    restGroup.add(canopy);
+
+    // Canopy fuel columns
+    const colGeo = new THREE.CylinderGeometry(0.25, 0.25, 4.8, 8);
+    const colMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+    for (const cx of [-4.5, 4.5]) {
+      const col = new THREE.Mesh(colGeo, colMat);
+      col.position.set(cx, 2.4, isRightSide ? -9.5 : 9.5);
+      restGroup.add(col);
+    }
+
+    // 3. Illuminated "OKSİJEN O-3" Logo Sign
+    if (typeof document !== 'undefined') {
+      const signCanvas = document.createElement('canvas');
+      signCanvas.width = 256;
+      signCanvas.height = 64;
+      const sctx = signCanvas.getContext('2d');
+      if (sctx) {
+        sctx.fillStyle = '#0284c7';
+        sctx.fillRect(0, 0, 256, 64);
+        sctx.fillStyle = '#ffffff';
+        sctx.font = '900 22px "Segoe UI", Arial, sans-serif';
+        sctx.textAlign = 'center';
+        sctx.fillText('OKSİJEN O-3', 128, 30);
+        sctx.fillStyle = '#bae6fd';
+        sctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        sctx.fillText('DİNLENME & YAŞAM ALANI', 128, 50);
+      }
+      const sTex = new THREE.CanvasTexture(signCanvas);
+      const signMat = new THREE.MeshBasicMaterial({ map: sTex });
+      const signGeo = new THREE.PlaneGeometry(6.4, 1.6);
+      const signMesh = new THREE.Mesh(signGeo, signMat);
+      signMesh.position.set(0, 5.8, isRightSide ? -5.05 : 5.05);
+      if (isRightSide) signMesh.rotation.y = Math.PI;
+      restGroup.add(signMesh);
+    }
+
+    this.sceneryGroup.add(restGroup);
+  }
+
+  private addIzmirOtoyolTerrain(roadBoundaryX: number, segLength: number): void {
+    const terrainWidth = 140;
+    const terrainGeo = new THREE.PlaneGeometry(terrainWidth, segLength);
+
+    // Left Gulf shoreline terrain
+    const leftTerrain = new THREE.Mesh(terrainGeo, RoadSegment.grassMaterial);
+    leftTerrain.rotation.x = -Math.PI / 2;
+    leftTerrain.position.set(-roadBoundaryX - terrainWidth / 2, 0, segLength / 2);
+    leftTerrain.receiveShadow = true;
+    this.terrainGroup.add(leftTerrain);
+
+    // Right olive hills terrain
+    const rightTerrain = new THREE.Mesh(terrainGeo, RoadSegment.grassMaterial);
+    rightTerrain.rotation.x = -Math.PI / 2;
+    rightTerrain.position.set(roadBoundaryX + terrainWidth / 2, 0, segLength / 2);
+    rightTerrain.receiveShadow = true;
+    this.terrainGroup.add(rightTerrain);
+
+    // Dirt verge
+    const vergeGeo = new THREE.PlaneGeometry(2.4, segLength);
+    const leftVerge = new THREE.Mesh(vergeGeo, RoadSegment.dirtVergeMaterial);
+    leftVerge.rotation.x = -Math.PI / 2;
+    leftVerge.position.set(-roadBoundaryX - 1.2, 0.04, segLength / 2);
+    this.terrainGroup.add(leftVerge);
+
+    const rightVerge = new THREE.Mesh(vergeGeo, RoadSegment.dirtVergeMaterial);
+    rightVerge.rotation.x = -Math.PI / 2;
+    rightVerge.position.set(roadBoundaryX + 1.2, 0.04, segLength / 2);
+    this.terrainGroup.add(rightVerge);
+  }
+
+  private addIzmirOtoyolScenery(roadBoundaryX: number, segLength: number): void {
+    // 1. Acoustic sound barriers on certain segments
+    if (this.segmentIndex % 4 === 1) {
+      this.addSoundBarrier(roadBoundaryX, segLength, false);
+    }
+    if (this.segmentIndex % 4 === 3) {
+      this.addSoundBarrier(roadBoundaryX, segLength, true);
+    }
+
+    // 2. Mediterranean Cypresses & Stone Pines
+    const treeSpacing = 12.0;
+    const count = Math.floor(segLength / treeSpacing);
+
+    for (let i = 0; i < count; i++) {
+      const z = i * treeSpacing + 6;
+      if (i % 2 === 0) {
+        this.addCypressTree(-(roadBoundaryX + 4.5 + (i % 3) * 1.5), z);
+        this.addStonePine(roadBoundaryX + 4.5 + ((i + 1) % 3) * 1.5, z);
+      } else {
+        this.addStonePine(-(roadBoundaryX + 4.5 + (i % 3) * 1.5), z);
+        this.addCypressTree(roadBoundaryX + 4.5 + ((i + 1) % 3) * 1.5, z);
+      }
+    }
+
+    // 3. Iconic "O-3 Oksijen" Rest Area
+    if (this.segmentIndex % 6 === 2) {
+      this.addOksijenRestFacility(roadBoundaryX + 18.0, segLength * 0.5, true);
+    }
+
+    // 4. Milestone
+    if (this.segmentIndex % 2 === 0) {
+      this.addKilometerStone(roadBoundaryX + 0.35, segLength * 0.3, 'RAIN');
+    }
+    if (this.segmentIndex % 4 === 2) {
+      this.addSosBox(roadBoundaryX + 0.45, segLength * 0.75);
+    }
+
+    // 5. Cantilever exit sign (Bursa / Balıkesir)
+    if (this.segmentIndex % 4 === 2) {
+      const exitSignIdx = Math.floor(this.segmentIndex / 4);
+      this.addCantileverExitSign(roadBoundaryX, segLength * 0.6, exitSignIdx, 'RAIN');
+    }
+
+    // 6. Billboard
+    if (this.segmentIndex % 3 === 2) {
+      const signs = RoadSegment.billboardMaterialsMap.get('RAIN') || RoadSegment.billboardMaterials;
+      const billboardMat = signs[this.segmentIndex % signs.length];
+      if (billboardMat) {
+        this.addHighwayBillboard(roadBoundaryX + 16.0, segLength * 0.5, billboardMat, true);
+      }
+    }
+  }
+
+  // --- DYNAMIC REBUILD FOR SEAMLESS HIGHWAY SWITCHING ---
+
+  public rebuildSegmentTheme(): void {
+    const clearGroup = (grp: THREE.Group) => {
+      while (grp.children.length > 0) {
+        const child = grp.children[0];
+        grp.remove(child);
+        if ((child as any).geometry) (child as any).geometry.dispose?.();
+      }
+    };
+
+    clearGroup(this.terrainGroup);
+    clearGroup(this.sceneryGroup);
+    clearGroup(this.bridgeMeshGroup);
+    clearGroup(this.shipGroup);
+    clearGroup(this.tunnelGroup);
+    clearGroup(this.gantryGroup);
+    clearGroup(this.streetLightsGroup);
+
+    this.bridgeLights = [];
+    this.beaconLights = [];
+    this.maidensTowerBeam = null;
+    this.activeShip = null;
+
+    const totalRoadWidth = laneSystem.getTotalRoadWidth();
+    const halfRoad = totalRoadWidth / 2;
+    const shoulderWidth = laneSystem.shoulderWidth;
+    const roadBoundaryX = halfRoad + shoulderWidth;
+
+    this.buildThemeElements(roadBoundaryX, this.length);
+    this.freezeStaticMatrices();
   }
 }

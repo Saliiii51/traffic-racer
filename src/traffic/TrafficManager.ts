@@ -233,13 +233,18 @@ export class TrafficManager {
         // Skip opposite direction traffic (traveling in separate halves of road in TWO_WAY)
         if (vA.isOppositeDirection !== vB.isOppositeDirection) continue;
 
+        const dz = vB.mesh.position.z - vA.mesh.position.z;
+        // Early exit filter: cars separated by more than 12m along road cannot collide
+        if (Math.abs(dz) > 12) continue;
+
+        const dx = vB.mesh.position.x - vA.mesh.position.x;
+        // Early exit filter: cars separated by more than 4.5m across lanes cannot collide
+        if (Math.abs(dx) > 4.5) continue;
+
         const halfWidthA = vA.dimensions.width * 0.5;
         const halfLengthA = vA.dimensions.length * 0.5;
         const halfWidthB = vB.dimensions.width * 0.5;
         const halfLengthB = vB.dimensions.length * 0.5;
-
-        const dx = vB.mesh.position.x - vA.mesh.position.x;
-        const dz = vB.mesh.position.z - vA.mesh.position.z;
 
         const overlapX = halfWidthA + halfWidthB - Math.abs(dx);
         const overlapZ = halfLengthA + halfLengthB - Math.abs(dz);

@@ -21,4 +21,5 @@ dist-ssr
 scratch/
 .system_generated/
 public/models/_backup/
+assets_backup/
 

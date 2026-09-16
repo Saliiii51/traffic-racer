@@ -2,6 +2,7 @@
 
 import { gameState } from '../core/GameState';
 import { radioManager } from './RadioManager';
+import { isMobileDevice } from '../utils/orientation';
 
 export class AudioManager {
   private static instance: AudioManager;
@@ -170,7 +171,13 @@ export class AudioManager {
 
   public resumeContext(): void {
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  public suspendContext(): void {
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
     }
   }
 
@@ -2446,7 +2453,7 @@ export class AudioManager {
 
     this.trafficAudioUpdateCooldown -= delta;
     if (this.trafficAudioUpdateCooldown > 0) return;
-    this.trafficAudioUpdateCooldown = 0.045; // ~22 Hz refresh rate, smooth audio param interpolation
+    this.trafficAudioUpdateCooldown = isMobileDevice() ? 0.09 : 0.045; // ~11 Hz on mobile for CPU efficiency, ~22 Hz on desktop
 
     const t = this.ctx.currentTime;
 

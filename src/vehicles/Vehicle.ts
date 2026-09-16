@@ -691,7 +691,7 @@ export class Vehicle {
     model.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const matName = (((child as any).material?.name) || '').toLowerCase();
-      if ((name.includes('plane') || matName === 'ground' || name.includes('ground')) && !name.includes('plate') && !name.includes('plaka')) {
+      if ((matName === 'ground' || /plane_ground|ground_plane|studio_plane/i.test(name) || (name.includes('ground') && !name.includes('plate'))) && !name.includes('plaka')) {
         unwantedChildren.push(child);
       }
       if ((child as THREE.Mesh).isMesh) {
@@ -764,7 +764,7 @@ export class Vehicle {
       }
     });
 
-    const isFacingBackward = (frontZ !== null && rearZ !== null && frontZ < rearZ) || (this.id === 'tofas_gltf');
+    const isFacingBackward = (frontZ !== null && rearZ !== null && frontZ < rearZ);
     if (isFacingBackward) {
       model.rotation.y += Math.PI;
       model.updateMatrixWorld(true);
@@ -785,6 +785,12 @@ export class Vehicle {
       targetLength = 4.65;
     } else if (this.id === 'sport_racer') {
       targetLength = 4.25;
+    } else if (this.id === 'honda_s2000') {
+      targetLength = 4.15;
+    } else if (this.id === 'bmw_e46') {
+      targetLength = 4.49;
+    } else if (this.id === 'lambo_aventador') {
+      targetLength = 4.78;
     }
     const scale = targetLength / Math.max(rawSize.z, 0.01);
     model.scale.set(scale, scale, scale);
@@ -955,8 +961,98 @@ export class Vehicle {
           (mat as any).isBodyPaint = true;
         }
 
+        // Honda S2000 (AP1 2004) Model Materials
+        if (this.id === 'honda_s2000') {
+          if (matName === 'material.001' || meshName.includes('material001')) {
+            mat.transparent = false;
+            mat.depthWrite = true;
+            (mat as any).isBodyPaint = true;
+            mat.metalness = 0.65;
+            mat.roughness = 0.22;
+          } else if (matName === 'material.007' || meshName.includes('material007')) {
+            const stopMat = mat.clone();
+            mesh.material = stopMat;
+            stopMat.transparent = false;
+            stopMat.depthWrite = true;
+            stopMat.color = new THREE.Color(0x7a1212);
+            stopMat.emissive = new THREE.Color(0x380505);
+            stopMat.emissiveIntensity = 0.32;
+            stopMat.roughness = 0.18;
+            stopMat.metalness = 0.35;
+            this.customBrakeLightMaterials.push(stopMat);
+          } else if (matName === 'material.003' || meshName.includes('material003')) {
+            mat.transparent = false;
+            mat.depthWrite = true;
+            mat.color = new THREE.Color(0xd46005);
+            mat.emissive = new THREE.Color(0x5a2000);
+            mat.emissiveIntensity = 0.3;
+          } else if (matName === 'material' || meshName.includes('plane016') || meshName.includes('plane007')) {
+            mat.transparent = true;
+            mat.opacity = 0.25;
+            mat.depthWrite = false;
+            mat.roughness = 0.05;
+            mat.metalness = 0.10;
+            mat.color = new THREE.Color(0xdceaff);
+            mat.side = THREE.DoubleSide;
+            mesh.renderOrder = 10;
+          } else if (matName === 'material.013') {
+            mat.metalness = 0.85;
+            mat.roughness = 0.20;
+            mat.depthWrite = true;
+          } else if (matName === 'material.011') {
+            mat.metalness = 0.05;
+            mat.roughness = 0.90;
+            mat.color = new THREE.Color(0x181818);
+            mat.depthWrite = true;
+          } else if (matName === 'material.010') {
+            mat.metalness = 0.95;
+            mat.roughness = 0.12;
+            mat.depthWrite = true;
+          } else if (matName === 'material.006') {
+            mat.metalness = 0.05;
+            mat.roughness = 0.92;
+            mat.color = new THREE.Color(0x151515);
+            mat.depthWrite = true;
+          } else if (matName === 'material.016') {
+            mat.metalness = 0.12;
+            mat.roughness = 0.70;
+            mat.depthWrite = true;
+          }
+        }
+        // Lamborghini Aventador LP700-4 Materials
+        else if (this.id === 'lambo_aventador') {
+          if (matName.includes('body') || meshName.includes('object_3')) {
+            mat.transparent = false;
+            mat.depthWrite = true;
+            (mat as any).isBodyPaint = true;
+            mat.metalness = 0.72;
+            mat.roughness = 0.24;
+          } else if (matName.includes('glass') || meshName.includes('object_2')) {
+            mat.transparent = true;
+            mat.opacity = 0.35;
+            mat.roughness = 0.08;
+            mat.metalness = 0.85;
+            mat.color = new THREE.Color(0x101a24);
+            mat.depthWrite = false;
+            mat.side = THREE.DoubleSide;
+            mesh.renderOrder = 10;
+          }
+        }
+        // BMW M3 E46 (NightRyder) Materials
+        else if (this.id === 'bmw_e46') {
+          if (matName === 'lambert2' || meshName.includes('lambert2')) {
+            mat.transparent = false;
+            mat.depthWrite = true;
+            (mat as any).isBodyPaint = true;
+          } else if (matName === 'blinn2' || meshName.includes('blinn2')) {
+            mat.transparent = true;
+            mat.depthWrite = true;
+            mat.side = THREE.DoubleSide;
+            mesh.renderOrder = 10;
+          }
+        }
         // 1. Stop / Tail Lights (Ruby red glass + dynamic brake illumination)
-        if (stopPattern.test(combined)) {
+        else if (stopPattern.test(combined)) {
           const stopMat = mat.clone();
           mesh.material = stopMat;
           stopMat.transparent = false;
@@ -1113,8 +1209,8 @@ export class Vehicle {
     }
 
     // Manage wheels visibility and positioning for custom models
-    if (this.customWheels.length >= 4) {
-      // 3D model has its own 4 animated wheel nodes (e.g. Tofaş Doğan SLX FBX)
+    if (this.customWheels.length >= 4 || this.id === 'honda_s2000' || this.id === 'bmw_e46' || this.id === 'lambo_aventador') {
+      // 3D model has its own 4 animated wheel nodes or integrated wheels (e.g. Honda S2000, BMW M3, Lambo Aventador)
       this.wheelsGroup.visible = false;
     } else {
       // Single-mesh or merged-wheel models (Mini Cooper, Opel Corsa, Golf, BMW)

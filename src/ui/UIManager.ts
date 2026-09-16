@@ -10,7 +10,7 @@ import { CAMERA_PRESETS } from '../player/ChaseCamera';
 import { multiplayerManager } from '../network/MultiplayerManager';
 import { radioManager } from '../audio/RadioManager';
 import { PARKING_LEVELS } from '../parking/ParkingLotManager';
-import type { VehicleUpgradeLevels, GameMode, EnvironmentPreset, VehicleDefinition } from '../core/Constants';
+import { ENVIRONMENT_INFOS, type VehicleUpgradeLevels, type GameMode, type EnvironmentPreset, type VehicleDefinition } from '../core/Constants';
 
 export class UIManager {
   private container: HTMLElement;
@@ -26,6 +26,16 @@ export class UIManager {
   private screenMultiplayerResult!: HTMLElement;
   private loadingBarFill!: HTMLElement;
   private loadingStatusText!: HTMLElement;
+  private loadingPercentText?: HTMLElement | null;
+  private loadingTipText?: HTMLElement | null;
+  private tipIntervalId?: any;
+  private readonly loadingTips: string[] = [
+    'Yüksek hızda makas atarak araçların yanından sıyırmak ekstra nitro ve nakit kazandırır!',
+    'Boğaziçi Köprüsü gece modunda ışıkları ve nefes kesen şehir manzarasıyla parlar.',
+    'Yeni Lamborghini Aventador ile 350 km/s son hıza ulaşıp otoban rekorunu kırabilirsiniz!',
+    'Önünüzdeki trafiğe "F" tuşuyla selektör yaparak veya kornaya basarak yol açabilirsiniz.',
+    'Virajlarda ve makaslarda dinamik süspansiyon yay fiziği sayesinde gövde gerçekçi olarak yatar.'
+  ];
 
   // Multiplayer HUD
   private hudMultiplayerBar!: HTMLElement;
@@ -172,7 +182,7 @@ export class UIManager {
   private adBtnSlowmo!: HTMLElement;
   private adBtnReelsMask!: HTMLElement;
   private adCameraFlash!: HTMLElement;
-  private adStudioSelectedCarId: string = 'tofas_gltf';
+  private adStudioSelectedCarId: string = 'honda_s2000';
   private adStudioSelectedEnv: any = 'DAY';
   private adStudioAggressive: boolean = true;
 
@@ -185,8 +195,12 @@ export class UIManager {
   }
 
   public setLoadingProgress(percent: number, text?: string): void {
+    const clampedPercent = Math.min(100, Math.max(0, percent));
     if (this.loadingBarFill) {
-      this.loadingBarFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      this.loadingBarFill.style.width = `${clampedPercent}%`;
+    }
+    if (this.loadingPercentText) {
+      this.loadingPercentText.innerText = `%${Math.round(clampedPercent)}`;
     }
     if (text && this.loadingStatusText) {
       this.loadingStatusText.innerText = text;
@@ -196,6 +210,29 @@ export class UIManager {
   public setLoadingStatus(text: string): void {
     if (this.loadingStatusText) {
       this.loadingStatusText.innerText = text;
+    }
+  }
+
+  public startLoadingTips(): void {
+    if (this.tipIntervalId) return;
+    let tipIdx = 0;
+    this.tipIntervalId = setInterval(() => {
+      if (!this.loadingTipText) return;
+      tipIdx = (tipIdx + 1) % this.loadingTips.length;
+      this.loadingTipText.style.opacity = '0';
+      setTimeout(() => {
+        if (this.loadingTipText) {
+          this.loadingTipText.innerText = this.loadingTips[tipIdx];
+          this.loadingTipText.style.opacity = '1';
+        }
+      }, 250);
+    }, 2800);
+  }
+
+  public stopLoadingTips(): void {
+    if (this.tipIntervalId) {
+      clearInterval(this.tipIntervalId);
+      this.tipIntervalId = undefined;
     }
   }
 
@@ -223,25 +260,40 @@ export class UIManager {
     this.container.innerHTML = `
       <!-- 0. LOADING SCREEN -->
       <div id="screen-loading" class="ui-screen active">
-        <div class="loading-container">
-          <div class="loading-logo-box">
-            <h1 class="game-logo pulse-anim">TRAFFIC RUSH: İSTANBUL</h1>
-            <p class="game-sub">Boğaziçi Köprüsü & E-5 Otoyolu</p>
-          </div>
-          
-          <div class="loading-vehicle-icon">
-            <svg viewBox="0 0 64 64" width="76" height="76" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 36L18 20H46L52 36M12 36V46H18M12 36H52M52 36V46H46M18 46H46M18 46C18 48.2 16.2 50 14 50C11.8 50 10 48.2 10 46C10 43.8 11.8 42 14 42C16.2 42 18 43.8 18 46ZM46 46C46 48.2 47.8 50 50 50C52.2 50 54 48.2 54 46C54 43.8 52.2 42 50 42C47.8 42 46 43.8 46 46Z" stroke="#00f0ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="22" cy="36" r="3.5" fill="#ffbe0b"/>
-              <circle cx="42" cy="36" r="3.5" fill="#ffbe0b"/>
-            </svg>
+        <div class="loading-bg-layer"></div>
+        <div class="loading-vignette-layer"></div>
+
+        <div class="loading-content-overlay">
+          <!-- Top Cinematic Branding -->
+          <div class="loading-top-header">
+            <div class="loading-brand-badge">
+              <span class="loading-city-dot"></span>
+              <span>İSTANBUL GECE YARIŞI</span>
+              <span class="loading-tag-year">2026</span>
+            </div>
+            <h1 class="game-logo loading-logo-cinematic">TRAFFIC RUSH</h1>
+            <div class="loading-sub-cinematic">
+              <span class="loading-neon-accent">İSTANBUL NIGHT RUN</span>
+              <span class="loading-sub-separator">•</span>
+              <span>BOĞAZİÇİ KÖPRÜSÜ & E-5 OTOYOLU</span>
+            </div>
           </div>
 
-          <div class="loading-bar-wrapper">
-            <div class="loading-bar-track">
-              <div class="loading-bar-fill" id="loading-bar-fill"></div>
+          <!-- Bottom Cinematic Loader -->
+          <div class="loading-bottom-bar-area">
+            <div class="loading-bar-header">
+              <span class="loading-status" id="loading-status-text">İstanbul Haritası & Yollar Hazırlanıyor...</span>
+              <span class="loading-percent" id="loading-percent-text">%0</span>
             </div>
-            <div class="loading-status" id="loading-status-text">3D Araçlar ve İstanbul Modelleri Yükleniyor...</div>
+            <div class="loading-bar-track">
+              <div class="loading-bar-fill" id="loading-bar-fill">
+                <div class="loading-bar-glow-head"></div>
+              </div>
+            </div>
+            <div class="loading-tips-pill">
+              <span class="loading-tip-icon">💡</span>
+              <span class="loading-tip-text" id="loading-tip-text">Yüksek hızda makas atarak araçların yanından sıyırmak ekstra nitro ve nakit kazandırır!</span>
+            </div>
           </div>
         </div>
       </div>
@@ -292,12 +344,18 @@ export class UIManager {
 
           <!-- Environment Preset Selector -->
           <div class="selector-group">
-            <div class="selector-label">İSTANBUL HAVA & VAKİT</div>
+            <div class="selector-label" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🛣️ TÜRKİYE OTOBANLARI & GÜZERGAH</span>
+              <span id="menu-env-route-badge" style="font-size: 0.72rem; color: #ffbe0b; font-weight: 700;">D100 / O-1 • Boğaziçi</span>
+            </div>
             <div class="pill-selector-row" id="menu-env-selector">
-              <button class="choice-pill active" data-env="DAY">☀️ BOĞAZİÇİ</button>
-              <button class="choice-pill" data-env="SUNSET">🌅 KIZ KULESİ</button>
-              <button class="choice-pill" data-env="NIGHT">🌃 MASLAK</button>
-              <button class="choice-pill" data-env="RAIN">🌧️ YAĞMUR</button>
+              <button class="choice-pill active" data-env="DAY">🛣️ E-5 OTOBANI</button>
+              <button class="choice-pill" data-env="SUNSET">🌲 ANADOLU OTOYOLU</button>
+              <button class="choice-pill" data-env="NIGHT">🌾 ANKARA-NİĞDE</button>
+              <button class="choice-pill" data-env="RAIN">🌧️ İSTANBUL-İZMİR</button>
+            </div>
+            <div id="menu-env-desc-text" style="font-size: 0.73rem; color: rgba(255,255,255,0.7); margin-top: 5px; text-align: left; padding-left: 2px;">
+              İstanbul metropol koridoru, Boğaziçi Köprüsü ve yoğun şehir manzarası.
             </div>
           </div>
 
@@ -1072,6 +1130,17 @@ export class UIManager {
             </div>
           </div>
 
+          <!-- Pil Tasarrufu (Eko Mod) -->
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-weight: 700; font-size: 0.92rem; color: #fff;">🔋 Pil Tasarrufu (Eko Mod)</span>
+              <button id="btn-settings-battery-saver" class="btn btn-pill" style="padding: 6px 14px; font-size: 0.8rem;">KAPALI</button>
+            </div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5);">
+              30 FPS sınırı, optimize çizim mesafesi ve maksimum pil ömrü sağlar.
+            </div>
+          </div>
+
           <!-- Ses & Efektler -->
           <div style="margin-bottom: 20px;">
             <div style="font-weight: 700; font-size: 0.92rem; margin-bottom: 8px; color: #fff;">Ses & Efektler</div>
@@ -1414,12 +1483,12 @@ export class UIManager {
 
           <!-- Vakit / Ortam Seçimi -->
           <div style="margin-bottom: 16px;">
-            <div style="font-weight: 700; font-size: 0.86rem; margin-bottom: 8px; color: #fff;">🌆 İSTANBUL ATMOSFERİ</div>
+            <div style="font-weight: 700; font-size: 0.86rem; margin-bottom: 8px; color: #fff;">🛣️ TÜRKİYE OTOBANLARI & GÜZERGAH</div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="ad-studio-env-row">
-              <button class="choice-pill active" data-env="DAY">☀️ BOĞAZİÇİ</button>
-              <button class="choice-pill" data-env="SUNSET">🌅 KIZ KULESİ</button>
-              <button class="choice-pill" data-env="NIGHT">🌃 MASLAK</button>
-              <button class="choice-pill" data-env="RAIN">🌧️ YAĞMURLU</button>
+              <button class="choice-pill active" data-env="DAY">🛣️ E-5 OTOBANI</button>
+              <button class="choice-pill" data-env="SUNSET">🌲 ANADOLU OTOYOLU</button>
+              <button class="choice-pill" data-env="NIGHT">🌾 ANKARA-NİĞDE</button>
+              <button class="choice-pill" data-env="RAIN">🌧️ İSTANBUL-İZMİR</button>
             </div>
           </div>
 
@@ -1568,6 +1637,9 @@ export class UIManager {
     this.screenLoading = document.getElementById('screen-loading')!;
     this.loadingBarFill = document.getElementById('loading-bar-fill')!;
     this.loadingStatusText = document.getElementById('loading-status-text')!;
+    this.loadingPercentText = document.getElementById('loading-percent-text');
+    this.loadingTipText = document.getElementById('loading-tip-text');
+    this.startLoadingTips();
 
     this.screenMenu = document.getElementById('screen-menu')!;
     this.screenHud = document.getElementById('screen-hud')!;
@@ -2094,6 +2166,13 @@ export class UIManager {
       });
     });
 
+    document.getElementById('btn-settings-battery-saver')?.addEventListener('click', () => {
+      audioManager.playClick();
+      const next = !gameState.settings.batterySaver;
+      gameState.setBatterySaver(next);
+      this.updateSettingsUI();
+    });
+
     document.getElementById('btn-settings-sound')?.addEventListener('click', () => {
       audioManager.init();
       gameState.settings.soundEnabled = !gameState.settings.soundEnabled;
@@ -2557,7 +2636,12 @@ export class UIManager {
       this.hidePauseMenu();
     });
 
+    eventBus.on('environmentChanged', () => {
+      this.updateEnvSelectorUI();
+    });
+
     this.setupMultiplayerUI();
+    this.updateEnvSelectorUI();
   }
 
   private setupTouchControls(): void {
@@ -2905,6 +2989,16 @@ export class UIManager {
       } else {
         hint.innerText = 'Yüksek: PCF Yumuşak Gölgeler, tam cihaz çözünürlüğü.';
       }
+    }
+
+    const ecoBtn = document.getElementById('btn-settings-battery-saver');
+    if (ecoBtn) {
+      const isEco = !!gameState.settings.batterySaver;
+      ecoBtn.innerText = isEco ? '⚡ AÇIK (30 FPS)' : 'KAPALI';
+      ecoBtn.classList.toggle('active', isEco);
+      ecoBtn.style.backgroundColor = isEco ? '#00f0ff' : 'rgba(255,255,255,0.08)';
+      ecoBtn.style.color = isEco ? '#000' : '#fff';
+      ecoBtn.style.fontWeight = isEco ? '800' : '600';
     }
 
     const soundBtn = document.getElementById('btn-settings-sound');
@@ -3437,7 +3531,7 @@ export class UIManager {
     const carsRow = document.getElementById('ad-studio-cars-row');
     if (carsRow) {
       carsRow.innerHTML = '';
-      this.adStudioSelectedCarId = gameState.selectedVehicleId || 'tofas_gltf';
+      this.adStudioSelectedCarId = gameState.selectedVehicleId || 'honda_s2000';
 
       VEHICLE_CATALOG.forEach((v) => {
         const isSelected = v.id === this.adStudioSelectedCarId;
@@ -4126,8 +4220,13 @@ export class UIManager {
     this.setIdleCinematicBadge(false);
 
     if (screen === 'BOOT') {
+      this.startLoadingTips();
       this.screenLoading.classList.add('active');
-    } else if (screen === 'MAIN_MENU') {
+    } else {
+      this.stopLoadingTips();
+    }
+
+    if (screen === 'MAIN_MENU') {
       this.updateMenuStats();
       this.updateModeSelectorUI();
       this.updateEnvSelectorUI();
@@ -4714,6 +4813,14 @@ export class UIManager {
         btn.classList.remove('active');
       }
     });
+
+    const info = ENVIRONMENT_INFOS[currentEnv];
+    if (info) {
+      const badge = document.getElementById('menu-env-route-badge');
+      if (badge) badge.innerText = `${info.highwayCode} • ${info.route}`;
+      const desc = document.getElementById('menu-env-desc-text');
+      if (desc) desc.innerText = `${info.icon} ${info.name} — ${info.description}`;
+    }
   }
 
   private updateExhaustSelectorUI(): void {

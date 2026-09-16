@@ -73,7 +73,7 @@ export class TrafficVehicle extends Vehicle {
   public personality: DriverPersonality = 'standard';
   public isChangingLane = false;
   public laneChangeProgress = 0;
-  public laneChangeDuration = 1.8;
+  public laneChangeDuration = 3.2;
   public laneChangeCooldown = 0;
   public playerDemandCooldown = 0;
   public turnSignal: 'none' | 'left' | 'right' = 'none';
@@ -224,7 +224,8 @@ export class TrafficVehicle extends Vehicle {
     if (!TrafficVehicle.turnSignalMaterial) {
       TrafficVehicle.turnSignalMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 });
     }
-    const geo = new THREE.BoxGeometry(0.12, 0.08, 0.1);
+    const geo = new THREE.SphereGeometry(0.042, 8, 6);
+    geo.scale(1.15, 0.65, 0.65);
     const fl = new THREE.Mesh(geo, TrafficVehicle.turnSignalMaterial);
     const fr = new THREE.Mesh(geo, TrafficVehicle.turnSignalMaterial);
     const rl = new THREE.Mesh(geo, TrafficVehicle.turnSignalMaterial);
@@ -246,15 +247,16 @@ export class TrafficVehicle extends Vehicle {
 
   private updateTurnSignalPositions(): void {
     if (!this.turnSignalMeshes) return;
-    const halfW = this.dimensions.width * 0.48;
-    const halfL = this.dimensions.length * 0.48;
-    const frontY = this.dimensions.height * 0.38;
-    const rearY = this.dimensions.height * 0.42;
+    const halfW = this.dimensions.width * 0.38;
+    const halfL = this.dimensions.length * 0.46;
+    const frontY = this.dimensions.height * 0.42;
+    const rearY = this.dimensions.height * 0.46;
 
-    this.turnSignalMeshes.fl.position.set(-halfW, frontY, halfL);
-    this.turnSignalMeshes.fr.position.set(halfW, frontY, halfL);
-    this.turnSignalMeshes.rl.position.set(-halfW, rearY, -halfL);
-    this.turnSignalMeshes.rr.position.set(halfW, rearY, -halfL);
+    // +X is LEFT, -X is RIGHT
+    this.turnSignalMeshes.fl.position.set(halfW, frontY, halfL);
+    this.turnSignalMeshes.fr.position.set(-halfW, frontY, halfL);
+    this.turnSignalMeshes.rl.position.set(halfW, rearY, -halfL);
+    this.turnSignalMeshes.rr.position.set(-halfW, rearY, -halfL);
     this.updateHeadlightPositions();
   }
 
@@ -585,7 +587,6 @@ export class TrafficVehicle extends Vehicle {
       const candidates = this.getCandidateLanes(currentLane, isTwoWay);
       for (const target of candidates) {
         if (this.isLaneSafe(target, allTraffic, player)) {
-          this.laneChangeDuration = 1.1;
           this.initiateLaneChange(target);
           return;
         }
@@ -780,9 +781,9 @@ export class TrafficVehicle extends Vehicle {
     this.targetLaneIndex = targetLane;
     this.laneChangeProgress = 0;
     this.turnSignal = targetLane < this.laneIndex ? 'left' : 'right';
-    this.preSignalTimer = 0.08; // 80ms: reacts with lightning speed to horn/flash!
-    this.laneChangeDuration = 0.85; // Swift lane change to clear the path
-    this.laneChangeCooldown = 1.2;
+    this.preSignalTimer = 0.35; // 350ms pre-signal before crossing lane marking
+    this.laneChangeDuration = 2.4 + Math.random() * 0.4; // Smooth, realistic lane change
+    this.laneChangeCooldown = 2.0;
 
     // Keep pace up so player doesn't crash into our rear during the maneuver
     const minPace = player.speedKmh * 0.78 + 12;
@@ -824,8 +825,8 @@ export class TrafficVehicle extends Vehicle {
     allTraffic: TrafficVehicle[],
     player?: PlayerVehicle | null
   ): boolean {
-    const requiredGapAhead = this.personality === 'aggressive' ? 18 : 24;
-    const requiredGapBehind = this.personality === 'aggressive' ? 14 : 20;
+    const requiredGapAhead = this.personality === 'aggressive' ? 22 : 28;
+    const requiredGapBehind = this.personality === 'aggressive' ? 18 : 24;
 
     for (let i = 0; i < allTraffic.length; i++) {
       const other = allTraffic[i];
@@ -867,10 +868,10 @@ export class TrafficVehicle extends Vehicle {
           const distBehind = -playerGap;
           const playerRelativeSpeed = player.speedKmh - this.speedKmh;
 
-          if (distBehind < 50 && playerRelativeSpeed > 15) {
+          if (distBehind < 60 && playerRelativeSpeed > 15) {
             return false;
           }
-          if (distBehind < 22) {
+          if (distBehind < 26) {
             return false;
           }
         }
@@ -886,14 +887,14 @@ export class TrafficVehicle extends Vehicle {
     this.laneChangeProgress = 0;
 
     if (this.personality === 'aggressive') {
-      this.laneChangeDuration = 1.1 + Math.random() * 0.3;
-      this.preSignalTimer = 0.45;
+      this.laneChangeDuration = 2.4 + Math.random() * 0.5; // 2.4s - 2.9s (was 1.1s - 1.4s)
+      this.preSignalTimer = 0.55;
     } else if (this.personality === 'heavy') {
-      this.laneChangeDuration = 2.4 + Math.random() * 0.4;
-      this.preSignalTimer = 0.85;
+      this.laneChangeDuration = 4.4 + Math.random() * 0.8; // 4.4s - 5.2s (was 2.4s - 2.8s)
+      this.preSignalTimer = 1.20;
     } else {
-      this.laneChangeDuration = 1.6 + Math.random() * 0.4;
-      this.preSignalTimer = 0.65;
+      this.laneChangeDuration = 3.2 + Math.random() * 0.6; // 3.2s - 3.8s (was 1.6s - 2.0s)
+      this.preSignalTimer = 0.85;
     }
 
     this.turnSignal = targetLane < this.laneIndex ? 'left' : 'right';
@@ -920,14 +921,14 @@ export class TrafficVehicle extends Vehicle {
         const currentX = THREE.MathUtils.lerp(startX, targetX, smoothT);
         this.mesh.position.x = currentX;
 
-        // Wheel steering angle during maneuver
+        // Wheel steering angle during maneuver (gentle, natural arc)
         const steerDir = Math.sign(targetX - startX);
-        const steerMagnitude = Math.sin(t * Math.PI) * 0.25;
+        const steerMagnitude = Math.sin(t * Math.PI) * 0.16;
         const steerAngle = steerDir * steerMagnitude * (this.isOppositeDirection ? -1 : 1);
 
-        // Body roll & yaw
-        const yawOffset = steerDir * Math.sin(t * Math.PI) * 0.08 * (this.isOppositeDirection ? -1 : 1);
-        const rollOffset = -steerDir * Math.sin(t * Math.PI) * 0.035;
+        // Body roll & yaw (subtle and realistic highway weight transfer)
+        const yawOffset = steerDir * Math.sin(t * Math.PI) * 0.05 * (this.isOppositeDirection ? -1 : 1);
+        const rollOffset = -steerDir * Math.sin(t * Math.PI) * 0.02;
 
         this.mesh.rotation.y = baseRotY + yawOffset;
         this.mesh.rotation.z = rollOffset;
@@ -941,7 +942,7 @@ export class TrafficVehicle extends Vehicle {
           this.mesh.rotation.y = baseRotY;
           this.mesh.rotation.z = 0;
           this.turnSignal = 'none';
-          this.laneChangeCooldown = 1.4 + Math.random() * 2.2;
+          this.laneChangeCooldown = 2.4 + Math.random() * 2.8;
         }
       }
     } else {

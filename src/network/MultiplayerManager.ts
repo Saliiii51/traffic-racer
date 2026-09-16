@@ -108,6 +108,16 @@ export class MultiplayerManager {
   }
 
   public getServerUrl(): string {
+    // Check if running inside Capacitor native mobile app or packaged Android webview
+    const isCapacitorNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+    const isLocalhostWithoutDevPort = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+                                     window.location.port !== '5173' &&
+                                     window.location.port !== '5174';
+
+    if (isCapacitorNative || (isLocalhostWithoutDevPort && window.location.protocol !== 'file:')) {
+      return 'wss://traffic-racer-istanbul.onrender.com';
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     // If running with standard dev server on 5173, backend socket is on 5174
     if (window.location.port === '5173') {

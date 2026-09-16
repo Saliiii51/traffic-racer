@@ -284,6 +284,12 @@ export class GameState {
     eventBus.emit('environmentChanged', { env });
   }
 
+  public setBatterySaver(enabled: boolean): void {
+    this.data.settings.batterySaver = enabled;
+    this.save();
+    eventBus.emit('batterySaverChanged', { enabled });
+  }
+
   public setCameraView(view: CameraViewMode): void {
     this.currentCameraView = view;
     eventBus.emit('cameraModeChanged', { mode: view });

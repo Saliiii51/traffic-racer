@@ -25,6 +25,7 @@ export interface GameSaveData {
     musicEnabled: boolean;
     steeringSensitivity: number;
     graphicsQuality: 'low' | 'medium' | 'high';
+    batterySaver: boolean;
     controlType: 'buttons' | 'tilt';
     selectedGameMode: GameMode;
     selectedEnvironment: 'DAY' | 'SUNSET' | 'NIGHT' | 'RAIN';
@@ -70,8 +71,8 @@ export class SaveManager {
       bestScore: 0,
       bestDistanceMeters: 0,
       totalDistanceMeters: 0,
-      selectedVehicleId: 'opel_corsa_b',
-      ownedVehicleIds: ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super', 'sport_racer'],
+      selectedVehicleId: 'honda_s2000',
+      ownedVehicleIds: ['opel_corsa_b', 'honda_s2000'],
       vehicleUpgrades: defaultUpgrades,
       vehicleColors: defaultColors,
       completedMissionIds: [],
@@ -82,6 +83,7 @@ export class SaveManager {
         musicEnabled: true,
         steeringSensitivity: 1.0,
         graphicsQuality: isMobileDevice() ? 'medium' : 'high',
+        batterySaver: false,
         controlType: 'buttons',
         selectedGameMode: 'ONE_WAY',
         selectedEnvironment: 'DAY',
@@ -127,6 +129,7 @@ export class SaveManager {
       current.settings = { ...defaults.settings };
     } else {
       current.settings.trafficSettings = Object.assign({}, DEFAULT_TRAFFIC_SETTINGS, current.settings.trafficSettings);
+      if (current.settings.batterySaver === undefined) current.settings.batterySaver = false;
     }
 
     // Ensure all catalog vehicles have upgrade entries
@@ -139,21 +142,35 @@ export class SaveManager {
       }
     });
 
-    const freeGarageCars = ['opel_corsa_b', 'starter_coupe', 'tofas_gltf', 'golf_gti', 'mini_cooper', 'bmw_e46', 'luxury_sedan', 'phantom_super', 'sport_racer'];
-    freeGarageCars.forEach((cid) => {
+    // Migrate away from removed vehicles
+    if (current.selectedVehicleId === 'starter_coupe' || current.selectedVehicleId === 'tofas_gltf') {
+      current.selectedVehicleId = 'honda_s2000';
+    } else if (current.selectedVehicleId === 'mini_cooper') {
+      current.selectedVehicleId = 'lambo_aventador';
+    }
+
+    // Clean up obsolete IDs from owned vehicles and ensure honda_s2000 & opel_corsa_b are owned
+    current.ownedVehicleIds = current.ownedVehicleIds.map((cid) => (cid === 'mini_cooper' ? 'lambo_aventador' : cid));
+    current.ownedVehicleIds = current.ownedVehicleIds.filter((cid) => cid !== 'starter_coupe' && cid !== 'tofas_gltf');
+    const defaultUnlockedCars = ['opel_corsa_b', 'honda_s2000'];
+    defaultUnlockedCars.forEach((cid) => {
       if (!current.ownedVehicleIds.includes(cid)) {
         current.ownedVehicleIds.push(cid);
       }
     });
 
-    // Set Opel Corsa B as the active car if user was on default starter_coupe
-    if (!current.selectedVehicleId || current.selectedVehicleId === 'starter_coupe') {
-      current.selectedVehicleId = 'opel_corsa_b';
+    if (!current.selectedVehicleId) {
+      current.selectedVehicleId = 'honda_s2000';
     }
 
-    // Migrate old default red starter car color to authentic Tofaş teal
-    if (current.vehicleColors['starter_coupe'] === '#d90429' || current.vehicleColors['starter_coupe'] === '#2d6a2d') {
-      current.vehicleColors['starter_coupe'] = '#1e7272';
+    if (!current.vehicleColors['honda_s2000']) {
+      current.vehicleColors['honda_s2000'] = '#d90429';
+    }
+    if (!current.vehicleColors['lambo_aventador']) {
+      current.vehicleColors['lambo_aventador'] = '#ff5500';
+    }
+    if (!current.vehicleColors['bmw_e46']) {
+      current.vehicleColors['bmw_e46'] = '#111111';
     }
 
     if (!current.licensePlate) {

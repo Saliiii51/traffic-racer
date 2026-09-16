@@ -11,6 +11,13 @@ interface CachedBone {
   targetQuat: THREE.Quaternion;
 }
 
+// Module-level reusable scratch objects to avoid GC allocations during animation
+const _axisX = new THREE.Vector3(1, 0, 0);
+const _axisY = new THREE.Vector3(0, 1, 0);
+const _axisZ = new THREE.Vector3(0, 0, 1);
+const _tempQuat = new THREE.Quaternion();
+const _tempEuler = new THREE.Euler();
+
 export class RaceStarterCharacter {
   public readonly group: THREE.Group;
   public isLoaded = false;
@@ -306,39 +313,35 @@ export class RaceStarterCharacter {
 
     // Spine breathing
     if (this.spine) {
-      const q = this.spine.restQuat.clone();
-      const rot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), breath);
-      this.spine.targetQuat.multiplyQuaternions(q, rot);
+      _tempQuat.setFromAxisAngle(_axisX, breath);
+      this.spine.targetQuat.multiplyQuaternions(this.spine.restQuat, _tempQuat);
     }
 
     // Head looking slightly left and right checking the staging lanes
     if (this.head) {
-      const q = this.head.restQuat.clone();
-      const lookRot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), sway * 2.0);
-      this.head.targetQuat.multiplyQuaternions(q, lookRot);
+      _tempQuat.setFromAxisAngle(_axisY, sway * 2.0);
+      this.head.targetQuat.multiplyQuaternions(this.head.restQuat, _tempQuat);
     }
 
     // Arms resting naturally low at sides holding flags
     if (this.leftUpperArm) {
-      const q = this.leftUpperArm.restQuat.clone();
-      const armPose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 0, -0.15));
-      this.leftUpperArm.targetQuat.multiplyQuaternions(q, armPose);
+      _tempEuler.set(0.2, 0, -0.15);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.leftUpperArm.targetQuat.multiplyQuaternions(this.leftUpperArm.restQuat, _tempQuat);
     }
     if (this.rightUpperArm) {
-      const q = this.rightUpperArm.restQuat.clone();
-      const armPose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 0, 0.15));
-      this.rightUpperArm.targetQuat.multiplyQuaternions(q, armPose);
+      _tempEuler.set(0.2, 0, 0.15);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.rightUpperArm.targetQuat.multiplyQuaternions(this.rightUpperArm.restQuat, _tempQuat);
     }
 
     if (this.leftLowerArm) {
-      const q = this.leftLowerArm.restQuat.clone();
-      const bend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0.3);
-      this.leftLowerArm.targetQuat.multiplyQuaternions(q, bend);
+      _tempQuat.setFromAxisAngle(_axisZ, 0.3);
+      this.leftLowerArm.targetQuat.multiplyQuaternions(this.leftLowerArm.restQuat, _tempQuat);
     }
     if (this.rightLowerArm) {
-      const q = this.rightLowerArm.restQuat.clone();
-      const bend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.3);
-      this.rightLowerArm.targetQuat.multiplyQuaternions(q, bend);
+      _tempQuat.setFromAxisAngle(_axisZ, -0.3);
+      this.rightLowerArm.targetQuat.multiplyQuaternions(this.rightLowerArm.restQuat, _tempQuat);
     }
   }
 
@@ -348,44 +351,36 @@ export class RaceStarterCharacter {
 
     // Spine stands tall
     if (this.spine) {
-      const q = this.spine.restQuat.clone();
-      const chestUp = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.06 * smoothT);
-      this.spine.targetQuat.multiplyQuaternions(q, chestUp);
+      _tempQuat.setFromAxisAngle(_axisX, -0.06 * smoothT);
+      this.spine.targetQuat.multiplyQuaternions(this.spine.restQuat, _tempQuat);
     }
 
     // Head looks high and commanding
     if (this.head) {
-      const q = this.head.restQuat.clone();
-      const chinUp = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.12 * smoothT);
-      this.head.targetQuat.multiplyQuaternions(q, chinUp);
+      _tempQuat.setFromAxisAngle(_axisX, -0.12 * smoothT);
+      this.head.targetQuat.multiplyQuaternions(this.head.restQuat, _tempQuat);
     }
 
     // Upper arms raise into high dramatic V shape (~135 degrees up)
     if (this.leftUpperArm) {
-      const q = this.leftUpperArm.restQuat.clone();
-      const raiseLeft = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(0.1 * smoothT, 0.2 * smoothT, -1.95 * smoothT)
-      );
-      this.leftUpperArm.targetQuat.multiplyQuaternions(q, raiseLeft);
+      _tempEuler.set(0.1 * smoothT, 0.2 * smoothT, -1.95 * smoothT);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.leftUpperArm.targetQuat.multiplyQuaternions(this.leftUpperArm.restQuat, _tempQuat);
     }
     if (this.rightUpperArm) {
-      const q = this.rightUpperArm.restQuat.clone();
-      const raiseRight = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(0.1 * smoothT, -0.2 * smoothT, 1.95 * smoothT)
-      );
-      this.rightUpperArm.targetQuat.multiplyQuaternions(q, raiseRight);
+      _tempEuler.set(0.1 * smoothT, -0.2 * smoothT, 1.95 * smoothT);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.rightUpperArm.targetQuat.multiplyQuaternions(this.rightUpperArm.restQuat, _tempQuat);
     }
 
     // Lower arms extend upward holding flags rigid
     if (this.leftLowerArm) {
-      const q = this.leftLowerArm.restQuat.clone();
-      const lower = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.2 * smoothT);
-      this.leftLowerArm.targetQuat.multiplyQuaternions(q, lower);
+      _tempQuat.setFromAxisAngle(_axisZ, -0.2 * smoothT);
+      this.leftLowerArm.targetQuat.multiplyQuaternions(this.leftLowerArm.restQuat, _tempQuat);
     }
     if (this.rightLowerArm) {
-      const q = this.rightLowerArm.restQuat.clone();
-      const lower = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0.2 * smoothT);
-      this.rightLowerArm.targetQuat.multiplyQuaternions(q, lower);
+      _tempQuat.setFromAxisAngle(_axisZ, 0.2 * smoothT);
+      this.rightLowerArm.targetQuat.multiplyQuaternions(this.rightLowerArm.restQuat, _tempQuat);
     }
 
     if (t >= 1.0) {
@@ -399,30 +394,24 @@ export class RaceStarterCharacter {
     const idleTremble = (Math.random() - 0.5) * 0.015;
 
     if (this.spine) {
-      const q = this.spine.restQuat.clone();
-      const chest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.06 + pulseAmount);
-      this.spine.targetQuat.multiplyQuaternions(q, chest);
+      _tempQuat.setFromAxisAngle(_axisX, -0.06 + pulseAmount);
+      this.spine.targetQuat.multiplyQuaternions(this.spine.restQuat, _tempQuat);
     }
 
     if (this.head) {
-      const q = this.head.restQuat.clone();
-      const nod = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.1 + pulseAmount * 1.5);
-      this.head.targetQuat.multiplyQuaternions(q, nod);
+      _tempQuat.setFromAxisAngle(_axisX, -0.1 + pulseAmount * 1.5);
+      this.head.targetQuat.multiplyQuaternions(this.head.restQuat, _tempQuat);
     }
 
     if (this.leftUpperArm) {
-      const q = this.leftUpperArm.restQuat.clone();
-      const raiseLeft = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(0.1, 0.2, -1.95 + pulseAmount + idleTremble)
-      );
-      this.leftUpperArm.targetQuat.multiplyQuaternions(q, raiseLeft);
+      _tempEuler.set(0.1, 0.2, -1.95 + pulseAmount + idleTremble);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.leftUpperArm.targetQuat.multiplyQuaternions(this.leftUpperArm.restQuat, _tempQuat);
     }
     if (this.rightUpperArm) {
-      const q = this.rightUpperArm.restQuat.clone();
-      const raiseRight = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(0.1, -0.2, 1.95 - pulseAmount - idleTremble)
-      );
-      this.rightUpperArm.targetQuat.multiplyQuaternions(q, raiseRight);
+      _tempEuler.set(0.1, -0.2, 1.95 - pulseAmount - idleTremble);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.rightUpperArm.targetQuat.multiplyQuaternions(this.rightUpperArm.restQuat, _tempQuat);
     }
   }
 
@@ -431,31 +420,26 @@ export class RaceStarterCharacter {
     const whipT = Math.sin((t * Math.PI) / 2);
 
     if (this.spine) {
-      const q = this.spine.restQuat.clone();
-      const forwardFlex = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(1, 0, 0),
-        0.28 * whipT
-      );
-      this.spine.targetQuat.multiplyQuaternions(q, forwardFlex);
+      _tempQuat.setFromAxisAngle(_axisX, 0.28 * whipT);
+      this.spine.targetQuat.multiplyQuaternions(this.spine.restQuat, _tempQuat);
     }
 
     if (this.head) {
-      const q = this.head.restQuat.clone();
-      const dip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.22 * whipT);
-      this.head.targetQuat.multiplyQuaternions(q, dip);
+      _tempQuat.setFromAxisAngle(_axisX, 0.22 * whipT);
+      this.head.targetQuat.multiplyQuaternions(this.head.restQuat, _tempQuat);
     }
 
     if (this.leftUpperArm) {
-      const q = this.leftUpperArm.restQuat.clone();
       const currentZ = THREE.MathUtils.lerp(-1.95, 0.45, whipT);
-      const armPose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35 * whipT, 0, currentZ));
-      this.leftUpperArm.targetQuat.multiplyQuaternions(q, armPose);
+      _tempEuler.set(0.35 * whipT, 0, currentZ);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.leftUpperArm.targetQuat.multiplyQuaternions(this.leftUpperArm.restQuat, _tempQuat);
     }
     if (this.rightUpperArm) {
-      const q = this.rightUpperArm.restQuat.clone();
       const currentZ = THREE.MathUtils.lerp(1.95, -0.45, whipT);
-      const armPose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35 * whipT, 0, currentZ));
-      this.rightUpperArm.targetQuat.multiplyQuaternions(q, armPose);
+      _tempEuler.set(0.35 * whipT, 0, currentZ);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.rightUpperArm.targetQuat.multiplyQuaternions(this.rightUpperArm.restQuat, _tempQuat);
     }
 
     if (t >= 1.0) {
@@ -468,25 +452,25 @@ export class RaceStarterCharacter {
     const carOffset = leadCarZ - this.group.position.z;
 
     if (this.head) {
-      const q = this.head.restQuat.clone();
       let lookAngle = 0;
       if (carOffset > 0) {
         lookAngle = Math.min(1.2, carOffset * 0.08);
       }
-      const turnHead = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, lookAngle, 0));
-      this.head.targetQuat.multiplyQuaternions(q, turnHead);
+      _tempEuler.set(0, lookAngle, 0);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.head.targetQuat.multiplyQuaternions(this.head.restQuat, _tempQuat);
     }
 
     if (this.leftUpperArm) {
-      const q = this.leftUpperArm.restQuat.clone();
-      const pose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, 0, -0.2));
-      this.leftUpperArm.targetQuat.multiplyQuaternions(q, pose);
+      _tempEuler.set(0.15, 0, -0.2);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.leftUpperArm.targetQuat.multiplyQuaternions(this.leftUpperArm.restQuat, _tempQuat);
     }
     if (this.rightUpperArm) {
-      const q = this.rightUpperArm.restQuat.clone();
       const pump = Math.sin(this.animTime * 6.0) * 0.2;
-      const pose = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 0, 1.4 + pump));
-      this.rightUpperArm.targetQuat.multiplyQuaternions(q, pose);
+      _tempEuler.set(0.2, 0, 1.4 + pump);
+      _tempQuat.setFromEuler(_tempEuler);
+      this.rightUpperArm.targetQuat.multiplyQuaternions(this.rightUpperArm.restQuat, _tempQuat);
     }
 
     if (carOffset > 45) {

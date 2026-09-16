@@ -129,6 +129,60 @@ export const DEFAULT_TRAFFIC_SETTINGS: TrafficSettings = {
 
 export type EnvironmentPreset = 'DAY' | 'SUNSET' | 'NIGHT' | 'RAIN';
 
+export interface EnvironmentInfo {
+  id: EnvironmentPreset;
+  name: string;
+  highwayCode: string;
+  route: string;
+  themeTitle: string;
+  badge: string;
+  description: string;
+  icon: string;
+}
+
+export const ENVIRONMENT_INFOS: Record<EnvironmentPreset, EnvironmentInfo> = {
+  DAY: {
+    id: 'DAY',
+    name: 'E-5 Otobanı',
+    highwayCode: 'D100 / O-1',
+    route: 'İstanbul E-5 Karayolu & Boğaziçi',
+    themeTitle: 'Metropol Şehir Geçişi & Boğaziçi Köprüsü',
+    badge: 'GÜNDÜZ • ŞEHİR MERKEZİ',
+    description: 'İstanbul metropol koridoru, Boğaziçi Köprüsü ve yoğun şehir manzarası.',
+    icon: '🛣️',
+  },
+  SUNSET: {
+    id: 'SUNSET',
+    name: 'Anadolu Otoyolu',
+    highwayCode: 'O-4',
+    route: 'Bolu Dağı Geçişi',
+    themeTitle: 'Bolu Dağı Orman & Doğa Manzarası',
+    badge: 'GÜNBATIMI • DOĞA & ORMAN',
+    description: 'Bolu Dağı köknar ve sarıçam ormanları, sisli dağ viyadükleri, kaya yarmaları ve Bolu Tüneli.',
+    icon: '🌲',
+  },
+  NIGHT: {
+    id: 'NIGHT',
+    name: 'Ankara - Niğde Otoyolu',
+    highwayCode: 'O-21',
+    route: 'Uçsuz Bucaksız Bozkır',
+    themeTitle: 'İç Anadolu Akıllı Otoyolu & Bozkır Gecesi',
+    badge: 'GECE • UÇSUZ BUCAKSIZ BOZKIR',
+    description: 'Yıldızlarla dolu gece göğü, İç Anadolu bozkırları, rüzgar türbinleri ve akıllı LED otoyol.',
+    icon: '🌾',
+  },
+  RAIN: {
+    id: 'RAIN',
+    name: 'İstanbul - İzmir Otoyolu',
+    highwayCode: 'O-5',
+    route: 'Gebze - Orhangazi - İzmir',
+    themeTitle: 'Osmangazi Körfez Geçişi & Fırtınalı Yağmur',
+    badge: 'FIRTIKLI YAĞMUR • KÖRFEZ GEÇİŞİ',
+    description: 'Marmara körfezi üzerinde Osmangazi Köprüsü, Oksijen dinlenme tesisleri ve ıslak asfalt.',
+    icon: '🌧️',
+  },
+};
+
 export type CameraViewMode = 'CHASE' | 'INTERIOR' | 'HOOD' | 'BUMPER';
 
 export type VehicleCategory = 'STARTER' | 'SPORT' | 'SUV' | 'LUXURY' | 'SUPER';

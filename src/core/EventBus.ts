@@ -40,6 +40,7 @@ export interface GameEventPayloads {
   licensePlateChanged: { plate: string };
   damageTaken: { damage: number; health: number };
   graphicsQualityChanged: 'low' | 'medium' | 'high';
+  batterySaverChanged: { enabled: boolean };
   trafficSettingsChanged: { settings: TrafficSettings };
   menuCinematicNext: void;
   timeScaleChanged: { timeScale: number };

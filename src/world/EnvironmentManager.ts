@@ -54,6 +54,15 @@ export class EnvironmentManager {
   private seagulls: SeagullData[] = [];
   private gullAnimTime = 0;
 
+  // Turkish Highway Horizon Groups
+  private istanbulSkylineGroup!: THREE.Group;
+  private boluMountainsGroup!: THREE.Group;
+  private bozkirGroup!: THREE.Group;
+  private izmirOtoyolGroup!: THREE.Group;
+  private windTurbineRotors: THREE.Group[] = [];
+  private windTurbineBeacons: THREE.Mesh[] = [];
+  private turbineAnimTime = 0;
+
   // Rain Particle System
   private rainSystem!: THREE.Points;
   private rainActive = false;
@@ -114,7 +123,7 @@ export class EnvironmentManager {
   private initSkyTextures(): void {
     if (typeof document === 'undefined') return;
 
-    // DAY: Azure cobalt -> Sky blue -> Soft cyan -> Warm golden horizon
+    // DAY: E-5 Otobanı (İstanbul) - Azure cobalt -> Sky blue -> Soft cyan -> Warm golden horizon
     this.skyTextures.set('DAY', this.createSkyGradientTexture([
       { stop: 0.0, color: '#1565c0' },
       { stop: 0.28, color: '#29b6f6' },
@@ -123,33 +132,35 @@ export class EnvironmentManager {
       { stop: 1.0, color: '#b3e5fc' },
     ]));
 
-    // SUNSET: Deep twilight purple -> Magenta -> Fiery orange -> Golden sun horizon
+    // SUNSET: Anadolu Otoyolu (Bolu Dağı) - Alpine mountain sunset:
+    // Deep twilight violet-indigo -> Alpine magenta -> Fiery amber & golden mountain horizon
     this.skyTextures.set('SUNSET', this.createSkyGradientTexture([
-      { stop: 0.0, color: '#1b0033' },
-      { stop: 0.25, color: '#4a148c' },
-      { stop: 0.52, color: '#ad1457' },
-      { stop: 0.74, color: '#f57c00' },
-      { stop: 0.90, color: '#ffe082' },
-      { stop: 1.0, color: '#560bad' },
+      { stop: 0.0, color: '#140626' },
+      { stop: 0.25, color: '#380e54' },
+      { stop: 0.52, color: '#8a1c5d' },
+      { stop: 0.74, color: '#e65100' },
+      { stop: 0.90, color: '#ffb74d' },
+      { stop: 1.0, color: '#ffd54f' },
     ]));
 
-    // NIGHT: Cosmic deep navy -> Midnight indigo -> Soft amber city glow at horizon
+    // NIGHT: Ankara - Niğde Otoyolu (Bozkır) - Crystal-clear infinite midnight steppe cosmos:
+    // Void black -> Deep cosmic abyss navy -> Midnight indigo -> Clean dust-horizon twilight
     this.skyTextures.set('NIGHT', this.createSkyGradientTexture([
-      { stop: 0.0, color: '#050c1f' },
-      { stop: 0.28, color: '#0c1a38' },
-      { stop: 0.58, color: '#162852' },
-      { stop: 0.80, color: '#27345e' },
-      { stop: 0.93, color: '#4d3625' }, // warm golden city horizon glow
-      { stop: 1.0, color: '#241612' },
+      { stop: 0.0, color: '#02050e' },
+      { stop: 0.28, color: '#060d22' },
+      { stop: 0.58, color: '#0c1736' },
+      { stop: 0.80, color: '#152145' },
+      { stop: 0.94, color: '#1e2844' },
+      { stop: 1.0, color: '#12141a' },
     ]));
 
-    // RAIN: Storm slate navy -> Rainy overcast gray -> Misty horizon silver
+    // RAIN: İstanbul - İzmir Otoyolu (Osmangazi Körfezi) - Coastal storm slate & ocean rain:
     this.skyTextures.set('RAIN', this.createSkyGradientTexture([
-      { stop: 0.0, color: '#16202c' },
-      { stop: 0.35, color: '#273648' },
-      { stop: 0.72, color: '#3d4e61' },
-      { stop: 0.90, color: '#526377' },
-      { stop: 1.0, color: '#242f3d' },
+      { stop: 0.0, color: '#111822' },
+      { stop: 0.35, color: '#1f2b3a' },
+      { stop: 0.70, color: '#334454' },
+      { stop: 0.90, color: '#455668' },
+      { stop: 1.0, color: '#1d2732' },
     ]));
   }
 
@@ -421,6 +432,8 @@ export class EnvironmentManager {
 
   private setupIstanbulSkyline(): void {
     this.distantMountains = new THREE.Group();
+    this.istanbulSkylineGroup = new THREE.Group();
+
     const silMat = new THREE.MeshBasicMaterial({ color: 0x1a2634 });
     const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
     const goldGlowMat = new THREE.MeshBasicMaterial({ color: 0xffb703 });
@@ -443,11 +456,11 @@ export class EnvironmentManager {
 
       const mLeft = new THREE.Mesh(coneGeo, silMat);
       mLeft.position.set(-160 - Math.random() * 60, height / 2 - 8, (i - hillCount / 2) * 60);
-      this.distantMountains.add(mLeft);
+      this.istanbulSkylineGroup.add(mLeft);
 
       const mRight = new THREE.Mesh(coneGeo, silMat);
       mRight.position.set(160 + Math.random() * 60, height / 2 - 8, (i - hillCount / 2) * 60);
-      this.distantMountains.add(mRight);
+      this.istanbulSkylineGroup.add(mRight);
     }
 
     // 2. GALATA KULESİ (Galata Tower with Illuminated Observation Balcony)
@@ -472,7 +485,7 @@ export class EnvironmentManager {
     galataRoof.position.y = 40;
     galataGroup.add(galataRoof);
 
-    this.distantMountains.add(galataGroup);
+    this.istanbulSkylineGroup.add(galataGroup);
 
     // 3. ÇAMLICA TV KULESİ (Futuristic Communications Tower with Neon Rings)
     const camlicaGroup = new THREE.Group();
@@ -506,7 +519,7 @@ export class EnvironmentManager {
     camlicaBeacon.position.y = 94;
     camlicaGroup.add(camlicaBeacon);
 
-    this.distantMountains.add(camlicaGroup);
+    this.istanbulSkylineGroup.add(camlicaGroup);
 
     // 4. İSTANBUL CAMİİ VE MİNARELERİ (Historic Mosque with Glowing Kandils)
     const mosqueGroup = new THREE.Group();
@@ -539,7 +552,7 @@ export class EnvironmentManager {
       minaretTip.position.set(mx, 47.5, mz);
       mosqueGroup.add(minaretTip);
     }
-    this.distantMountains.add(mosqueGroup);
+    this.istanbulSkylineGroup.add(mosqueGroup);
 
     // 5. MASLAK & LEVENT MODERN GÖKDELENLERİ (Illuminated Window Grids & Neon Crowns)
     const towerConfigs = [
@@ -551,21 +564,379 @@ export class EnvironmentManager {
     for (const tc of towerConfigs) {
       const skyscraper = new THREE.Mesh(new THREE.BoxGeometry(tc.w, tc.h, tc.d), towerMat);
       skyscraper.position.set(tc.x, tc.h / 2, tc.z);
-      this.distantMountains.add(skyscraper);
+      this.istanbulSkylineGroup.add(skyscraper);
 
       // Neon rooftop halo
       const haloGeo = new THREE.BoxGeometry(tc.w + 0.5, 1.2, tc.d + 0.5);
       const haloMat = new THREE.MeshBasicMaterial({ color: Math.random() < 0.5 ? 0x00f0ff : 0xff0055 });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       halo.position.set(tc.x, tc.h, tc.z);
-      this.distantMountains.add(halo);
+      this.istanbulSkylineGroup.add(halo);
 
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), beaconMat);
       beacon.position.set(tc.x, tc.h + 2.0, tc.z);
-      this.distantMountains.add(beacon);
+      this.istanbulSkylineGroup.add(beacon);
     }
 
+    // 6. MERKEZ BOĞAZİÇİ KÖPRÜSÜ SİLÜETİ (Directly Behind Road Horizon at Z = -250)
+    const bridgeGroup = new THREE.Group();
+    bridgeGroup.position.set(0, 0, -250);
+
+    const bridgeSteelMat = new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.4, metalness: 0.6 });
+    const bridgeCableMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const bridgeLedMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+
+    // Bridge road deck
+    const deckGeo = new THREE.BoxGeometry(260, 2.5, 9);
+    const bridgeDeck = new THREE.Mesh(deckGeo, new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.8 }));
+    bridgeDeck.position.set(0, 18, 0);
+    bridgeGroup.add(bridgeDeck);
+
+    // Glowing traffic light streak on bridge deck
+    const trafficStreakGeo = new THREE.PlaneGeometry(258, 0.5);
+    const trafficStreakMat = new THREE.MeshBasicMaterial({ color: 0xffb703, side: THREE.DoubleSide });
+    const trafficStreak = new THREE.Mesh(trafficStreakGeo, trafficStreakMat);
+    trafficStreak.position.set(0, 19.5, 4.5);
+    bridgeGroup.add(trafficStreak);
+
+    // Left & Right Suspension Towers
+    const towerX = [-52, 52];
+    for (const tx of towerX) {
+      const towerGroup = new THREE.Group();
+      towerGroup.position.set(tx, 0, 0);
+
+      // 2 tall steel pylons
+      const pylonGeo = new THREE.CylinderGeometry(1.6, 2.8, 72, 8);
+      const pylonL = new THREE.Mesh(pylonGeo, bridgeSteelMat);
+      pylonL.position.set(-3.2, 36, 0);
+      towerGroup.add(pylonL);
+
+      const pylonR = new THREE.Mesh(pylonGeo, bridgeSteelMat);
+      pylonR.position.set(3.2, 36, 0);
+      towerGroup.add(pylonR);
+
+      // Cross braces
+      for (const by of [28, 48, 66]) {
+        const brace = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.8, 2.2), bridgeSteelMat);
+        brace.position.set(0, by, 0);
+        towerGroup.add(brace);
+      }
+
+      // Aircraft warning beacons
+      const beaconL = new THREE.Mesh(new THREE.SphereGeometry(1.4, 6, 6), beaconMat);
+      beaconL.position.set(-3.2, 73, 0);
+      towerGroup.add(beaconL);
+
+      const beaconR = new THREE.Mesh(new THREE.SphereGeometry(1.4, 6, 6), beaconMat);
+      beaconR.position.set(3.2, 73, 0);
+      towerGroup.add(beaconR);
+
+      bridgeGroup.add(towerGroup);
+    }
+
+    // Suspension catenary cables
+    const cablePoints: THREE.Vector3[] = [];
+    for (let x = -130; x <= 130; x += 5) {
+      const sag = Math.pow(x / 52, 2) * 16;
+      const y = Math.max(19, 70 - 45 + sag);
+      cablePoints.push(new THREE.Vector3(x, y, 0));
+    }
+    const cableGeo = new THREE.BufferGeometry().setFromPoints(cablePoints);
+    const mainCable = new THREE.Line(cableGeo, new THREE.LineBasicMaterial({ color: 0x90caf9, linewidth: 2 }));
+    bridgeGroup.add(mainCable);
+
+    // Vertical suspender cables with glowing LED beads
+    for (let x = -120; x <= 120; x += 12) {
+      if (Math.abs(x - 52) < 4 || Math.abs(x + 52) < 4) continue;
+      const sag = Math.pow(x / 52, 2) * 16;
+      const topY = Math.max(20, 70 - 45 + sag);
+      const suspenderGeo = new THREE.CylinderGeometry(0.08, 0.08, topY - 18, 4);
+      const suspender = new THREE.Mesh(suspenderGeo, bridgeCableMat);
+      suspender.position.set(x, (topY + 18) / 2, 0);
+      bridgeGroup.add(suspender);
+
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.35, 4, 4), bridgeLedMat);
+      led.position.set(x, topY, 0);
+      bridgeGroup.add(led);
+    }
+    this.istanbulSkylineGroup.add(bridgeGroup);
+
+    // 7. MERKEZ İSTANBUL GÖKDELEN SİLÜETİ (Directly Filling the Center View)
+    const centerTowers = [
+      { x: -38, z: -210, w: 22, d: 20, h: 84, color: 0x00f0ff },
+      { x: 38, z: -215, w: 24, d: 22, h: 88, color: 0xff0055 },
+      { x: 0, z: -285, w: 32, d: 30, h: 120, color: 0xffb703 },
+      { x: -75, z: -235, w: 20, d: 20, h: 72, color: 0x00f0ff },
+      { x: 75, z: -230, w: 22, d: 22, h: 76, color: 0xff007f },
+    ];
+    for (const tc of centerTowers) {
+      const bldg = new THREE.Mesh(new THREE.BoxGeometry(tc.w, tc.h, tc.d), towerMat);
+      bldg.position.set(tc.x, tc.h / 2, tc.z);
+      this.istanbulSkylineGroup.add(bldg);
+
+      const halo = new THREE.Mesh(
+        new THREE.BoxGeometry(tc.w + 0.6, 1.4, tc.d + 0.6),
+        new THREE.MeshBasicMaterial({ color: tc.color })
+      );
+      halo.position.set(tc.x, tc.h, tc.z);
+      this.istanbulSkylineGroup.add(halo);
+
+      const bcn = new THREE.Mesh(new THREE.SphereGeometry(1.4, 6, 6), beaconMat);
+      bcn.position.set(tc.x, tc.h + 2.5, tc.z);
+      this.istanbulSkylineGroup.add(bcn);
+    }
+
+    this.distantMountains.add(this.istanbulSkylineGroup);
+
+    // Setup the other 3 Turkish Highway horizons
+    this.setupBoluMountainsHorizon();
+    this.setupBozkirHorizon();
+    this.setupIzmirHorizon();
+
     this.group.add(this.distantMountains);
+  }
+
+  // --- 2. ANADOLU OTOYOLU (BOLU DAĞI) ALPINE MOUNTAINS HORIZON ---
+  private setupBoluMountainsHorizon(): void {
+    this.boluMountainsGroup = new THREE.Group();
+    this.boluMountainsGroup.name = 'BoluMountainsHorizon';
+
+    const pineDarkMat = new THREE.MeshStandardMaterial({ color: 0x14281b, roughness: 0.9 });
+    const mountainRockMat = new THREE.MeshStandardMaterial({ color: 0x222a25, roughness: 0.95 });
+    const mountainPeakMat = new THREE.MeshStandardMaterial({ color: 0x2e3831, roughness: 0.9 });
+    const ridgeFoliageMat = new THREE.MeshBasicMaterial({ color: 0x0f1c13 });
+
+    // Grand Alpine Mountain Peaks (Flanking Bolu Mountain Pass)
+    const peakConfigs = [
+      // Left Bolu Mountain Ridge
+      { x: -160, z: -80, r: 85, h: 105, mat: mountainRockMat },
+      { x: -210, z: -160, r: 110, h: 135, mat: mountainPeakMat },
+      { x: -180, z: 0, r: 90, h: 98, mat: pineDarkMat },
+      { x: -190, z: 80, r: 95, h: 110, mat: mountainRockMat },
+      { x: -150, z: 160, r: 80, h: 90, mat: pineDarkMat },
+      // Right Aladağlar / Abant Mountain Ridge
+      { x: 160, z: -90, r: 85, h: 100, mat: mountainRockMat },
+      { x: 220, z: -170, r: 115, h: 140, mat: mountainPeakMat },
+      { x: 175, z: -10, r: 92, h: 102, mat: pineDarkMat },
+      { x: 195, z: 75, r: 96, h: 115, mat: mountainRockMat },
+      { x: 155, z: 155, r: 82, h: 92, mat: pineDarkMat },
+      // Distant Horizon Mountain Pass Massif (Directly ahead Z = -270)
+      { x: -70, z: -270, r: 95, h: 118, mat: mountainRockMat },
+      { x: 50, z: -285, r: 105, h: 125, mat: mountainPeakMat },
+      { x: 0, z: -310, r: 130, h: 150, mat: mountainPeakMat },
+      { x: -120, z: -300, r: 100, h: 120, mat: pineDarkMat },
+      { x: 115, z: -290, r: 95, h: 115, mat: pineDarkMat },
+    ];
+
+    for (const p of peakConfigs) {
+      const coneGeo = new THREE.ConeGeometry(p.r, p.h, 7);
+      const peak = new THREE.Mesh(coneGeo, p.mat);
+      peak.position.set(p.x, p.h / 2 - 12, p.z);
+      this.boluMountainsGroup.add(peak);
+    }
+
+    // Serrated Coniferous Pine Forest Crests along Mountain Ridges
+    const ridgeTreesCount = 90;
+    const treeGeo = new THREE.ConeGeometry(3.5, 12.0, 4);
+    for (let i = 0; i < ridgeTreesCount; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const rx = side * (125 + (i * 17) % 75);
+      const rz = ((i * 37) % 360) - 180;
+      const ry = 42 + ((i * 23) % 45);
+
+      const tree = new THREE.Mesh(treeGeo, ridgeFoliageMat);
+      tree.position.set(rx, ry, rz);
+      this.boluMountainsGroup.add(tree);
+    }
+
+    // Mountain Valley Sunset Mist Ribbons
+    const hazeGeo = new THREE.PlaneGeometry(320, 28);
+    const hazeMat = new THREE.MeshBasicMaterial({
+      color: 0xffb799,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide,
+    });
+    const haze1 = new THREE.Mesh(hazeGeo, hazeMat);
+    haze1.position.set(0, 24, -220);
+    this.boluMountainsGroup.add(haze1);
+
+    const haze2 = new THREE.Mesh(hazeGeo, hazeMat);
+    haze2.position.set(0, 18, -150);
+    this.boluMountainsGroup.add(haze2);
+
+    this.distantMountains.add(this.boluMountainsGroup);
+  }
+
+  // --- 3. ANKARA - NİĞDE OTOYOLU (BOZKIR) VAST STEPPE & WIND TURBINES ---
+  private setupBozkirHorizon(): void {
+    this.bozkirGroup = new THREE.Group();
+    this.bozkirGroup.name = 'BozkirHorizon';
+
+    const steppeGroundMat = new THREE.MeshStandardMaterial({ color: 0x1c1710, roughness: 0.95 });
+    const turbinePylonMat = new THREE.MeshStandardMaterial({ color: 0xdde5ed, roughness: 0.35, metalness: 0.2 });
+    const turbineBladeMat = new THREE.MeshStandardMaterial({ color: 0xf0f4f8, roughness: 0.3 });
+    const redBeaconMat = new THREE.MeshBasicMaterial({ color: 0xff002b, transparent: true, opacity: 1.0 });
+
+    // Broad, gentle low-rolling Central Anatolian steppe ridges (Bozkır tepeleri)
+    const steppeHills = [
+      { x: -170, z: -100, r: 160, h: 26 },
+      { x: -210, z: -200, r: 190, h: 32 },
+      { x: 170, z: -90, r: 155, h: 24 },
+      { x: 210, z: -190, r: 185, h: 30 },
+      { x: 0, z: -280, r: 240, h: 36 },
+      { x: -110, z: -270, r: 180, h: 28 },
+      { x: 120, z: -260, r: 175, h: 28 },
+    ];
+
+    for (const h of steppeHills) {
+      const geo = new THREE.SphereGeometry(h.r, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+      const mesh = new THREE.Mesh(geo, steppeGroundMat);
+      mesh.scale.set(1.4, h.h / h.r, 1.0);
+      mesh.position.set(h.x, -2, h.z);
+      this.bozkirGroup.add(mesh);
+    }
+
+    // Modern Wind Farm (Rüzgar Enerji Santrali - RES) across the distant steppe
+    const turbineConfigs = [
+      { x: -140, z: -160, h: 58, scale: 0.95 },
+      { x: -185, z: -220, h: 66, scale: 1.1 },
+      { x: -115, z: -240, h: 62, scale: 1.0 },
+      { x: 135, z: -170, h: 56, scale: 0.92 },
+      { x: 175, z: -215, h: 68, scale: 1.12 },
+      { x: 120, z: -250, h: 60, scale: 1.0 },
+      { x: 0, z: -320, h: 72, scale: 1.2 },
+    ];
+
+    for (const tc of turbineConfigs) {
+      const turbineGroup = new THREE.Group();
+      turbineGroup.position.set(tc.x, 0, tc.z);
+
+      // Slender tapered tubular steel tower
+      const towerGeo = new THREE.CylinderGeometry(0.7 * tc.scale, 1.8 * tc.scale, tc.h, 8);
+      const tower = new THREE.Mesh(towerGeo, turbinePylonMat);
+      tower.position.y = tc.h / 2;
+      turbineGroup.add(tower);
+
+      // Nacelle (generator housing on top)
+      const nacelleGeo = new THREE.BoxGeometry(2.4 * tc.scale, 1.8 * tc.scale, 4.2 * tc.scale);
+      const nacelle = new THREE.Mesh(nacelleGeo, turbinePylonMat);
+      nacelle.position.set(0, tc.h, 0);
+      turbineGroup.add(nacelle);
+
+      // Red flashing aviation safety beacon
+      const beaconGeo = new THREE.SphereGeometry(0.9 * tc.scale, 6, 6);
+      const beacon = new THREE.Mesh(beaconGeo, redBeaconMat);
+      beacon.position.set(0, tc.h + 1.6 * tc.scale, 0);
+      turbineGroup.add(beacon);
+      this.windTurbineBeacons.push(beacon);
+
+      // Rotating Rotor Hub & 3 Aerodynamic Blades
+      const rotorGroup = new THREE.Group();
+      rotorGroup.position.set(0, tc.h, 2.2 * tc.scale);
+
+      const hubGeo = new THREE.CylinderGeometry(0.9 * tc.scale, 0.9 * tc.scale, 1.2 * tc.scale, 8);
+      hubGeo.rotateX(Math.PI / 2);
+      const hub = new THREE.Mesh(hubGeo, turbinePylonMat);
+      rotorGroup.add(hub);
+
+      const bladeLen = 22.0 * tc.scale;
+      for (let b = 0; b < 3; b++) {
+        const bladeGroup = new THREE.Group();
+        bladeGroup.rotation.z = (b * Math.PI * 2) / 3;
+
+        const bladeGeo = new THREE.ConeGeometry(0.7 * tc.scale, bladeLen, 5);
+        const bladeMesh = new THREE.Mesh(bladeGeo, turbineBladeMat);
+        bladeMesh.position.y = bladeLen / 2;
+        bladeGroup.add(bladeMesh);
+        rotorGroup.add(bladeGroup);
+      }
+
+      turbineGroup.add(rotorGroup);
+      this.windTurbineRotors.push(rotorGroup);
+      this.bozkirGroup.add(turbineGroup);
+    }
+
+    this.distantMountains.add(this.bozkirGroup);
+  }
+
+  // --- 4. İSTANBUL - İZMİR OTOYOLU (OSMANGAZİ KÖRFEZİ) HORIZON ---
+  private setupIzmirHorizon(): void {
+    this.izmirOtoyolGroup = new THREE.Group();
+    this.izmirOtoyolGroup.name = 'IzmirHorizon';
+
+    const gulfHillMat = new THREE.MeshStandardMaterial({ color: 0x16242c, roughness: 0.9 });
+    const osmangaziMat = new THREE.MeshStandardMaterial({ color: 0xd9e2ec, roughness: 0.4, metalness: 0.5 });
+    const cableMat = new THREE.LineBasicMaterial({ color: 0x90caf9, linewidth: 2 });
+    const amberStreakMat = new THREE.MeshBasicMaterial({ color: 0xffb703 });
+
+    // Coastal Gulf Hills (Samanlı Dağları & Dilovası / Hersek Burunları)
+    const gulfHills = [
+      { x: -160, z: -110, r: 100, h: 52 },
+      { x: -210, z: -190, r: 130, h: 68 },
+      { x: 160, z: -100, r: 95, h: 50 },
+      { x: 210, z: -180, r: 125, h: 64 },
+      { x: -80, z: -270, r: 110, h: 58 },
+      { x: 80, z: -270, r: 110, h: 58 },
+    ];
+    for (const h of gulfHills) {
+      const geo = new THREE.ConeGeometry(h.r, h.h, 7);
+      const mesh = new THREE.Mesh(geo, gulfHillMat);
+      mesh.position.set(h.x, h.h / 2 - 6, h.z);
+      this.izmirOtoyolGroup.add(mesh);
+    }
+
+    // Osmangazi Suspension Bridge distant silhouette across the gulf horizon (Z = -260)
+    const bridgeGroup = new THREE.Group();
+    bridgeGroup.position.set(0, 0, -260);
+
+    // Elevated bridge deck spanning the gulf
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(260, 2.4, 8), osmangaziMat);
+    deck.position.set(0, 20, 0);
+    bridgeGroup.add(deck);
+
+    // Glowing traffic streak on bridge deck
+    const trafficLine = new THREE.Mesh(new THREE.PlaneGeometry(258, 0.6), amberStreakMat);
+    trafficLine.position.set(0, 21.3, 4.1);
+    bridgeGroup.add(trafficLine);
+
+    // 2 Majestic Osmangazi Bridge Pylons
+    for (const tx of [-48, 48]) {
+      const pylonGroup = new THREE.Group();
+      pylonGroup.position.set(tx, 0, 0);
+
+      // Slender steel columns
+      const colL = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.5, 78, 8), osmangaziMat);
+      colL.position.set(-3.2, 39, 0);
+      pylonGroup.add(colL);
+
+      const colR = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.5, 78, 8), osmangaziMat);
+      colR.position.set(3.2, 39, 0);
+      pylonGroup.add(colR);
+
+      // Cross struts
+      for (const by of [30, 52, 72]) {
+        const strut = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.8, 2.0), osmangaziMat);
+        strut.position.set(0, by, 0);
+        pylonGroup.add(strut);
+      }
+
+      bridgeGroup.add(pylonGroup);
+    }
+
+    // Suspension cables
+    const cablePoints: THREE.Vector3[] = [];
+    for (let x = -130; x <= 130; x += 5) {
+      const sag = Math.pow(x / 48, 2) * 16;
+      const y = Math.max(21, 74 - 48 + sag);
+      cablePoints.push(new THREE.Vector3(x, y, 0));
+    }
+    const cableGeo = new THREE.BufferGeometry().setFromPoints(cablePoints);
+    const mainCable = new THREE.Line(cableGeo, cableMat);
+    bridgeGroup.add(mainCable);
+
+    this.izmirOtoyolGroup.add(bridgeGroup);
+    this.distantMountains.add(this.izmirOtoyolGroup);
   }
 
   private setupRain(): void {
@@ -605,8 +976,14 @@ export class EnvironmentManager {
 
     RoadSegment.setRainWetness(preset === 'RAIN');
 
+    // Toggle distant Turkish Highway horizon groups
+    if (this.istanbulSkylineGroup) this.istanbulSkylineGroup.visible = (preset === 'DAY');
+    if (this.boluMountainsGroup) this.boluMountainsGroup.visible = (preset === 'SUNSET');
+    if (this.bozkirGroup) this.bozkirGroup.visible = (preset === 'NIGHT');
+    if (this.izmirOtoyolGroup) this.izmirOtoyolGroup.visible = (preset === 'RAIN');
+
     switch (preset) {
-      case 'DAY':
+      case 'DAY': // 🛣️ E-5 Otobanı
         this.dirLight.color.set(0xfff7e6);
         this.dirLight.intensity = 1.50;
         this.rimLight.color.set(0xb0d8ff);
@@ -638,54 +1015,54 @@ export class EnvironmentManager {
         this.seagullsGroup.visible = true;
         break;
 
-      case 'SUNSET':
-        this.dirLight.color.set(0xff9e00);
-        this.dirLight.intensity = 1.60;
-        this.rimLight.color.set(0xff7722);
+      case 'SUNSET': // 🌲 Anadolu Otoyolu (Bolu Dağı)
+        this.dirLight.color.set(0xff9010);
+        this.dirLight.intensity = 1.65;
+        this.rimLight.color.set(0xff6622);
         this.rimLight.intensity = 0.90;
-        this.ambientLight.color.set(0xffa200);
-        this.ambientLight.intensity = 0.60;
-        this.hemiLight.color.set(0xff5400);
-        this.hemiLight.groundColor.set(0x3f37c9);
-        this.hemiLight.intensity = 0.80;
+        this.ambientLight.color.set(0xb8682a);
+        this.ambientLight.intensity = 0.72;
+        this.hemiLight.color.set(0xff7043);
+        this.hemiLight.groundColor.set(0x1c2b1e); // deep evergreen pine floor bounce
+        this.hemiLight.intensity = 0.82;
 
         if (fog) {
-          fog.color.set(0x560bad);
-          fog.density = 0.0025;
+          fog.color.set(0x42233b); // Bolu mountain pine sunset mist
+          fog.density = 0.0024;
         }
-        this.scene.background = new THREE.Color(0x560bad);
+        this.scene.background = new THREE.Color(0x42233b);
         this.rainActive = false;
         this.rainSystem.visible = false;
 
-        // Sunset golden sun lowered towards horizon
+        // Sunset golden sun lowered towards mountain horizon
         this.sunGroup.visible = true;
-        this.sunGroup.position.set(80, 48, 120);
-        (this.sunMesh.material as THREE.MeshBasicMaterial).color.set(0xff6000);
-        this.sunCorona.scale.set(1.6, 1.6, 1.6);
+        this.sunGroup.position.set(80, 42, 130);
+        (this.sunMesh.material as THREE.MeshBasicMaterial).color.set(0xff5500);
+        this.sunCorona.scale.set(1.7, 1.7, 1.7);
         this.moonGroup.visible = false;
         this.starfield.visible = false;
 
         this.cloudMaterial.color.set(0xffbfa0);
         this.cloudMaterial.opacity = 0.82;
-        this.seagullsGroup.visible = true;
+        this.seagullsGroup.visible = false;
         break;
 
-      case 'NIGHT':
-        this.dirLight.color.set(0xd0e2ff);
-        this.dirLight.intensity = 1.35;
-        this.rimLight.color.set(0x7fe3ff);
-        this.rimLight.intensity = 0.95;
-        this.ambientLight.color.set(0x42587a);
-        this.ambientLight.intensity = 0.95;
-        this.hemiLight.color.set(0x5c7ea8);
-        this.hemiLight.groundColor.set(0x323a48);
-        this.hemiLight.intensity = 1.15;
+      case 'NIGHT': // 🌾 Ankara - Niğde Otoyolu (Bozkır)
+        this.dirLight.color.set(0xb8d4ff);
+        this.dirLight.intensity = 1.25;
+        this.rimLight.color.set(0x6edbff);
+        this.rimLight.intensity = 0.90;
+        this.ambientLight.color.set(0x283850);
+        this.ambientLight.intensity = 0.85;
+        this.hemiLight.color.set(0x405a7d);
+        this.hemiLight.groundColor.set(0x1f1b14); // dry Central Anatolian steppe soil
+        this.hemiLight.intensity = 1.05;
 
         if (fog) {
-          fog.color.set(0x131a2e);
-          fog.density = 0.0016;
+          fog.color.set(0x0a101d); // crystal clear high-altitude steppe night
+          fog.density = 0.0013;
         }
-        this.scene.background = new THREE.Color(0x131a2e);
+        this.scene.background = new THREE.Color(0x0a101d);
         this.rainActive = false;
         this.rainSystem.visible = false;
 
@@ -694,27 +1071,27 @@ export class EnvironmentManager {
         this.moonGroup.visible = true;
         this.starfield.visible = true;
 
-        this.cloudMaterial.color.set(0x283042);
-        this.cloudMaterial.opacity = 0.55;
+        this.cloudMaterial.color.set(0x1c2434);
+        this.cloudMaterial.opacity = 0.45;
         this.seagullsGroup.visible = false;
         break;
 
-      case 'RAIN':
-        this.dirLight.color.set(0x778da9);
-        this.dirLight.intensity = 0.95;
-        this.rimLight.color.set(0x90e0ef);
+      case 'RAIN': // 🌧️ İstanbul - İzmir Otoyolu (Osmangazi Körfezi)
+        this.dirLight.color.set(0x6a8094);
+        this.dirLight.intensity = 0.92;
+        this.rimLight.color.set(0x82b4cc);
         this.rimLight.intensity = 0.75;
-        this.ambientLight.color.set(0x415a77);
+        this.ambientLight.color.set(0x384a5c);
         this.ambientLight.intensity = 0.65;
-        this.hemiLight.color.set(0x415a77);
-        this.hemiLight.groundColor.set(0x1b263b);
+        this.hemiLight.color.set(0x3e5062);
+        this.hemiLight.groundColor.set(0x1a2430);
         this.hemiLight.intensity = 0.70;
 
         if (fog) {
-          fog.color.set(0x283044);
+          fog.color.set(0x232e3b); // marine storm overcast mist
           fog.density = 0.0035;
         }
-        this.scene.background = new THREE.Color(0x283044);
+        this.scene.background = new THREE.Color(0x232e3b);
         this.rainActive = true;
         this.rainSystem.visible = true;
 
@@ -722,9 +1099,9 @@ export class EnvironmentManager {
         this.moonGroup.visible = false;
         this.starfield.visible = false;
 
-        this.cloudMaterial.color.set(0x404e5e);
+        this.cloudMaterial.color.set(0x3a4856);
         this.cloudMaterial.opacity = 0.92;
-        this.seagullsGroup.visible = false;
+        this.seagullsGroup.visible = true; // coastal gulf gulls
         break;
     }
   }
@@ -756,7 +1133,7 @@ export class EnvironmentManager {
       }
     }
 
-    // 2. Animate Bosphorus Seagulls
+    // 2. Animate Bosphorus / Gulf Seagulls
     if (this.seagullsGroup.visible) {
       this.gullAnimTime += delta;
       this.seagullsGroup.position.z = playerZ;
@@ -787,6 +1164,19 @@ export class EnvironmentManager {
         }
       }
       this.rainSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // 4. Animate Wind Turbines in Bozkır map
+    if (this.bozkirGroup?.visible) {
+      this.turbineAnimTime += delta;
+      for (const rotor of this.windTurbineRotors) {
+        rotor.rotation.z += 0.75 * delta;
+      }
+      // Pulse red aviation beacons
+      const beaconFlash = (Math.sin(this.turbineAnimTime * 4.5) > 0.25) ? 1.0 : 0.12;
+      for (const b of this.windTurbineBeacons) {
+        (b.material as THREE.MeshBasicMaterial).opacity = beaconFlash;
+      }
     }
   }
 }

@@ -150,13 +150,6 @@ export class GLTFModelLoader {
       loader.load(
         url,
         async (gltf) => {
-          if (url.toLowerCase().includes('tofas')) {
-            try {
-              await GLTFModelLoader.applyTextures(gltf.scene);
-            } catch (e) {
-              console.warn('[GLTFModelLoader] Auto-texture mapping warning:', e);
-            }
-          }
           GLTFModelLoader.applySmartShadows(gltf.scene);
           resolve(gltf.scene);
         },

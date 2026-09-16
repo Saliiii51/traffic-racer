@@ -54,6 +54,19 @@ export class PlayerVehicle extends Vehicle {
     rr: THREE.Mesh;
   } | null = null;
   private static turnSignalMaterial: THREE.MeshBasicMaterial;
+  private leftSignalMaterials: any[] = [];
+  private rightSignalMaterials: any[] = [];
+  private leftSignalLight: THREE.PointLight | null = null;
+  private rightSignalLight: THREE.PointLight | null = null;
+
+  // Powertrain & 6-Speed Transmission
+  public currentGear: number = 1;
+  private shiftInterruptionTimer: number = 0;
+
+  // Lateral Dynamics & Chassis Suspension Physics
+  private currentLateralVelocity: number = 0;
+  private chassisRollVelocity: number = 0;
+  private roadVibrationPhase: number = 0;
 
   constructor() {
     const selectedId = gameState.selectedVehicleId;
@@ -199,6 +212,11 @@ export class PlayerVehicle extends Vehicle {
   public resetPosition(customLane?: number): void {
     this.speedKmh = 0;
     this.speedMps = 0;
+    this.currentGear = 1;
+    this.shiftInterruptionTimer = 0;
+    this.currentLateralVelocity = 0;
+    this.chassisRollVelocity = 0;
+    this.roadVibrationPhase = 0;
     this.currentSteerTilt = 0;
     this.currentYaw = 0;
     this.currentPitch = 0;
@@ -213,6 +231,11 @@ export class PlayerVehicle extends Vehicle {
   public stop(): void {
     this.speedKmh = 0;
     this.speedMps = 0;
+    this.currentGear = 1;
+    this.shiftInterruptionTimer = 0;
+    this.currentLateralVelocity = 0;
+    this.chassisRollVelocity = 0;
+    this.roadVibrationPhase = 0;
     this.setBraking(true);
     this.setNitroFlames(false);
   }
@@ -233,38 +256,73 @@ export class PlayerVehicle extends Vehicle {
       effectiveAccel *= GAME_CONSTANTS.NITRO.BOOST_ACCEL_MULT;
     }
 
+    // Determine 6-speed gear ratio based on current speed
+    const gearThresholds = [0, 48, 92, 140, 188, 238, 330];
+    let calculatedGear = 1;
+    for (let g = 1; g <= 6; g++) {
+      if (this.speedKmh >= gearThresholds[g - 1]) {
+        calculatedGear = g;
+      }
+    }
+
+    // Realistic gear shift delay & clutch disengagement dip
+    if (calculatedGear > this.currentGear) {
+      this.currentGear = calculatedGear;
+      this.shiftInterruptionTimer = 0.11; // 110ms clutch shift interruption
+    } else if (calculatedGear < this.currentGear) {
+      this.currentGear = calculatedGear;
+    }
+
+    if (this.shiftInterruptionTimer > 0) {
+      this.shiftInterruptionTimer -= delta;
+    }
+
     if (isBraking) {
       // Progressive automotive braking (~12-16 m/s^2 stopping force)
-      // Realistic ABS brake modulation
+      // Realistic ABS brake modulation with subtle pulse
       const brakeForce = this.currentBraking;
       this.speedKmh -= brakeForce * 3.6 * delta;
       if (this.speedKmh < 0) this.speedKmh = 0;
       this.setBraking(true);
     } else if (isAccelerating || isNitroActive) {
-      // Powertrain power delivery:
-      // High launch torque in lower speeds, steady mid-range pull,
-      // and quadratic aerodynamic resistance as vehicle approaches top speed
-      const speedRatio = Math.min(1.0, this.speedKmh / effectiveTopSpeed);
+      // Gear-specific mechanical torque delivery (punchy 1st gear launch, tapering at high speed)
+      const gearTorqueMults = [0, 1.42, 1.20, 1.02, 0.88, 0.74, 0.60];
+      const baseGearTorque = gearTorqueMults[this.currentGear] || 1.0;
 
-      // Low gear mechanical torque punch
-      const torqueCurve = speedRatio < 0.2
-        ? 1.25 // Punchy launch from idle/low speed
-        : Math.max(0.12, 1.0 - Math.pow(speedRatio, 1.35));
+      // Realistic RPM power band inside current gear (swelling in mid-high RPM)
+      const gMin = gearThresholds[this.currentGear - 1] || 0;
+      const gMax = gearThresholds[this.currentGear] || 330;
+      const gearProgress = Math.min(1.0, Math.max(0.0, (this.speedKmh - gMin) / Math.max(1, gMax - gMin)));
+      let rpmTorque = 0.86 + Math.sin(gearProgress * Math.PI) * 0.28;
 
-      // Aerodynamic drag resistance opposing engine power (m/s^2)
-      const aeroResistanceMps2 = 0.00030 * Math.pow(this.speedKmh, 2);
-      const netAccelMps2 = Math.max(0.35, effectiveAccel * torqueCurve - aeroResistanceMps2);
+      // Honda S2000 AP1 F20C high-rev VTEC kick: high-cam power surge past 58% RPM
+      const isS2000 = (this.currentVehicleId || gameState.selectedVehicleId) === 'honda_s2000';
+      if (isS2000 && gearProgress > 0.58) {
+        rpmTorque *= 1.22;
+      }
+
+      // Clutch disconnect dip during gear shifts
+      const shiftClutchMult = this.shiftInterruptionTimer > 0 ? 0.20 : 1.0;
+
+      // Aerodynamic wind drag opposing engine power (proportional to square of speed)
+      const aeroResistanceMps2 = 0.00034 * Math.pow(this.speedKmh, 2);
+
+      // Net forward acceleration in m/s^2
+      const netAccelMps2 = Math.max(
+        0.30,
+        effectiveAccel * baseGearTorque * rpmTorque * shiftClutchMult - aeroResistanceMps2
+      );
 
       this.speedKmh += netAccelMps2 * 3.6 * delta;
       if (this.speedKmh > effectiveTopSpeed) {
-        this.speedKmh = Math.max(effectiveTopSpeed, this.speedKmh - 10 * delta);
+        this.speedKmh = Math.max(effectiveTopSpeed, this.speedKmh - 12 * delta);
       }
       this.setBraking(false);
     } else {
-      // Natural Coasting: Rolling resistance + Aerodynamic drag
-      const rollingDecelMps2 = GAME_CONSTANTS.DRIVING.NATURAL_DECELERATION; // ~1.2 m/s^2
-      const aeroDecelMps2 = 0.00042 * Math.pow(this.speedKmh, 2); // Wind drag increases with square of speed
-      const totalCoastMps2 = rollingDecelMps2 + aeroDecelMps2;
+      // Natural Coasting: Engine compression braking (stronger in lower gears) + aero drag
+      const engineBrakeMps2 = (7 - this.currentGear) * 0.22 + 0.88;
+      const aeroDecelMps2 = 0.00038 * Math.pow(this.speedKmh, 2);
+      const totalCoastMps2 = engineBrakeMps2 + aeroDecelMps2;
 
       this.speedKmh -= totalCoastMps2 * 3.6 * delta;
       if (this.speedKmh < 0) this.speedKmh = 0;
@@ -280,51 +338,72 @@ export class PlayerVehicle extends Vehicle {
     // In Three.js with camera behind facing +Z, world +X is screen LEFT, world -X is screen RIGHT.
     if (this.speedKmh > GAME_CONSTANTS.DRIVING.MIN_MOVING_SPEED_KMH) {
       // Trail-braking agility bonus: braking transfers weight forward, giving sharper front-end bite
-      const brakeAgilityBonus = isBraking ? 1.16 : 1.0;
+      const brakeAgilityBonus = isBraking ? 1.18 : 1.0;
 
-      // Speed-dependent steering ratio: responsive at urban speeds, stable at high highway speeds
-      const speedFactor = Math.min(1.0, Math.max(0.42, this.speedKmh / 55));
-      const highSpeedStability = this.speedKmh > 125
-        ? Math.max(0.72, 1.0 - (this.speedKmh - 125) * 0.0018)
+      // Speed-dependent steering ratio: agile at urban speeds, rock-solid stable at high highway speeds
+      const speedFactor = Math.min(1.0, Math.max(0.38, this.speedKmh / 50));
+      const highSpeedStability = this.speedKmh > 120
+        ? Math.max(0.68, 1.0 - (this.speedKmh - 120) * 0.0019)
         : 1.0;
 
-      // Balanced, realistic lateral lane-change speed (adjusted by steeringSensitivity)
+      // User sensitivity
       const sensitivity = gameState.settings.steeringSensitivity || 1.0;
-      const lateralVelocity = -steerInput * (this.currentHandling * 0.58) * speedFactor * brakeAgilityBonus * highSpeedStability * sensitivity;
-      this.mesh.position.x += lateralVelocity * delta;
+      const targetLateralVelocity = -steerInput * (this.currentHandling * 0.58) * speedFactor * brakeAgilityBonus * highSpeedStability * sensitivity;
+
+      // Tire grip build-up & lateral steering inertia (realistic slip angle response)
+      const lateralResponseRate = Math.abs(steerInput) > 0.05 ? 16.0 : 12.0;
+      this.currentLateralVelocity += (targetLateralVelocity - this.currentLateralVelocity) * Math.min(1.0, delta * lateralResponseRate);
+
+      this.mesh.position.x += this.currentLateralVelocity * delta;
 
       // Clamp cleanly within road boundaries
       if (gameState.isAdStudioMode) {
-        // In Ad Studio promo mode, keep vehicle strictly on asphalt lanes, away from curbs and sidewalks
         const edgeBuffer = this.dimensions.width * 0.55 + 0.20;
         this.mesh.position.x = Math.max(laneSystem.roadLeftEdge + edgeBuffer, Math.min(laneSystem.roadRightEdge - edgeBuffer, this.mesh.position.x));
       } else {
         this.mesh.position.x = laneSystem.clampToRoad(this.mesh.position.x, this.dimensions.width * 0.55);
       }
+    } else {
+      this.currentLateralVelocity = 0;
     }
 
-    // 4. Visual Dynamics: Roll (tilt), Yaw (heading), and Pitch (dive/squat)
-    // Chassis centrifugal body roll: vehicle leans into the maneuver
-    const targetRoll = steerInput * GAME_CONSTANTS.DRIVING.MAX_STEER_TILT * (this.speedKmh > 8 ? 1 : 0);
-    // Heading angle: car points diagonally into lane change, then snaps straight
-    const targetYaw = -steerInput * GAME_CONSTANTS.DRIVING.MAX_STEER_YAW * (this.speedKmh > 8 ? 1 : 0);
+    // 4. Visual Dynamics: Spring-Damper Suspension Roll, Dynamic Yaw Heading, and Weight Transfer Pitch
+    // Centrifugal body roll: As car turns, lateral G forces roll body onto outer suspension springs
+    const lateralG = this.currentLateralVelocity * (this.speedMps / 55.0) * 0.026;
+    const targetRoll = (this.speedKmh > 6 ? lateralG : 0);
 
-    // Dynamic pitch: suspension squat under acceleration, nose-dive on braking
+    // Spring-damper physics for chassis roll: creates natural sway and rebound on lane weave
+    const rollSpringStiffness = 68.0;
+    const rollDamping = 10.5;
+    const rollAccel = (targetRoll - this.currentSteerTilt) * rollSpringStiffness - this.chassisRollVelocity * rollDamping;
+    this.chassisRollVelocity += rollAccel * delta;
+    this.currentSteerTilt += this.chassisRollVelocity * delta;
+
+    // Heading angle (yaw): car nose rotates naturally into lane change vector
+    // Steering right (currentLateralVelocity < 0) points nose right (targetYaw < 0 in Three.js looking towards +Z)
+    const targetYaw = this.speedKmh > 8
+      ? Math.max(-0.13, Math.min(0.13, (this.currentLateralVelocity / Math.max(8.0, this.speedMps)) * 0.75))
+      : 0;
+    this.currentYaw += (targetYaw - this.currentYaw) * Math.min(1.0, delta * 12.0);
+
+    // Dynamic pitch: suspension squat under acceleration, nose-dive under braking
     let targetPitch = 0;
-    if (isBraking && this.speedKmh > 15) {
-      targetPitch = 0.032; // Nose dips under brake load
-    } else if (isAccelerating && this.speedKmh < this.currentTopSpeedKmh * 0.8) {
-      targetPitch = -0.018; // Rear squats under acceleration load
+    if (isBraking && this.speedKmh > 12) {
+      targetPitch = 0.038; // Nose dives forward under heavy braking
+    } else if (isAccelerating && this.speedKmh < this.currentTopSpeedKmh * 0.85) {
+      // During gear shift, nose momentarily unweights then squats back down
+      targetPitch = this.shiftInterruptionTimer > 0 ? -0.005 : -0.024;
     }
+    this.currentPitch += (targetPitch - this.currentPitch) * Math.min(1.0, delta * 9.0);
 
-    // Smooth chassis recovery with progressive damping
-    const isSteering = Math.abs(steerInput) > 0.05;
-    const rollLerp = Math.min(1.0, delta * (isSteering ? 8.0 : 12.0));
-    const pitchLerp = Math.min(1.0, delta * 10.0);
-
-    this.currentSteerTilt += (targetRoll - this.currentSteerTilt) * rollLerp;
-    this.currentYaw += (targetYaw - this.currentYaw) * rollLerp;
-    this.currentPitch += (targetPitch - this.currentPitch) * pitchLerp;
+    // High-speed asphalt micro-heave (tactile highway vibration)
+    let basePosY = 0;
+    if (this.speedKmh > 105) {
+      this.roadVibrationPhase += delta * this.speedMps * 3.8;
+      const heave = Math.sin(this.roadVibrationPhase) * 0.0024 * Math.min(1.0, (this.speedKmh - 100) / 100);
+      basePosY += heave;
+    }
+    this.mesh.position.y = basePosY;
 
     this.mesh.rotation.z = this.currentSteerTilt;
     this.mesh.rotation.y = this.currentYaw;
@@ -544,11 +623,39 @@ export class PlayerVehicle extends Vehicle {
 
       const isLeft = this.turnSignal === 'left' || this.turnSignal === 'hazard';
       const isRight = this.turnSignal === 'right' || this.turnSignal === 'hazard';
+
       if (this.turnSignalMeshes) {
+        // fl and rl are on the LEFT (+X)
         this.turnSignalMeshes.fl.visible = isLeft && isBlinkOn;
         this.turnSignalMeshes.rl.visible = isLeft && isBlinkOn;
+        // fr and rr are on the RIGHT (-X)
         this.turnSignalMeshes.fr.visible = isRight && isBlinkOn;
         this.turnSignalMeshes.rr.visible = isRight && isBlinkOn;
+      }
+
+      if (this.leftSignalLight) {
+        this.leftSignalLight.intensity = (isLeft && isBlinkOn) ? 2.4 : 0;
+      }
+      if (this.rightSignalLight) {
+        this.rightSignalLight.intensity = (isRight && isBlinkOn) ? 2.4 : 0;
+      }
+
+      // Flash custom 3D model headlights/taillights indicators
+      if (this.leftSignalMaterials.length > 0) {
+        for (const mat of this.leftSignalMaterials) {
+          if (mat && mat.emissive) {
+            mat.emissive.set(0xff7700);
+            mat.emissiveIntensity = (isLeft && isBlinkOn) ? 2.8 : 0.05;
+          }
+        }
+      }
+      if (this.rightSignalMaterials.length > 0) {
+        for (const mat of this.rightSignalMaterials) {
+          if (mat && mat.emissive) {
+            mat.emissive.set(0xff7700);
+            mat.emissiveIntensity = (isRight && isBlinkOn) ? 2.8 : 0.05;
+          }
+        }
       }
     } else {
       this.turnSignalTimer = 0;
@@ -558,6 +665,19 @@ export class PlayerVehicle extends Vehicle {
         this.turnSignalMeshes.fr.visible = false;
         this.turnSignalMeshes.rl.visible = false;
         this.turnSignalMeshes.rr.visible = false;
+      }
+      if (this.leftSignalLight) this.leftSignalLight.intensity = 0;
+      if (this.rightSignalLight) this.rightSignalLight.intensity = 0;
+
+      if (this.leftSignalMaterials.length > 0) {
+        for (const mat of this.leftSignalMaterials) {
+          if (mat && mat.emissive) mat.emissiveIntensity = 0.05;
+        }
+      }
+      if (this.rightSignalMaterials.length > 0) {
+        for (const mat of this.rightSignalMaterials) {
+          if (mat && mat.emissive) mat.emissiveIntensity = 0.05;
+        }
       }
     }
 
@@ -579,6 +699,9 @@ export class PlayerVehicle extends Vehicle {
 
     // Hide any foreign / placeholder license plate meshes and baked static hubcap/wheel meshes embedded in models (e.g. Corsa's Object_2..5 and Object_58..75)
     const isCorsa = this.currentVehicleId === 'opel_corsa_b';
+    this.leftSignalMaterials = [];
+    this.rightSignalMaterials = [];
+
     model.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const matName = (((child as any).material?.name) || '').toLowerCase();
@@ -587,6 +710,28 @@ export class PlayerVehicle extends Vehicle {
         (isCorsa && /^object_([2345]|5[8-9]|6\d|7[0-5])$/i.test(name))
       ) {
         child.visible = false;
+      }
+
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh && mesh.material) {
+        const mats: any[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          const mName = ((mat?.name) || '').toLowerCase();
+          if (
+            /sinyal|signal|turn|indicator|orangeglass|material\.003/i.test(name + ' ' + mName) ||
+            (/light|far|tail/i.test(name + ' ' + mName) && /amber|orange/i.test(mName))
+          ) {
+            // Determine side: +X is Left, -X is Right
+            if (mesh.position.x > 0.04) {
+              if (!this.leftSignalMaterials.includes(mat)) this.leftSignalMaterials.push(mat);
+            } else if (mesh.position.x < -0.04) {
+              if (!this.rightSignalMaterials.includes(mat)) this.rightSignalMaterials.push(mat);
+            } else {
+              if (!this.leftSignalMaterials.includes(mat)) this.leftSignalMaterials.push(mat);
+              if (!this.rightSignalMaterials.includes(mat)) this.rightSignalMaterials.push(mat);
+            }
+          }
+        }
       }
     });
   }
@@ -777,13 +922,13 @@ export class PlayerVehicle extends Vehicle {
 
       this.rearPlateGroup.position.set(0, 0.52, -2.092);
       this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
-    } else if (id === 'starter_coupe' || id === 'tofas_gltf') {
-      // Precise Tofaş Doğan SLX bumper coordinates
-      this.frontPlateGroup.position.set(0, 0.28, 2.102);
-      this.frontPlateGroup.rotation.set(0, 0, 0);
+    } else if (id === 'honda_s2000' || id === 'starter_coupe' || id === 'tofas_gltf') {
+      // Precise Honda S2000 bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.26, 2.05);
+      this.frontPlateGroup.rotation.set(-0.04, 0, 0);
 
-      this.rearPlateGroup.position.set(0, 0.50, -2.102);
-      this.rearPlateGroup.rotation.set(0, Math.PI, 0);
+      this.rearPlateGroup.position.set(0, 0.50, -2.06);
+      this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
     } else if (id === 'golf_gti') {
       // Precise Volkswagen Golf GTI bumper coordinates
       this.frontPlateGroup.position.set(0, 0.38, 2.142);
@@ -791,19 +936,19 @@ export class PlayerVehicle extends Vehicle {
 
       this.rearPlateGroup.position.set(0, 0.52, -2.142);
       this.rearPlateGroup.rotation.set(0, Math.PI, 0);
-    } else if (id === 'mini_cooper') {
-      // Precise Mini Cooper bumper coordinates
-      this.frontPlateGroup.position.set(0, 0.34, 1.912);
-      this.frontPlateGroup.rotation.set(0, 0, 0);
+    } else if (id === 'lambo_aventador' || id === 'mini_cooper') {
+      // Precise Lamborghini Aventador LP700-4 bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.28, 2.34);
+      this.frontPlateGroup.rotation.set(-0.06, 0, 0);
 
-      this.rearPlateGroup.position.set(0, 0.50, -1.912);
-      this.rearPlateGroup.rotation.set(0, Math.PI, 0);
+      this.rearPlateGroup.position.set(0, 0.50, -2.32);
+      this.rearPlateGroup.rotation.set(0.04, Math.PI, 0);
     } else if (id === 'bmw_e46') {
-      // Precise BMW 3 (E46 1998) bumper coordinates
-      this.frontPlateGroup.position.set(0, 0.38, 2.238);
+      // Precise BMW M3 E46 (NightRyder) bumper coordinates
+      this.frontPlateGroup.position.set(0, 0.32, 2.22);
       this.frontPlateGroup.rotation.set(0, 0, 0);
 
-      this.rearPlateGroup.position.set(0, 0.56, -2.238);
+      this.rearPlateGroup.position.set(0, 0.58, -2.22);
       this.rearPlateGroup.rotation.set(0, Math.PI, 0);
     } else if (id === 'phantom_super') {
       // Precise Ferrari 458 Italia bumper coordinates
@@ -838,16 +983,15 @@ export class PlayerVehicle extends Vehicle {
   }
 
   public updateWheelPositions(vehicleId?: string): void {
-    if (this.customWheels.length >= 4) {
-      // Custom 3D model already has its own 4 animated wheels (e.g. Tofaş Doğan SLX FBX)
+    const id = vehicleId || this.currentVehicleId || gameState.selectedVehicleId;
+    if (this.customWheels.length >= 4 || id === 'honda_s2000' || id === 'bmw_e46' || id === 'lambo_aventador') {
+      // Custom 3D model already has its own 4 animated wheels or integrated wheels (e.g. Honda S2000, BMW M3, Lambo Aventador)
       this.wheelsGroup.visible = false;
       return;
     }
 
     // Models without separate wheel nodes use high-fidelity procedural wheels
     this.wheelsGroup.visible = true;
-
-    const id = vehicleId || this.currentVehicleId || gameState.selectedVehicleId;
 
     let halfTrack = this.dimensions.width * 0.44;
     let frontZ = this.dimensions.length * 0.28;
@@ -1042,8 +1186,19 @@ export class PlayerVehicle extends Vehicle {
     ctx.font = 'bold 10px sans-serif';
     ctx.fillText('x1000 RPM', tX, tY + 45);
 
-    // RPM Needle
-    const rpm = Math.min(7000, 850 + (speedKmh / 220) * 5600);
+    // RPM Needle - Realistic Powertrain Gear-Driven RPM
+    const gearThresholds = [0, 48, 92, 140, 188, 238, 330];
+    const gMin = gearThresholds[this.currentGear - 1] || 0;
+    const gMax = gearThresholds[this.currentGear] || 330;
+    const gearProgress = Math.min(1.0, Math.max(0.0, (speedKmh - gMin) / Math.max(1, gMax - gMin)));
+    const idleRpm = 950;
+    const redlineRpm = 7200;
+    const shiftRpm = 6800;
+    const dropRpm = 3800;
+    const targetRpm = this.currentGear === 1
+      ? idleRpm + gearProgress * (shiftRpm - idleRpm)
+      : dropRpm + gearProgress * (shiftRpm - dropRpm);
+    const rpm = Math.min(redlineRpm, Math.max(idleRpm, targetRpm));
     const rpmAngle = Math.PI * 0.75 + (rpm / 7000) * (Math.PI * 1.5);
     ctx.strokeStyle = '#ff6600';
     ctx.lineWidth = 4;
@@ -1130,7 +1285,8 @@ export class PlayerVehicle extends Vehicle {
 
     ctx.fillStyle = '#00ffaa';
     ctx.font = 'bold 9px sans-serif';
-    ctx.fillText('OPEL', 256, 164);
+    const brandName = (this.currentVehicleId || gameState.selectedVehicleId || '').split('_')[0].toUpperCase();
+    ctx.fillText(`${brandName}  D${this.currentGear}`, 256, 164);
 
     if (this.clusterTexture) {
       this.clusterTexture.needsUpdate = true;
@@ -1141,11 +1297,22 @@ export class PlayerVehicle extends Vehicle {
     if (!PlayerVehicle.turnSignalMaterial) {
       PlayerVehicle.turnSignalMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 });
     }
-    const geo = new THREE.BoxGeometry(0.14, 0.09, 0.12);
-    const fl = new THREE.Mesh(geo, PlayerVehicle.turnSignalMaterial);
-    const fr = new THREE.Mesh(geo, PlayerVehicle.turnSignalMaterial);
-    const rl = new THREE.Mesh(geo, PlayerVehicle.turnSignalMaterial);
-    const rr = new THREE.Mesh(geo, PlayerVehicle.turnSignalMaterial);
+    // Sleek, low-profile indicator capsule lens (flush with bumper/fender)
+    const lensGeo = new THREE.SphereGeometry(0.045, 10, 8);
+    lensGeo.scale(1.2, 0.65, 0.65);
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffaa00,
+      emissive: 0xff7700,
+      emissiveIntensity: 2.8,
+      roughness: 0.2,
+      metalness: 0.1,
+    });
+
+    const fl = new THREE.Mesh(lensGeo, mat);
+    const fr = new THREE.Mesh(lensGeo, mat);
+    const rl = new THREE.Mesh(lensGeo, mat);
+    const rr = new THREE.Mesh(lensGeo, mat);
 
     fl.visible = false;
     fr.visible = false;
@@ -1157,21 +1324,57 @@ export class PlayerVehicle extends Vehicle {
     this.mesh.add(rl);
     this.mesh.add(rr);
 
+    // Warm amber flashing point lights casting realistic illumination onto car flanks and pavement
+    this.leftSignalLight = new THREE.PointLight(0xff8800, 0, 5.5, 1.8);
+    this.rightSignalLight = new THREE.PointLight(0xff8800, 0, 5.5, 1.8);
+    this.mesh.add(this.leftSignalLight);
+    this.mesh.add(this.rightSignalLight);
+
     this.turnSignalMeshes = { fl, fr, rl, rr };
     this.updateTurnSignalPositions();
   }
 
   public updateTurnSignalPositions(): void {
     if (!this.turnSignalMeshes) return;
-    const halfW = (this.dimensions.width || 1.8) * 0.48;
-    const halfL = (this.dimensions.length || 4.2) * 0.48;
-    const frontY = (this.dimensions.height || 1.4) * 0.38;
-    const rearY = (this.dimensions.height || 1.4) * 0.42;
+    const id = this.currentVehicleId || gameState.selectedVehicleId || 'honda_s2000';
 
-    this.turnSignalMeshes.fl.position.set(-halfW, frontY, halfL);
-    this.turnSignalMeshes.fr.position.set(halfW, frontY, halfL);
-    this.turnSignalMeshes.rl.position.set(-halfW, rearY, -halfL);
-    this.turnSignalMeshes.rr.position.set(halfW, rearY, -halfL);
+    // Per-vehicle precise light cluster coordinates [fx, fy, fz, rx, ry, rz]
+    // Note: In Three.js with camera behind facing +Z, +X is LEFT, -X is RIGHT!
+    const signalCoords: Record<string, [number, number, number, number, number, number]> = {
+      honda_s2000:     [0.68, 0.58,  1.82,  0.64, 0.64, 1.82],
+      opel_corsa_b:    [0.66, 0.60,  1.70,  0.62, 0.74, 1.68],
+      golf_gti:        [0.72, 0.62,  1.92,  0.68, 0.72, 1.94],
+      mini_cooper:     [0.86, 0.48,  2.18,  0.80, 0.60, 2.15],
+      lambo_aventador: [0.86, 0.48,  2.18,  0.80, 0.60, 2.15],
+      bmw_e46:         [0.76, 0.62,  2.05,  0.72, 0.72, 2.05],
+      phantom_super:   [0.80, 0.52,  2.08,  0.76, 0.60, 2.04],
+      luxury_sedan:    [0.78, 0.62,  2.16,  0.74, 0.72, 2.16],
+      sport_racer:     [0.78, 0.54,  2.06,  0.74, 0.62, 2.04],
+    };
+
+    const cfg = signalCoords[id] || [
+      (this.dimensions.width || 1.8) * 0.38,
+      (this.dimensions.height || 1.4) * 0.44,
+      (this.dimensions.length || 4.2) * 0.46,
+      (this.dimensions.width || 1.8) * 0.36,
+      (this.dimensions.height || 1.4) * 0.48,
+      (this.dimensions.length || 4.2) * 0.46,
+    ];
+
+    const [fx, fy, fz, rx, ry, rz] = cfg;
+
+    // +X is LEFT, -X is RIGHT
+    this.turnSignalMeshes.fl.position.set(fx, fy, fz);
+    this.turnSignalMeshes.fr.position.set(-fx, fy, fz);
+    this.turnSignalMeshes.rl.position.set(rx, ry, -rz);
+    this.turnSignalMeshes.rr.position.set(-rx, ry, -rz);
+
+    if (this.leftSignalLight) {
+      this.leftSignalLight.position.set(fx + 0.15, (fy + ry) * 0.5, 0);
+    }
+    if (this.rightSignalLight) {
+      this.rightSignalLight.position.set(-fx - 0.15, (fy + ry) * 0.5, 0);
+    }
   }
 
   public toggleTurnSignal(side: 'left' | 'right'): void {

@@ -33,6 +33,7 @@ import { RaceStarterSystem } from '../systems/RaceStarterSystem';
 import { parkingLotManager } from '../parking/ParkingLotManager';
 import { parkingVehicleController } from '../parking/ParkingVehicleController';
 import { parkingSensor } from '../parking/ParkingSensor';
+import { MenuBackdropManager } from '../world/MenuBackdropManager';
 
 // Garage Idle Cinematic Showcase Angles (Centered around vehicle presentation area x=0)
 const GARAGE_IDLE_SHOTS = [
@@ -101,6 +102,7 @@ export class Game {
   private missionManager: MissionManager;
   private particleSystem: ParticleSystem;
   private uiManager: UIManager;
+  private menuBackdrop: MenuBackdropManager;
   private parkingLotManagerAttached = false;
 
   // Turntable platform & showroom for Garage
@@ -148,7 +150,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: !isMobile && window.devicePixelRatio < 2,
-      powerPreference: 'high-performance',
+      powerPreference: isMobile ? 'default' : 'high-performance',
       stencil: false,
     });
     this.renderer.setPixelRatio(isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
@@ -186,6 +188,9 @@ export class Game {
     this.economyManager = new EconomyManager();
     this.missionManager = MissionManager.getInstance();
 
+    this.menuBackdrop = new MenuBackdropManager();
+    this.scene.add(this.menuBackdrop.group);
+
     eventBus.on('nearMiss', () => {
       if (gameState.currentMode === 'TIME_ATTACK' && gameState.isPlaying) {
         gameState.addTimeAttackSeconds(GAME_CONSTANTS.TIME_ATTACK.NEAR_MISS_BONUS_SEC, 'NEAR MISS +3s');
@@ -201,6 +206,17 @@ export class Game {
     eventBus.on('graphicsQualityChanged', (payload: any) => {
       const q = typeof payload === 'string' ? payload : payload?.quality;
       if (q) this.applyGraphicsQuality(q);
+    });
+
+    eventBus.on('batterySaverChanged', (payload: any) => {
+      if (payload?.enabled) {
+        if (this.chaseCamera?.camera) {
+          this.chaseCamera.camera.far = 280;
+          this.chaseCamera.camera.updateProjectionMatrix();
+        }
+      } else {
+        this.applyGraphicsQuality(gameState.settings.graphicsQuality || 'high');
+      }
     });
 
     // Apply saved graphics quality
@@ -265,6 +281,19 @@ export class Game {
           audioManager.playClick();
           gameState.toggleParkingGear();
         }
+      }
+    });
+
+    // Background / Screen Lock battery sleep handler
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        audioManager.suspendContext();
+        if (gameState.isPlaying && !gameState.isPaused && gameState.currentScreen === 'PLAYING') {
+          this.pauseRace();
+        }
+      } else {
+        audioManager.resumeContext();
+        this.lastTime = performance.now();
       }
     });
 
@@ -586,14 +615,14 @@ export class Game {
     // Parallel load
     const playerModelPromise = this.playerVehicle.modelReadyPromise.catch(() => false);
 
-    this.uiManager.setLoadingProgress(35, '3D Araçlar ve Tofaş Paketi...');
+    this.uiManager.setLoadingProgress(35, '3D Garaj & Süperspor Araçlar...');
 
     // Trigger loads for packs in background
     npcPackManager.load().catch(() => false);
     cityPackManager.load().catch(() => false);
     shipManager.load().catch(() => false);
 
-    this.uiManager.setLoadingProgress(65, 'Kaplamalar ve Detaylar Hazırlanıyor...');
+    this.uiManager.setLoadingProgress(65, 'Gece Işıkları ve Boğaziçi Silüeti...');
 
     // Wait until player vehicle is loaded (or 5.5s timeout)
     await Promise.race([
@@ -601,7 +630,7 @@ export class Game {
       timeoutPromise,
     ]);
 
-    this.uiManager.setLoadingProgress(92, 'Tamamlanıyor...');
+    this.uiManager.setLoadingProgress(92, 'İstanbul Otoyolu Açılıyor...');
 
     setTimeout(() => {
       this.uiManager.setLoadingProgress(100, 'Hazır!');
@@ -667,6 +696,7 @@ export class Game {
     gameState.isPaused = false;
     gameState.setScreen(screen);
     this.uiManager.showScreen(screen);
+    this.menuBackdrop.setVisible(screen === 'MAIN_MENU');
 
     if (screen !== 'PLAYING') {
       this.isIntroActive = false;
@@ -1299,12 +1329,37 @@ export class Game {
   private startLoop(): void {
     this.isRunning = true;
     this.lastTime = performance.now();
+    const isMobile = isMobileDevice();
 
     const loop = (currentTime: number) => {
       if (!this.isRunning) return;
 
-      const rawDelta = (currentTime - this.lastTime) / 1000;
-      this.lastTime = currentTime;
+      // When tab/app is hidden, suspend loop rendering to save 100% CPU/GPU
+      if (document.hidden) {
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      // Dynamic Frame Rate Limiter:
+      // Battery Saver: 30 FPS in race, 24 FPS in menus (cuts power usage in half)
+      // Mobile Default: 60 FPS in active race, 30 FPS in menus/garage/boot/game-over (cuts heat by ~60%)
+      // Desktop Default: 60 FPS cap on menus, up to 120 FPS in active gameplay
+      const screen = gameState.currentScreen;
+      const isMenuScreen = screen === 'BOOT' || screen === 'GARAGE' || screen === 'GAME_OVER';
+      const isBatterySaver = gameState.settings.batterySaver;
+      const targetFps = isBatterySaver
+        ? (isMenuScreen ? 24 : 30)
+        : (isMobile ? (isMenuScreen ? 30 : 60) : (isMenuScreen ? 60 : 120));
+      const frameInterval = 1000 / targetFps;
+
+      const elapsed = currentTime - this.lastTime;
+      if (elapsed < frameInterval - 1.5) {
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      const rawDelta = elapsed / 1000;
+      this.lastTime = currentTime - (elapsed % frameInterval);
 
       // Cap delta time to prevent simulation explosion on tab blur, scaled by timeScale for slow-mo
       const delta = Math.min(rawDelta, 0.1) * gameState.timeScale;
@@ -1366,6 +1421,7 @@ export class Game {
       this.chaseCamera.updateMenuCinematic(delta, carPos);
       this.roadManager.update(carPos.z, delta, t);
       this.environment.update(delta);
+      this.menuBackdrop.update(delta);
       this.playerVehicle.updateExhaustFlames(false, delta);
       this.particleSystem.update(delta, carPos);
     }
@@ -1978,11 +2034,13 @@ export class Game {
         this.chaseCamera.camera.updateProjectionMatrix();
       }
     } else {
-      this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = isMobile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
-      this.renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.25) : Math.min(window.devicePixelRatio, 1.5));
+      // On mobile, keep dynamic shadow maps disabled even on 'high' to eliminate tile cache thrashing.
+      // High-res vehicle ground contact shadow decals are already rendered on the road with 0 extra draw passes.
+      this.renderer.shadowMap.enabled = !isMobile;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      this.renderer.setPixelRatio(isMobile ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
       if (this.chaseCamera?.camera) {
-        this.chaseCamera.camera.far = isMobile ? 400 : 480;
+        this.chaseCamera.camera.far = isMobile ? 380 : 480;
         this.chaseCamera.camera.updateProjectionMatrix();
       }
     }

@@ -26,7 +26,8 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
-  '.ttf': 'font/ttf'
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm'
 };
 
 const PORT = process.env.PORT || 5174;
@@ -153,7 +154,14 @@ function buildStandings(room) {
     }));
 }
 
+function heartbeat() {
+  this.isAlive = true;
+}
+
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', heartbeat);
+
   const playerId = 'p_' + Math.random().toString(36).substring(2, 9);
   let currentRoomCode = null;
 
@@ -251,10 +259,13 @@ wss.on('connection', (ws) => {
         case 'PLACE_BET': {
           if (!currentRoomCode) return;
           const room = rooms.get(currentRoomCode);
-          if (!room || room.status === 'FINISHED') return;
+          if (!room || room.status === 'FINISHED' || room.status === 'RACING') {
+            send(ws, { type: 'ERROR', message: 'Yarış başladıktan veya bittikten sonra bahis yapılamaz!' });
+            return;
+          }
 
           if (!room.bets) room.bets = new Map();
-          const betAmount = Math.max(50, parseInt(data.amount) || 100);
+          const betAmount = Math.min(50000, Math.max(50, parseInt(data.amount) || 100));
           room.bets.set(playerId, {
             spectatorId: playerId,
             targetPlayerId: data.targetPlayerId,
@@ -271,11 +282,11 @@ wss.on('connection', (ws) => {
 
         case 'CREATE_ROOM': {
           const roomCode = generateRoomCode();
-          const entryFee = Math.max(0, parseInt(data.entryFee) || 0);
+          const entryFee = Math.min(100000, Math.max(0, parseInt(data.entryFee) || 0));
           const room = {
             code: roomCode,
             mode: data.mode === 'SURVIVAL' ? 'SURVIVAL' : 'SPRINT',
-            targetDistance: data.targetDistance || 3000,
+            targetDistance: Math.min(20000, Math.max(500, parseInt(data.targetDistance) || 3000)),
             seed: Math.floor(Math.random() * 1000000),
             status: 'LOBBY',
             players: new Map(),
@@ -421,6 +432,7 @@ wss.on('connection', (ws) => {
           }
 
           room.status = 'RACING';
+          room.raceStartTime = Date.now();
           room.seed = Math.floor(Math.random() * 10000000);
 
           const startPayload = {
@@ -513,17 +525,26 @@ wss.on('connection', (ws) => {
         case 'REACHED_GOAL': {
           if (!currentRoomCode) return;
           const room = rooms.get(currentRoomCode);
-          if (!room || room.status === 'FINISHED') return;
+          if (!room || room.status !== 'RACING') return;
 
-          const p = room.players.get(playerId);
-          if (p) {
-            p.isFinished = true;
-            p.finishTime = data.finishTime || 0;
-            p.distance = data.distance || room.targetDistance;
+          const finishTime = Number(data.finishTime) || 0;
+          const actualElapsed = (Date.now() - (room.raceStartTime || Date.now())) / 1000;
+
+          // Anti-cheat: Sanity check race duration. Even at 400 km/h, impossible under 4 seconds.
+          if (actualElapsed < 4 || finishTime < 4) {
+            console.warn(`[AntiCheat] Suspicious finish rejected for ${playerId} in room ${currentRoomCode}: finishTime=${finishTime}s, actualElapsed=${actualElapsed}s`);
+            return;
           }
 
-          sendRaceFinished(room, playerId, p ? p.name : 'Şampiyon', 'GOAL_REACHED', data.finishTime);
-          console.log(`[Room ${currentRoomCode}] Goal reached by: ${p?.name} in ${data.finishTime}s!`);
+          const p = room.players.get(playerId);
+          if (p && !p.isFinished && !p.isCrashed) {
+            p.isFinished = true;
+            p.finishTime = finishTime;
+            p.distance = data.distance || room.targetDistance;
+            room.finishedAt = Date.now();
+            sendRaceFinished(room, playerId, p.name || 'Şampiyon', 'GOAL_REACHED', finishTime);
+            console.log(`[Room ${currentRoomCode}] Goal reached by: ${p.name} in ${finishTime}s!`);
+          }
           break;
         }
 
@@ -612,6 +633,37 @@ wss.on('connection', (ws) => {
   ws.on('close', handleDisconnect);
   ws.on('error', handleDisconnect);
 });
+
+// Periodic heartbeat: ping clients every 30s to detect broken connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log('[Heartbeat] Terminating inactive socket');
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch (e) {
+      ws.terminate();
+    }
+  });
+}, 30000);
+
+// Zombie room cleanup: remove empty or expired rooms every 60s
+const roomCleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of rooms) {
+    const totalOccupants = room.players.size + (room.spectators ? room.spectators.size : 0);
+    const isOld = now - (room.createdAt || 0) > 3600000; // Older than 1 hour
+    const isFinishedAndStale = room.status === 'FINISHED' && (now - (room.finishedAt || now) > 60000); // Finished > 1 min ago
+
+    if (totalOccupants === 0 || isOld || isFinishedAndStale) {
+      console.log(`[Cleanup] Removing stale room ${code} (occupants: ${totalOccupants}, status: ${room.status})`);
+      rooms.delete(code);
+    }
+  }
+}, 60000);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🏎️ [TrafficRush Multiplayer] WebSocket Server running on port ${PORT} (0.0.0.0)`);

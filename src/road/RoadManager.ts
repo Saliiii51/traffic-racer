@@ -23,6 +23,7 @@ export class RoadManager {
     // Sync two-way lane markings on mode/settings change
     eventBus.on('gameModeChanged', () => this.syncTwoWayMode());
     eventBus.on('trafficSettingsChanged', () => this.syncTwoWayMode());
+    eventBus.on('environmentChanged', () => this.rebuildAllSegments());
 
     // Asynchronously load 3D low poly city & bridge pack
     cityPackManager.load().then((loaded) => {
@@ -44,6 +45,12 @@ export class RoadManager {
       (gameState.currentMode === 'CUSTOM_TRAFFIC' && gameState.trafficSettings.direction === 'TWO_WAY');
     for (const segment of this.segments) {
       segment.updateTwoWayMode(isTwoWay);
+    }
+  }
+
+  public rebuildAllSegments(): void {
+    for (const segment of this.segments) {
+      segment.rebuildSegmentTheme();
     }
   }
 

@@ -83,18 +83,11 @@ export interface VehicleCockpitConfig {
 }
 
 export const VEHICLE_COCKPIT_CONFIGS: Record<string, VehicleCockpitConfig> = {
-  tofas_gltf: {
-    offsetX: 0.35,
-    offsetY: 1.08,
-    offsetZ: -0.05,
-    lookAtY: 1.04,
-    fov: 74,
-  },
-  starter_coupe: {
-    offsetX: 0.35,
-    offsetY: 1.12,
-    offsetZ: -0.06,
-    lookAtY: 1.06,
+  honda_s2000: {
+    offsetX: 0.33,
+    offsetY: 0.98,
+    offsetZ: -0.18,
+    lookAtY: 0.94,
     fov: 74,
   },
   opel_corsa_b: {
@@ -112,17 +105,24 @@ export const VEHICLE_COCKPIT_CONFIGS: Record<string, VehicleCockpitConfig> = {
     fov: 72,
   },
   mini_cooper: {
-    offsetX: 0.33,
-    offsetY: 1.12,
-    offsetZ: -0.08,
-    lookAtY: 1.08,
-    fov: 72,
+    offsetX: 0.35,
+    offsetY: 0.88,
+    offsetZ: -0.18,
+    lookAtY: 0.82,
+    fov: 76,
+  },
+  lambo_aventador: {
+    offsetX: 0.35,
+    offsetY: 0.88,
+    offsetZ: -0.18,
+    lookAtY: 0.82,
+    fov: 76,
   },
   bmw_e46: {
-    offsetX: 0.36,
-    offsetY: 1.18,
-    offsetZ: -0.10,
-    lookAtY: 1.12,
+    offsetX: 0.35,
+    offsetY: 1.15,
+    offsetZ: -0.15,
+    lookAtY: 1.06,
     fov: 72,
   },
   phantom_super: {
@@ -763,7 +763,7 @@ export class ChaseCamera {
   }
 
   public reset(playerZ = 0, playerX = 0): void {
-    const preset = CAMERA_PRESETS[this.mode];
+    const preset = CAMERA_PRESETS[this.mode] || CAMERA_PRESETS.CHASE;
     this.cockpitYaw = 0;
     this.cockpitPitch = 0;
     this.targetCockpitYaw = 0;
@@ -850,7 +850,7 @@ export class ChaseCamera {
   }
 
   public getEffectivePreset(player?: CameraFollowTarget): CameraPreset {
-    const preset = CAMERA_PRESETS[this.mode];
+    const preset = CAMERA_PRESETS[this.mode] || CAMERA_PRESETS.CHASE;
     if (this.mode !== 'INTERIOR' || !player) {
       return preset;
     }
@@ -1203,6 +1203,7 @@ export class ChaseCamera {
   }
 
   public setMode(mode: CameraViewMode): void {
+    if (!CAMERA_PRESETS[mode]) mode = 'CHASE';
     if (this.mode !== mode) {
       this.mode = mode;
       this.modeJustChanged = true;
